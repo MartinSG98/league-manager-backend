@@ -104,7 +104,7 @@ def record_game(cat: Catalog, career: Career, match: Match, result: match_engine
         season.rating_sum += line.rating
         season.mvps += 1 if record.mvp == line.player else 0
         season.champions[line.champion] = season.champions.get(line.champion, 0) + 1
-        state.form = max(-3.0, min(3.0, state.form * 0.85 + (line.rating - 6.5) * 0.25))
+        state.form = max(-3.0, min(3.0, state.form * 0.85 + (line.rating - 6.3) * 0.25))
         state.fatigue = min(100, state.fatigue + 6)
         # Playing a champion on stage teaches it, a little.
         known = roster.mastery(cat, career, line.player, line.champion)

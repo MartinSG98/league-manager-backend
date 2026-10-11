@@ -431,7 +431,7 @@ class Game:
             cs = ROLE_CS[role] * minutes * (1 + max(-0.15, min(0.15, edge))) * (0.95 + self.rng.next() * 0.1)
             gold = gs.gold * ROLE_GOLD[role] + st["k"] * 150
             damage = team_damage * dmg_w[role] / dmg_total * (0.85 + self.rng.next() * 0.3)
-            perf = 6.0 + (0.38 * st["k"] + 0.2 * st["a"] - 0.42 * st["d"]) * min(1.3, 30 / max(minutes, 15))
+            perf = 5.5 + (0.3 * st["k"] + 0.12 * st["a"] - 0.35 * st["d"]) * min(1.15, 28 / max(minutes, 15))
             perf += 0.7 if won else -0.2
             # How the matchup looked on paper nudges the rating, the line itself decides it.
             perf += max(-0.8, min(0.8, (gs.power[role] - self.other(gs).power[role]) / 15))
