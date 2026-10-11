@@ -489,7 +489,8 @@ def _plays_choice(cat: Catalog, career: Career, match: Match) -> dict:
 
 def training_view(cat: Catalog, career: Career) -> dict:
     team = career.teams[career.team]
-    latest = next((m for m in reversed(career.inbox) if m.report and m.report.get("kind") == "review"), None)
+    latest = next((m for m in reversed(career.inbox) if m.report and m.report.get("kind") == "review"
+                   and m.report.get("team") == career.team), None)
     players = []
     for pid in team.roster:
         state = career.players[pid]

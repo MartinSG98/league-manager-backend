@@ -405,7 +405,8 @@ def review(cat: Catalog, career: Career) -> InboxMessage | None:
     lines = [f"{who} watched our last {len(recent)} games.", lead, ""]
     lines += [f"- {AREAS[a]}: {reading[a]['line']}" for a in ranked]
     report = {
-        "kind": "review", "games": len(recent), "analyst": analyst.name if analyst else None, "skill": skill,
+        "kind": "review", "team": career.team, "games": len(recent), "analyst": analyst.name if analyst else None,
+        "skill": skill,
         "recommend": recommend,
         "areas": [{"area": a, "label": AREAS[a], "line": reading[a]["line"], "score": round(reading[a]["score"], 2),
                    "level": round(career.teams[career.team].skills.get(a, 10.0), 1)} for a in ranked],
