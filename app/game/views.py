@@ -42,6 +42,7 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "league": p.league,
         "origin": {"id": origin.id, "name": origin.name, "tag": origin.tag, "logo": origin.logo} if origin else None,
         "team": state.team,
+        "franchise": bool(state.team and career.teams.get(state.team) and career.teams[state.team].franchise == pid),
         "overall": roster.overall(cat, career, pid),
         "potential": p.potential,
         "salary": state.contract.salary if state.contract else p.salary,
