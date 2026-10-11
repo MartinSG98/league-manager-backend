@@ -1,7 +1,7 @@
 # 0006. A franchise player and a snake draft at fixed salaries
 
 Date: 2026-10-11
-Status: Accepted
+Status: Accepted. The draft happens once per career; later off-seasons are a transfer window, see [0013](0013-a-transfer-window-instead-of-a-yearly-draft.md)
 
 ## Context
 

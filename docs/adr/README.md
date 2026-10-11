@@ -16,3 +16,6 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0008](0008-match-engine-tuned-with-a-harness.md) | Match engine tuned with a harness | Accepted |
 | [0009](0009-logos-and-photos-linked-from-lolesports.md) | Logos and photos linked from lolesports.com | Accepted |
 | [0010](0010-staff-from-liquipedia-with-own-ratings.md) | Staff from Liquipedia, with this game's own ratings | Accepted |
+| [0011](0011-training-areas-and-set-plays.md) | Training: team areas, set plays and a weekly plan | Accepted |
+| [0012](0012-the-board-and-reputation.md) | A board that sets objectives, and reputation in stars | Accepted |
+| [0013](0013-a-transfer-window-instead-of-a-yearly-draft.md) | A transfer window instead of a yearly draft | Accepted |

@@ -30,11 +30,15 @@ def mastery(cat: Catalog, career: Career, pid: str, champion: str) -> int:
     return min(100, known + career.players[pid].learned.get(champion, 0))
 
 
-def payroll(career: Career, team: TeamState) -> int:
-    """Players and staff under contract."""
-    players = sum(career.players[pid].contract.salary for pid in team.roster if career.players[pid].contract)
+def payroll(career: Career, team: TeamState, season: int | None = None) -> int:
+    """Players and staff under contract, or only the contracts that still run in `season`."""
+
+    def counts(contract) -> bool:
+        return contract is not None and (season is None or contract.until >= season)
+
+    players = sum(career.players[pid].contract.salary for pid in team.roster if counts(career.players[pid].contract))
     staff = sum(career.staff[sid].contract.salary for sid in (team.coach, team.analyst)
-                if sid and sid in career.staff and career.staff[sid].contract)
+                if sid and sid in career.staff and counts(career.staff[sid].contract))
     return players + staff
 
 

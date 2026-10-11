@@ -47,6 +47,13 @@ def test_a_career_from_draft_to_a_played_game(client):
     career = client.post("/api/careers", json={"manager": "Martin", "team": "G2", "seed": 99}).json()
     save = career["id"]
     assert career["phase"] == "draft" and career["draft"]["number"] == 1
+    assert career["board"]["meeting"] and career["board"]["objectives"]
+    r = client.post(f"/api/careers/{save}/actions", json={"type": "draft_next", "until_mine": True})
+    assert r.json()["career"]["draft"]["number"] == 1, "the draft waits for the board meeting"
+    meeting = client.get(f"/api/careers/{save}/board").json()
+    assert all(len(o["options"]) == 3 for o in meeting["objectives"])
+    career = act(client, save, {"type": "board_meeting", "stances": {"split1": 1}})["career"]
+    assert not career["board"]["meeting"]
     career = act(client, save, {"type": "draft_next", "until_mine": True})["career"]
     assert career["draft"]["my_turn"]
 
@@ -99,6 +106,13 @@ def test_a_career_from_draft_to_a_played_game(client):
 
     career = act(client, save, {"type": "sim_series"})["career"]
     assert career["live"] is None
+
+    training = client.get(f"/api/careers/{save}/training").json()
+    assert len(training["areas"]) == 5 and training["players"]
+    act(client, save, {"type": "set_training", "load": "heavy", "focus": ["closing", "early_game"]})
+    assert client.get(f"/api/careers/{save}/training").json()["load"] == "heavy"
+    window = client.get(f"/api/careers/{save}/transfers").json()
+    assert window["open"] is False
 
     comps = client.get(f"/api/careers/{save}/competitions").json()
     lec = next(c for c in comps if c["league"] == "LEC")

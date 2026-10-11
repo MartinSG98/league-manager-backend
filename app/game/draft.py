@@ -86,7 +86,7 @@ def _set_budgets(cat: Catalog, career: Career, league: str) -> None:
         scale = max(0.82, min(1.18, 0.85 + 0.3 * (prestige - 60) / 40))
         franchise = career.players[state.franchise].contract.salary if state.franchise else 0
         state.budget = int(round((franchise + (REQUIRED_ROUNDS * typical + staff_cost) * scale + bench_cost) / 10) * 10)
-        state.cash = int(state.budget * 0.6)
+        state.cash = int(state.budget * 0.25)
 
 
 # ---------- the pool ----------

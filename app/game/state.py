@@ -34,6 +34,13 @@ class PlayerSeason(BaseModel):
     champions: dict[str, int] = {}
 
 
+class PlayerTraining(BaseModel):
+    """What a player works on in their own time, on top of the team's scrims."""
+
+    attribute: str | None = None  # one of ratings.ATTRIBUTES
+    champion: str | None = None  # a champion to learn
+
+
 class PlayerState(BaseModel):
     id: str
     team: str | None = None  # None is a free agent
@@ -41,9 +48,15 @@ class PlayerState(BaseModel):
     form: float = 0.0  # -3..3, recent performances
     morale: int = 70  # 0..100
     fatigue: int = 0  # 0..100
+    sharpness: int = 70  # 0..100, kept up by scrims; low means complacent
+    burnout: int = 0  # weeks left of a burnout
     growth: dict[str, float] = {}  # attribute change since the catalog, can go negative
     learned: dict[str, int] = {}  # mastery gained on champions since the catalog
     season: PlayerSeason = PlayerSeason()
+    development: list[float] = []  # this season's weekly training quality, feeds the off-season growth
+    training: PlayerTraining = PlayerTraining()
+    unsettled: bool = False  # wants to leave
+    promise: int | None = None  # season in which the manager promised to let them go for a big offer
 
 
 class Tactics(BaseModel):
@@ -58,6 +71,15 @@ class StaffState(BaseModel):
     contract: Contract | None = None
 
 
+Load = Literal["light", "normal", "heavy", "intense"]
+
+
+class Training(BaseModel):
+    load: Load = "normal"  # how hard the team scrims
+    focus: list[str] = []  # up to two team areas, see training.AREAS
+    play: str | None = None  # the set play being drilled, see plays.PLAYS
+
+
 class TeamState(BaseModel):
     id: str
     league: str
@@ -70,6 +92,11 @@ class TeamState(BaseModel):
     cash: int = 0  # bank balance, thousands of USD
     tactics: Tactics = Tactics()
     together: dict[str, float] = {}  # "a|b" -> games two players have started together, a good coach counts more
+    reputation: float = 0  # 0..100, 0 until a career sets it from the catalog's prestige
+    skills: dict[str, float] = {}  # team area -> 1..20, what scrims build
+    plays: dict[str, float] = {}  # set play -> 0..100 learned
+    training: Training = Training()
+    listed: list[str] = []  # players the team would sell
 
 
 class DraftPick(BaseModel):
@@ -152,6 +179,12 @@ class GameRecord(BaseModel):
     players: list[PlayerLine]
     mvp: str | None = None
     detailed: bool = False  # a full timeline is stored next to the career
+    gold15: int = 0  # blue minus red gold at 15 minutes
+    leads: list[int] = [0, 0]  # the biggest gold lead blue and red had
+    fights: list[int] = [0, 0]  # teamfights won
+    throws: list[int] = [0, 0]  # fights blue and red threw away while well ahead
+    plays: dict[str, str] = {}  # team -> set play run
+    play_results: dict[str, bool] = {}  # team -> whether it worked
 
 
 class Match(BaseModel):
@@ -168,6 +201,7 @@ class Match(BaseModel):
     away_from: str | None = None
     games: list[GameRecord] = []
     winner: str | None = None
+    plays_used: dict[str, list[str]] = {}  # team -> set plays already run in this series
 
     @property
     def score(self) -> tuple[int, int]:
@@ -240,11 +274,14 @@ class MetaState(BaseModel):
 class InboxMessage(BaseModel):
     id: int
     day: date
-    kind: Literal["news", "draft", "match", "patch", "board", "contract", "finance", "scouting", "staff"]
+    kind: Literal["news", "draft", "match", "patch", "board", "contract", "finance", "scouting", "staff", "transfer",
+                  "player", "training"]
     subject: str
     body: str
     read: bool = False
-    report: dict | None = None  # a scouting report's structured content, for the client to draw
+    report: dict | None = None  # structured content for the client to draw: a scouting report, a review
+    offer: int | None = None  # the transfer offer this message is about
+    conversation: int | None = None  # the talk a player asked for
 
 
 # ---------- the series being played by the manager's team ----------
@@ -267,6 +304,7 @@ class LiveSeries(BaseModel):
     our_side: Side = "blue"
     phase: Literal["lineup", "draft", "ready", "result"] = "lineup"
     select: ChampSelect = ChampSelect()
+    play: str | None = None  # the set play chosen for this game
 
 
 class SeasonSummary(BaseModel):
@@ -288,9 +326,63 @@ class Negotiation(BaseModel):
     message: str = ""
 
 
+class Objective(BaseModel):
+    """One thing the board expects this season: a finish in a split, or how far to go at Worlds."""
+
+    id: str
+    kind: Literal["split", "worlds"]
+    split: int | None = None
+    target: int  # split: this place or better; worlds: a step of board.WORLDS_STEPS
+    proposed: int  # what the board asked for before the meeting
+    status: Literal["pending", "met", "failed"] = "pending"
+    result: str = ""
+
+
+class BoardState(BaseModel):
+    season: int = 0  # the season the objectives are for
+    confidence: int = 60  # 0..100
+    objectives: list[Objective] = []
+    meeting: bool = False  # a meeting about the objectives is waiting
+    warned: bool = False  # one more bad review and the manager is sacked
+    sacked: bool = False
+    joined: date | None = None  # when the manager took this job
+    history: list[str] = []  # the board's reviews, newest last
+
+
+class TransferOffer(BaseModel):
+    """A bid for a player under contract: an AI club bidding for the manager's player, or the
+    manager bidding for someone else's."""
+
+    id: int
+    player: str
+    buyer: str
+    seller: str
+    fee: int  # thousands of USD
+    day: date
+    expires: date
+    status: Literal["open", "agreed", "completed", "rejected", "withdrawn", "expired", "collapsed"] = "open"
+    counter: int | None = None  # the selling club's asking fee
+    rounds: int = 0
+    note: str = ""
+
+
+class Conversation(BaseModel):
+    """A player asked to talk to the manager."""
+
+    id: int
+    player: str
+    topic: Literal["rejected_bid", "broken_promise"]
+    team: str | None = None  # the club that wanted them
+    day: date
+    expires: date
+    resolved: bool = False
+    outcome: str = ""
+
+
 class Career(BaseModel):
     version: int = 1
     rs: int
+    seed: int = 0  # fixed at creation, for hidden values that must never change
     manager: str
     team: str
     region: str
@@ -310,6 +402,14 @@ class Career(BaseModel):
     history: list[SeasonSummary] = []
     negotiations: dict[str, Negotiation] = {}
     next_message: int = 1
+    manager_reputation: float = 0  # 0..100, what other clubs think of the manager
+    board: BoardState = BoardState()
+    job_offers: list[str] = []  # clubs that want the manager after a sacking
+    offers: list[TransferOffer] = []
+    conversations: list[Conversation] = []
+    transfers: list[dict] = []  # completed moves this window, newest last
+    next_offer: int = 1
+    reviewed_games: int = 0  # the manager's games the analyst had seen at the last review
 
 
 # ---------- actions the client can post ----------
@@ -415,7 +515,66 @@ class ReleaseAction(BaseModel):
 
 
 class NextSeasonAction(BaseModel):
-    type: Literal["next_season"]
+    type: Literal["next_season"]  # move through the rest of the off-season to the new season
+
+
+class BoardMeetingAction(BaseModel):
+    type: Literal["board_meeting"]
+    stances: dict[str, int] = {}  # objective id -> -1 (ask for less), 0 (accept) or 1 (promise more)
+
+
+class AcceptJobAction(BaseModel):
+    type: Literal["accept_job"]
+    team: str
+
+
+class SetTrainingAction(BaseModel):
+    type: Literal["set_training"]
+    load: Load | None = None
+    focus: list[str] | None = None
+    play: str | None = None
+    clear_play: bool = False
+
+
+class SetPlayerTrainingAction(BaseModel):
+    type: Literal["set_player_training"]
+    player: str
+    attribute: str | None = None
+    champion: str | None = None
+
+
+class SetPlayAction(BaseModel):
+    type: Literal["set_play"]
+    play: str | None = None
+
+
+class TransferBidAction(BaseModel):
+    type: Literal["transfer_bid"]
+    player: str
+    fee: int
+
+
+class WithdrawBidAction(BaseModel):
+    type: Literal["withdraw_bid"]
+    offer: int
+
+
+class RespondOfferAction(BaseModel):
+    type: Literal["respond_offer"]
+    offer: int
+    response: Literal["accept", "reject", "negotiate"]
+
+
+class TransferListAction(BaseModel):
+    type: Literal["transfer_list"]
+    player: str
+    listed: bool
+
+
+class TalkAction(BaseModel):
+    type: Literal["talk"]
+    conversation: int
+    choice: Literal["vital", "promise", "final"]
 
 
 Action = Annotated[
@@ -424,6 +583,7 @@ Action = Annotated[
     | SetLineupAction | SetTacticsAction | StartDraftAction | BanAction | PickAction | AutoSelectAction
     | OpponentTurnAction | PlayGameAction
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction
-    | NextSeasonAction,
+    | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
+    | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction,
     Field(discriminator="type"),
 ]

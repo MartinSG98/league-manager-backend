@@ -2,13 +2,17 @@
 
 The home team (the higher seed) is on blue side in game one; after that the loser of the last
 game picks a side and takes blue. Best-of series use fearless draft: a champion played by either
-team in an earlier game of the series cannot be picked again."""
+team in an earlier game of the series cannot be picked again.
+
+After champion select each side may call one set play it has not run yet in the series (see
+plays.py). The manager's assistant suggests one; AI sides pick their own."""
 
 from dataclasses import dataclass, field
 
 from app.game import champ_select as cs
 from app.game import competitions as comps
-from app.game import match_engine, patches, roster
+from app.game import match_engine, patches, roster, training
+from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.errors import IllegalAction
@@ -107,7 +111,8 @@ def record_game(cat: Catalog, career: Career, match: Match, result: match_engine
         season.mvps += 1 if record.mvp == line.player else 0
         season.champions[line.champion] = season.champions.get(line.champion, 0) + 1
         state.form = max(-3.0, min(3.0, state.form * 0.85 + (line.rating - 6.3) * 0.25))
-        state.fatigue = min(100, state.fatigue + 6)
+        state.fatigue = min(100, state.fatigue + training.MATCH_FATIGUE)
+        state.sharpness = min(100, state.sharpness + training.MATCH_SHARPNESS)
         # Playing a champion on stage teaches it, a little, more with a good coach.
         known = roster.mastery(cat, career, line.player, line.champion)
         if known < 80:
@@ -118,6 +123,10 @@ def record_game(cat: Catalog, career: Career, match: Match, result: match_engine
         if team in career.teams:
             weight = staffing.familiarity_per_game(staffing.attribute(cat, career, team, "motivation"))
             roster.record_games_together(career.teams[team], lineup, weight)
+    for team, play in record.plays.items():
+        used = match.plays_used.setdefault(team, [])
+        if play not in used:
+            used.append(play)
 
 
 def finish_match(cat: Catalog, career: Career, match: Match) -> None:
@@ -142,14 +151,26 @@ def play_ai_game(cat: Catalog, career: Career, match: Match, rng: Rng, detailed:
     select = ChampSelect(locked=fearless_locks(match))
     teams = draft_sides(cat, career, blue, red)
     cs.run_ai(cat, career, select, teams, rng, human=None)
-    return _simulate(cat, career, match, select, teams, rng)
+    calls = {blue: ai_play(cat, career, match, blue, red, select.blue_picks, rng),
+             red: ai_play(cat, career, match, red, blue, select.red_picks, rng)}
+    return _simulate(cat, career, match, select, teams, rng, calls)
+
+
+def ai_play(cat: Catalog, career: Career, match: Match, team: str, enemy: str, picks: dict[str, str],
+            rng: Rng | None) -> str | None:
+    if team not in career.teams or enemy not in career.teams:
+        return None
+    return set_plays.choose(cat, career, team, enemy, match, cs.focus_bias(cat, picks), rng)
 
 
 def _simulate(cat: Catalog, career: Career, match: Match, select: ChampSelect, teams: dict[str, cs.DraftSide],
-              rng: Rng) -> match_engine.GameResult:
+              rng: Rng, calls: dict[str, str | None] | None = None) -> match_engine.GameResult:
     blue, red = teams["blue"], teams["red"]
-    gb = match_engine.prepare(cat, career, "blue", blue.team, blue.lineup, dict(select.blue_picks), blue.tactics)
-    gr = match_engine.prepare(cat, career, "red", red.team, red.lineup, dict(select.red_picks), red.tactics)
+    calls = calls or {}
+    gb = match_engine.prepare(cat, career, "blue", blue.team, blue.lineup, dict(select.blue_picks), blue.tactics,
+                              calls.get(blue.team))
+    gr = match_engine.prepare(cat, career, "red", red.team, red.lineup, dict(select.red_picks), red.tactics,
+                              calls.get(red.team))
     number = len(match.games) + 1
     result = match_engine.simulate(cat, career, gb, gr, rng, number, (select.blue_bans, select.red_bans))
     record_game(cat, career, match, result, {blue.team: blue.lineup, red.team: red.lineup})
@@ -193,10 +214,32 @@ def start_champ_select(cat: Catalog, career: Career, rng: Rng) -> None:
     live.phase = "draft"
 
 
-def _check_ready(career: Career) -> None:
+def _check_ready(cat: Catalog, career: Career) -> None:
     live = career.live
     if live and live.phase == "draft" and cs.turn(live.select) is None:
         live.phase = "ready"
+        # The assistant's suggestion is called unless the manager picks another play or none.
+        match = live_match(career)
+        enemy = opponent(career, match)
+        picks = live.select.blue_picks if live.our_side == "blue" else live.select.red_picks
+        live.play = ai_play(cat, career, match, career.team, enemy, picks, None)
+
+
+def opponent(career: Career, match: Match) -> str:
+    return (match.away if match.home == career.team else match.home) or ""
+
+
+def set_play(cat: Catalog, career: Career, play: str | None) -> None:
+    live = career.live
+    if live is None or live.phase != "ready":
+        raise IllegalAction("Set plays are called after champion select")
+    if play is not None:
+        match = live_match(career)
+        if play not in set_plays.PLAYS:
+            raise IllegalAction("Unknown set play")
+        if play not in set_plays.available(career, career.team, match):
+            raise IllegalAction("The team cannot run that play in this series")
+    live.play = play
 
 
 def _running_select(career: Career) -> ChampSelect:
@@ -208,12 +251,12 @@ def _running_select(career: Career) -> ChampSelect:
 
 def human_ban(cat: Catalog, career: Career, champion: str, rng: Rng) -> None:
     cs.ban(_running_select(career), career.live.our_side, champion)
-    _check_ready(career)
+    _check_ready(cat, career)
 
 
 def human_pick(cat: Catalog, career: Career, champion: str, role: str, rng: Rng) -> None:
     cs.pick(cat, _running_select(career), career.live.our_side, champion, role)
-    _check_ready(career)
+    _check_ready(cat, career)
 
 
 def opponent_turn(cat: Catalog, career: Career, rng: Rng, until_mine: bool = False) -> None:
@@ -229,7 +272,7 @@ def opponent_turn(cat: Catalog, career: Career, rng: Rng, until_mine: bool = Fal
         cs.run_ai(cat, career, select, teams, rng, human=career.live.our_side)
     else:
         cs.ai_step(cat, career, select, teams, rng)
-    _check_ready(career)
+    _check_ready(cat, career)
 
 
 def auto_select(cat: Catalog, career: Career, rng: Rng) -> None:
@@ -243,7 +286,7 @@ def auto_select(cat: Catalog, career: Career, rng: Rng) -> None:
     match = live_match(career)
     blue, red = sides(match)
     cs.run_ai(cat, career, live.select, draft_sides(cat, career, blue, red), rng, human=None)
-    _check_ready(career)
+    _check_ready(cat, career)
 
 
 def play_live_game(cat: Catalog, career: Career, rng: Rng) -> Detail:
@@ -253,7 +296,11 @@ def play_live_game(cat: Catalog, career: Career, rng: Rng) -> Detail:
     match = live_match(career)
     blue, red = sides(match)
     teams = draft_sides(cat, career, blue, red)
-    result = _simulate(cat, career, match, live.select, teams, rng)
+    enemy = opponent(career, match)
+    enemy_picks = live.select.red_picks if live.our_side == "blue" else live.select.blue_picks
+    calls = {career.team: live.play if live.play in set_plays.available(career, career.team, match) else None,
+             enemy: ai_play(cat, career, match, enemy, career.team, enemy_picks, rng)}
+    result = _simulate(cat, career, match, live.select, teams, rng, calls)
     match.games[-1].detailed = True
     live.phase = "result"
     return _detail(match, result)

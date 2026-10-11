@@ -7,12 +7,16 @@ without a team; an unhappy player wants more to stay. Each player also has a hid
 between 86 and 97 percent of the ask. An offer at or above the floor is accepted, one within
 reach gets a counter halfway between offer and ask, and three failed rounds, or an offer
 under 60 percent, end the talks for three weeks. Every year away from the preferred length
-counts as 5 percent off the offer."""
+counts as 5 percent off the offer.
+
+Players also look at the club (see transfers.interest): one far above the club's reputation will
+not talk at all, a reluctant one asks 15 percent more. A player under contract elsewhere can only
+be talked to once their club has accepted a transfer fee; signing them pays the fee."""
 
 from dataclasses import dataclass
 from datetime import timedelta
 
-from app.game import roster
+from app.game import reputation, roster
 from app.game.catalog import ROLES, Catalog
 from app.game.errors import IllegalAction
 from app.game.ratings import asking_salary
@@ -37,12 +41,15 @@ def _flexibility(pid: str, season: int) -> float:
 
 
 def ask(cat: Catalog, career: Career, pid: str) -> Ask:
+    from app.game import transfers
+
     player = cat.players[pid]
     state = career.players[pid]
     team = cat.teams[career.team]
     rating = roster.overall(cat, career, pid)
     salary = asking_salary(rating, player.reputation, team.region)
-    salary *= 1 + max(-0.1, (player.reputation - team.prestige) / 250)
+    salary *= 1 + max(-0.1, (player.reputation - reputation.team_reputation(cat, career, career.team)) / 250)
+    salary *= transfers.reluctance_premium(transfers.interest(cat, career, pid, career.team)[0])
     if state.team == career.team:
         salary *= 1 + (70 - state.morale) / 200
     elif state.team is None and career.phase == "season":
@@ -55,6 +62,19 @@ def ask(cat: Catalog, career: Career, pid: str) -> Ask:
         years = 2
     salary = int(round(salary / 5) * 5)
     return Ask(salary=salary, years=years, floor=int(salary * _flexibility(pid, career.season)))
+
+
+def committed(career: Career, team) -> int:
+    """Payroll the budget is measured against: next season's contracts during the off-season."""
+    return roster.payroll(career, team, season=career.season + 1 if career.phase == "offseason" else None)
+
+
+def _current(career: Career, pid: str, kind: str) -> int:
+    """The salary an extension replaces, if it still counts against the budget."""
+    contract = career.players[pid].contract
+    if kind != "extend" or contract is None or career.phase == "offseason":
+        return 0
+    return contract.salary
 
 
 def _talks(career: Career, pid: str, kind: str) -> Negotiation:
@@ -70,19 +90,27 @@ def kind_of(career: Career, pid: str) -> str:
 
 
 def check_can_talk(cat: Catalog, career: Career, pid: str) -> str | None:
+    from app.game import transfers
+
     if pid not in cat.players:
         return "Unknown player"
     state = career.players[pid]
     if career.live is not None:
         return "Not during a match"
-    if state.team not in (None, career.team):
+    if career.board.sacked:
+        return "You have no club right now"
+    if state.team not in (None, career.team) and transfers.agreed(career, pid) is None:
         return f"{cat.players[pid].name} is under contract with another team"
+    if state.team != career.team:
+        level, why = transfers.interest(cat, career, pid, career.team)
+        if level == "refuses":
+            return why
     if state.team is None and career.phase == "draft":
         return "Free agents can be signed once the draft is over"
     talks = career.negotiations.get(pid)
     if talks and talks.blocked_until and career.day < talks.blocked_until:
         return f"{cat.players[pid].name} does not want to talk until {talks.blocked_until:%d %B}"
-    if state.team is None:
+    if state.team != career.team:
         team = career.teams[career.team]
         if len(team.roster) >= MAX_ROSTER:
             return f"Your roster is full ({MAX_ROSTER} players), release someone first"
@@ -101,8 +129,8 @@ def offer(cat: Catalog, career: Career, pid: str, salary: int, years: int) -> Ne
         raise IllegalAction("Offer a salary")
     kind = kind_of(career, pid)
     team = career.teams[career.team]
-    current = career.players[pid].contract.salary if kind == "extend" and career.players[pid].contract else 0
-    if roster.payroll(career, team) - current + salary > team.budget:
+    current = _current(career, pid, kind)
+    if committed(career, team) - current + salary > team.budget:
         raise IllegalAction("That salary does not fit your budget")
     talks = _talks(career, pid, kind)
     want = ask(cat, career, pid)
@@ -135,8 +163,8 @@ def accept_counter(cat: Catalog, career: Career, pid: str) -> Negotiation:
     if problem:
         raise IllegalAction(problem)
     team = career.teams[career.team]
-    current = career.players[pid].contract.salary if talks.kind == "extend" and career.players[pid].contract else 0
-    if roster.payroll(career, team) - current + talks.counter > team.budget:
+    current = _current(career, pid, talks.kind)
+    if committed(career, team) - current + talks.counter > team.budget:
         raise IllegalAction("That salary does not fit your budget")
     _sign(cat, career, pid, talks.counter, talks.counter_years or 2)
     talks.message = f"{cat.players[pid].name} signs for {talks.counter}k a season."
@@ -145,6 +173,9 @@ def accept_counter(cat: Catalog, career: Career, pid: str) -> Negotiation:
 
 
 def _sign(cat: Catalog, career: Career, pid: str, salary: int, years: int) -> None:
+    from app.game import transfers
+
+    bought = transfers.complete_purchase(cat, career, pid)
     state = career.players[pid]
     team = career.teams[career.team]
     first = career.season if career.phase != "offseason" else career.season + 1
@@ -156,6 +187,8 @@ def _sign(cat: Catalog, career: Career, pid: str, salary: int, years: int) -> No
         team.lineup.setdefault(role, pid)
         state.morale = max(state.morale, 75)
         subject = f"{cat.players[pid].name} joins {cat.teams[career.team].name}"
+        if bought:
+            subject += f" from {cat.teams[bought.seller].name} for {bought.fee}k"
     else:
         state.morale = min(100, state.morale + 8)
         subject = f"{cat.players[pid].name} signs a new contract"
@@ -195,21 +228,26 @@ def release(cat: Catalog, career: Career, pid: str) -> int:
 
 
 def negotiation_view(cat: Catalog, career: Career, pid: str) -> dict:
+    from app.game import transfers
+
     want = ask(cat, career, pid)
     talks = career.negotiations.get(pid)
     team = career.teams[career.team]
-    state = career.players[pid]
-    current = state.contract.salary if state.team == career.team and state.contract else 0
+    kind = kind_of(career, pid)
+    current = _current(career, pid, kind)
+    level, why = transfers.interest(cat, career, pid, career.team)
     # The agent's opening line gives a range, never the floor itself.
     return {
         "player": pid,
-        "kind": kind_of(career, pid),
+        "kind": kind,
         "asking": want.salary,
         "years": want.years,
         "hint": f"The agent is looking for around {want.salary}k a season over {want.years} "
                 f"season{'s' if want.years > 1 else ''}.",
         "problem": check_can_talk(cat, career, pid),
-        "budget_room": team.budget - roster.payroll(career, team) + current,
+        "budget_room": team.budget - committed(career, team) + current,
+        "interest": level,
+        "interest_text": why,
         "rounds_left": MAX_ROUNDS - (talks.rounds if talks else 0),
         "counter": talks.counter if talks else None,
         "counter_years": talks.counter_years if talks else None,

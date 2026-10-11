@@ -10,20 +10,20 @@ from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, AdvanceAction, BanAction, ChampSelect, Competition, DraftNextAction, DraftPassAction,
-    DraftPickAction, DraftSimAction, DraftStaffAction, LiveSeries, Match, NextSeasonAction, OfferAction,
-    OpponentTurnAction, ReleaseAction,
-    SimSeriesAction, Stage, StartDraftAction,
+    AcceptCounterAction, AdvanceAction, BanAction, BoardMeetingAction, ChampSelect, Competition, DraftNextAction,
+    DraftPassAction, DraftPickAction, DraftStaffAction, LiveSeries, Match, NextSeasonAction, OfferAction,
+    OpponentTurnAction, ReleaseAction, Stage, StartDraftAction,
 )
 
 cat = get_catalog()
 
 
-@pytest.fixture(scope="module")
-def drafted():
-    career = engine.new_career(cat, "Tester", "G2", 42)
-    engine.apply(cat, career, DraftSimAction(type="draft_sim"))
+def fresh(seed: int = 7, team: str = "G2"):
+    """A new career with the board meeting done, so the draft can start."""
+    career = engine.new_career(cat, "Tester", team, seed)
+    engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
     return career
+
 
 
 # ---------- data ----------
@@ -62,7 +62,7 @@ def test_franchise_overrides_are_respected():
 
 
 def test_new_career_strips_rosters_and_the_ai_picks_one_at_a_time():
-    career = engine.new_career(cat, "Tester", "G2", 7)
+    career = fresh()
     d = career.drafts["LEC"]
     assert career.phase == "draft"
     assert d.number == 0
@@ -83,7 +83,7 @@ def test_new_career_strips_rosters_and_the_ai_picks_one_at_a_time():
 
 
 def test_a_pick_must_fill_an_open_role_and_fit_the_budget():
-    career = engine.new_career(cat, "Tester", "G2", 7)
+    career = fresh()
     engine.apply(cat, career, DraftNextAction(type="draft_next", until_mine=True))
     caps_role = cat.players[cat.teams["G2"].franchise].role
     pool = draft.available(cat, career, "LEC")
@@ -122,7 +122,7 @@ def test_every_team_drafts_an_assistant_coach_and_an_analyst(drafted):
 
 
 def test_staff_rounds_come_after_the_players_and_take_only_staff():
-    career = engine.new_career(cat, "Tester", "G2", 7)
+    career = fresh()
     d = career.drafts["LEC"]
     while d.round_kind == "player":
         if d.on_the_clock == "G2":
@@ -394,7 +394,7 @@ def test_a_fair_offer_is_accepted_and_counts_against_the_budget(drafted):
 
 
 def test_free_agents_wait_until_the_draft_is_over():
-    career = engine.new_career(cat, "Tester", "G2", 7)
+    career = fresh()
     player = _free_agent(career)
     with pytest.raises(IllegalAction):
         engine.apply(cat, career, OfferAction(type="offer", player=player.id, salary=500, years=2))
@@ -412,19 +412,6 @@ def test_releasing_your_only_player_in_a_role_is_refused(drafted):
 
 
 # ---------- a whole season ----------
-
-
-@pytest.fixture(scope="module")
-def finished(drafted):
-    career = drafted.model_copy(deep=True)
-    for _ in range(500):
-        if career.phase != "season":
-            break
-        if career.live:
-            engine.apply(cat, career, SimSeriesAction(type="sim_series"))
-        else:
-            engine.apply(cat, career, AdvanceAction(type="advance"))
-    return career
 
 
 def test_a_season_plays_through_to_worlds(finished):
@@ -449,18 +436,20 @@ def test_match_engine_records_add_up(drafted):
     assert match_engine.logistic(0) == 0.5
 
 
-def test_the_next_season_drafts_only_the_open_roles(finished):
+def test_the_next_season_has_no_draft_and_every_team_fields_five(finished):
     career = finished.model_copy(deep=True)
+    assert career.board.meeting, "the board meets the manager about next season"
+    engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
+    drafts = {lg: len(d.picks) for lg, d in career.drafts.items()}
     engine.apply(cat, career, NextSeasonAction(type="next_season"))
     assert career.season == finished.season + 1
-    assert career.phase == "draft" and not career.matches
+    assert career.phase == "season" and career.matches
     assert career.history and career.history[-1].season == finished.season
-    d = career.drafts[career.league]
-    assert d.required_rounds <= 4
-    engine.apply(cat, career, DraftSimAction(type="draft_sim"))
-    assert career.phase == "season"
+    assert {lg: len(d.picks) for lg, d in career.drafts.items()} == drafts
     for team in career.teams.values():
-        assert set(team.lineup) == set(ROLES)
+        assert set(team.lineup) == set(ROLES), team.id
+        assert team.coach and team.analyst, team.id
+        assert all(career.players[p].team == team.id for p in team.roster)
 
 
 def test_the_next_season_cannot_start_early(drafted):
