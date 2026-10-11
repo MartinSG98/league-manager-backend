@@ -47,7 +47,7 @@ def first_patch_day(season: int) -> date:
     return date(season, 1, 6)
 
 
-def _next_version(version: str, season: int) -> str:
+def next_version(version: str, season: int) -> str:
     major, _, minor = version.partition(".")
     if int(major) != season % 100:
         return f"{season % 100}.1"
@@ -56,7 +56,7 @@ def _next_version(version: str, season: int) -> str:
 
 def release_patch(cat: Catalog, career: Career, rng: Rng) -> Patch:
     meta = career.meta
-    version = _next_version(meta.version, career.season)
+    version = next_version(meta.version, career.season)
     number = int(version.split(".")[1])
     big = number % BIG_PATCH_EVERY == 0
 

@@ -8,16 +8,17 @@ on the way, until the manager's team has a match (or something they should read 
 
 from datetime import date, timedelta
 
-from app.game import calendar, contracts, draft, matchday, offseason, patches, roster
-from app.game.catalog import Catalog
+from app.game import calendar, contracts, draft, matchday, offseason, patches, roster, scouting
+from app.game import staff as staffing
+from app.game.catalog import ROLES, Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
 from app.game.rng import Rng
 from app.game.state import (
     AcceptCounterAction, Action, AdvanceAction, AutoSelectAction, BanAction, Career, DraftAutoAction, DraftNextAction,
-    DraftPassAction, DraftPickAction, DraftSimAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
-    OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, SetLineupAction,
-    SetTacticsAction, SimSeriesAction, StartDraftAction,
+    DraftPassAction, DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction,
+    OfferAction, OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction,
+    SetLineupAction, SetTacticsAction, SimSeriesAction, StaffState, StartDraftAction,
 )
 
 FIRST_SEASON = 2027
@@ -48,6 +49,7 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
         day=calendar.season_start(season),
         players={pid: PlayerState(id=pid) for pid in cat.players},
         teams={},
+        staff={sid: StaffState(id=sid) for sid in cat.staff},
         meta=patches.starting_meta(cat, STARTING_PATCH),
     )
     rng = Rng(career)
@@ -101,6 +103,7 @@ def _daily(cat: Catalog, career: Career, rng: Rng) -> None:
     meta = career.meta
     if meta.next_patch and career.day >= meta.next_patch:
         patches.release_patch(cat, career, rng)
+    scouting.patch_preview(cat, career)
     for state in career.players.values():
         if state.fatigue:
             state.fatigue = max(0, state.fatigue - 4)
@@ -116,12 +119,37 @@ def _weekly(cat: Catalog, career: Career, rng: Rng) -> None:
     for pid, state in career.players.items():
         if state.team is None:
             continue
-        state.morale += (70 - state.morale) // 8
+        motivation = staffing.attribute(cat, career, state.team, "motivation")
+        state.morale += (70 - state.morale) // staffing.morale_recovery_divisor(motivation)
         player = cat.players[pid]
         gap = player.potential - roster.overall(cat, career, pid)
-        if gap > 0 and rng.chance(min(0.6, 0.08 * gap)):
+        development = staffing.development_factor(staffing.attribute(cat, career, state.team, "development"))
+        if gap > 0 and rng.chance(min(0.6, 0.08 * gap) * development):
             attr = rng.pick(list(player.attributes)) or "mechanics"
             state.growth[attr] = round(state.growth.get(attr, 0.0) + 0.35, 2)
+    _practice(cat, career, rng)
+
+
+PRACTICE_GAIN = 2  # mastery a week of practice on one champion adds
+PRACTICE_CAP = 55  # practice alone takes a champion no further than a pocket pick
+
+
+def _practice(cat: Catalog, career: Career, rng: Rng) -> None:
+    """Weekly scrims: a starter may work on one of the patch's best champions for their role.
+    How often depends on the coach's teaching."""
+    best: dict[str, list[str]] = {}
+    for role in ROLES:
+        fits = [c.id for c in cat.champions.values() if role in c.roles]
+        best[role] = sorted(fits, key=lambda cid: -career.meta.power.get(cid, 0.0))[:5]
+    for team in career.teams.values():
+        chance = staffing.practice_chance(staffing.attribute(cat, career, team.id, "teaching"))
+        for role, pid in team.lineup.items():
+            if not rng.chance(chance):
+                continue
+            target = next((c for c in best[role] if roster.mastery(cat, career, pid, c) < PRACTICE_CAP), None)
+            if target:
+                learned = career.players[pid].learned
+                learned[target] = learned.get(target, 0) + PRACTICE_GAIN
 
 
 def _todays_matches(career: Career) -> list:
@@ -150,6 +178,7 @@ def advance(cat: Catalog, career: Career, rng: Rng) -> None:
         calendar.update(cat, career, rng)
         if mine is not None:
             matchday.start_live(career, mine)
+            scouting.scouting_report(cat, career, mine)
             return
         if calendar.season_over(career):
             _end_season(cat, career)
@@ -193,10 +222,19 @@ def _end_season(cat: Catalog, career: Career) -> None:
 # ---------- actions ----------
 
 
+def _migrate(cat: Catalog, career: Career) -> None:
+    """Careers saved before staff existed get the staff pool; their teams fill seats next pre-season."""
+    if len(career.staff) < len(cat.staff):
+        for sid in cat.staff:
+            career.staff.setdefault(sid, StaffState(id=sid))
+
+
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     rng = Rng(career)
     outcome = Outcome()
-    if isinstance(action, (DraftPickAction, DraftPassAction, DraftAutoAction, DraftSimAction, DraftNextAction)):
+    _migrate(cat, career)
+    if isinstance(action, (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAutoAction, DraftSimAction,
+                           DraftNextAction)):
         _draft_action(cat, career, action, rng)
     elif isinstance(action, AdvanceAction):
         advance(cat, career, rng)
@@ -263,8 +301,11 @@ def _draft_action(cat: Catalog, career: Career, action: Action, rng: Rng) -> Non
             raise IllegalAction("It is not your pick")
         if isinstance(action, DraftPickAction):
             draft.make_pick(cat, career, d, career.team, action.player)
+        elif isinstance(action, DraftStaffAction):
+            draft.make_staff_pick(cat, career, d, career.team, action.staff)
         elif isinstance(action, DraftPassAction):
             draft.make_pick(cat, career, d, career.team, None)
         else:
             draft.auto_pick(cat, career, d, rng)
+    draft.pass_idle(d, career, career.team)
     _maybe_finish_draft(cat, career, rng)

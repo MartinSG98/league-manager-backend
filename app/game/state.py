@@ -52,24 +52,33 @@ class Tactics(BaseModel):
     objectives: Literal["dragons", "balanced", "barons"] = "balanced"
 
 
+class StaffState(BaseModel):
+    id: str
+    team: str | None = None
+    contract: Contract | None = None
+
+
 class TeamState(BaseModel):
     id: str
     league: str
     roster: list[str] = []
     lineup: dict[str, str] = {}  # role -> player id
     franchise: str | None = None
+    coach: str | None = None  # assistant coach, staff id
+    analyst: str | None = None  # staff id
     budget: int = 0  # salary cap for the season, thousands of USD
     cash: int = 0  # bank balance, thousands of USD
     tactics: Tactics = Tactics()
-    together: dict[str, int] = {}  # "a|b" -> games two players have started together
+    together: dict[str, float] = {}  # "a|b" -> games two players have started together, a good coach counts more
 
 
 class DraftPick(BaseModel):
     number: int
     round: int
     team: str
-    player: str | None  # None is a pass in an optional round
+    player: str | None  # None is a pass in an optional round, or a staff pick
     salary: int = 0
+    staff: str | None = None  # staff id in a staff round
 
 
 class DraftState(BaseModel):
@@ -77,6 +86,7 @@ class DraftState(BaseModel):
     sequence: list[str]  # team id for every pick, snake order
     required_rounds: int  # rounds that fill the starting five
     optional_rounds: int = 0  # bench rounds, a team may pass
+    staff_rounds: list[Literal["coach", "analyst"]] = []  # after the player rounds, one kind each
     picks: list[DraftPick] = []
 
     @property
@@ -93,7 +103,13 @@ class DraftState(BaseModel):
 
     @property
     def rounds(self) -> int:
-        return self.required_rounds + self.optional_rounds
+        return self.required_rounds + self.optional_rounds + len(self.staff_rounds)
+
+    @property
+    def round_kind(self) -> str:
+        """"player", or the staff kind the current round is for."""
+        extra = self.round - self.required_rounds - self.optional_rounds
+        return self.staff_rounds[extra - 1] if 0 < extra <= len(self.staff_rounds) else "player"
 
     @property
     def teams_per_round(self) -> int:
@@ -224,10 +240,11 @@ class MetaState(BaseModel):
 class InboxMessage(BaseModel):
     id: int
     day: date
-    kind: Literal["news", "draft", "match", "patch", "board", "contract", "finance"]
+    kind: Literal["news", "draft", "match", "patch", "board", "contract", "finance", "scouting", "staff"]
     subject: str
     body: str
     read: bool = False
+    report: dict | None = None  # a scouting report's structured content, for the client to draw
 
 
 # ---------- the series being played by the manager's team ----------
@@ -283,6 +300,7 @@ class Career(BaseModel):
     phase: Phase = "draft"
     players: dict[str, PlayerState]
     teams: dict[str, TeamState]
+    staff: dict[str, StaffState] = {}
     drafts: dict[str, DraftState] = {}
     competitions: dict[str, Competition] = {}
     matches: dict[str, Match] = {}
@@ -300,6 +318,11 @@ class Career(BaseModel):
 class DraftPickAction(BaseModel):
     type: Literal["draft_pick"]
     player: str
+
+
+class DraftStaffAction(BaseModel):
+    type: Literal["draft_staff"]
+    staff: str
 
 
 class DraftPassAction(BaseModel):
@@ -396,7 +419,8 @@ class NextSeasonAction(BaseModel):
 
 
 Action = Annotated[
-    DraftPickAction | DraftPassAction | DraftAutoAction | DraftSimAction | DraftNextAction | AdvanceAction
+    DraftPickAction | DraftStaffAction | DraftPassAction | DraftAutoAction | DraftSimAction | DraftNextAction
+    | AdvanceAction
     | SetLineupAction | SetTacticsAction | StartDraftAction | BanAction | PickAction | AutoSelectAction
     | OpponentTurnAction | PlayGameAction
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction

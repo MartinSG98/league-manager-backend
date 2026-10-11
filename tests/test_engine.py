@@ -4,13 +4,15 @@ import pytest
 
 from app.game import champ_select as cs
 from app.game import competitions as comps
-from app.game import contracts, draft, engine, match_engine, matchday, roster
+from app.game import contracts, draft, engine, match_engine, matchday, roster, scouting
+from app.game import staff as staffing
 from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, AdvanceAction, BanAction, ChampSelect, Competition, DraftNextAction, DraftPickAction,
-    DraftSimAction, LiveSeries, Match, NextSeasonAction, OfferAction, OpponentTurnAction, ReleaseAction,
+    AcceptCounterAction, AdvanceAction, BanAction, ChampSelect, Competition, DraftNextAction, DraftPassAction,
+    DraftPickAction, DraftSimAction, DraftStaffAction, LiveSeries, Match, NextSeasonAction, OfferAction,
+    OpponentTurnAction, ReleaseAction,
     SimSeriesAction, Stage, StartDraftAction,
 )
 
@@ -103,6 +105,96 @@ def test_after_the_draft_every_team_fields_five_and_nobody_plays_twice(drafted):
             seen.add(pid)
             assert drafted.players[pid].team == team.id
     assert drafted.phase == "season"
+
+
+def test_every_team_drafts_an_assistant_coach_and_an_analyst(drafted):
+    hired = set()
+    for team in drafted.teams.values():
+        if team.league not in drafted.drafts:
+            continue
+        assert cat.staff[team.coach].kind == "coach"
+        assert cat.staff[team.analyst].kind == "analyst"
+        for sid in (team.coach, team.analyst):
+            assert sid not in hired and drafted.staff[sid].team == team.id
+            hired.add(sid)
+    g2 = drafted.teams["G2"]
+    assert roster.payroll(drafted, g2) >= drafted.staff[g2.coach].contract.salary + drafted.staff[g2.analyst].contract.salary
+
+
+def test_staff_rounds_come_after_the_players_and_take_only_staff():
+    career = engine.new_career(cat, "Tester", "G2", 7)
+    d = career.drafts["LEC"]
+    while d.round_kind == "player":
+        if d.on_the_clock == "G2":
+            engine.apply(cat, career, DraftNextAction(type="draft_next"))  # does nothing on our turn
+            engine.apply(cat, career, engine_auto())
+        else:
+            engine.apply(cat, career, DraftNextAction(type="draft_next"))
+    assert d.round_kind == "coach"
+    engine.apply(cat, career, DraftNextAction(type="draft_next", until_mine=True))
+    pool = draft.available_staff(cat, career, "LEC")
+    analyst = next(s for s in pool if s.kind == "analyst")
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, DraftStaffAction(type="draft_staff", staff=analyst.id))
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, DraftPassAction(type="draft_pass"))
+    coach = min((s for s in pool if s.kind == "coach"), key=lambda s: s.salary)
+    engine.apply(cat, career, DraftStaffAction(type="draft_staff", staff=coach.id))
+    assert career.teams["G2"].coach == coach.id
+    with pytest.raises(IllegalAction):
+        player = draft.available(cat, career, "LEC")[0]
+        engine.apply(cat, career, DraftPickAction(type="draft_pick", player=player.id))
+
+
+def engine_auto():
+    from app.game.state import DraftAutoAction
+
+    return DraftAutoAction(type="draft_auto")
+
+
+def test_a_better_analyst_writes_a_fuller_scouting_report(drafted):
+    def report(skill: int) -> dict:
+        career = drafted.model_copy(deep=True)
+        sid = career.teams["G2"].analyst
+        person = cat.staff[sid]
+        # Swap in a copy of the analyst with the scouting we want.
+        from dataclasses import replace
+        object.__setattr__(cat, "staff", cat.staff | {sid: replace(person, attributes={"scouting": skill, "meta": 10})})
+        try:
+            match = Match(id="x", competition=next(iter(career.competitions)), stage="x", label="x", day=career.day,
+                          home="G2", away="FNC", best_of=3)
+            career.matches["x"] = match
+            return scouting.scouting_report(cat, career, match).report
+        finally:
+            object.__setattr__(cat, "staff", cat.staff | {sid: person})
+
+    weak, strong = report(3), report(18)
+    assert weak["level"] == 1 and strong["level"] == 4
+    assert "bans" not in weak and "plan" not in weak
+    assert len(strong["bans"]) == 5 and strong["threat"] and strong["weaknesses"]
+    assert {p["role"] for p in strong["players"]} == set(ROLES)
+
+
+def test_a_match_day_brings_a_scouting_report(drafted):
+    career = drafted.model_copy(deep=True)
+    for _ in range(20):
+        engine.apply(cat, career, AdvanceAction(type="advance"))
+        if career.live:
+            break
+    assert career.live
+    last = career.inbox[-1]
+    assert last.kind == "scouting" and last.report["match"] == career.live.match
+
+
+def test_the_coach_sets_how_hard_a_defeat_hits_and_how_fast_players_grow():
+    assert staffing.defeat_morale(20) > staffing.defeat_morale(10) > staffing.defeat_morale(staffing.NOBODY)
+    assert staffing.development_factor(20) > 1 > staffing.development_factor(staffing.NOBODY)
+    weights, hidden = staffing.coach_lens(None)
+    assert "lane" in hidden and "combo" in hidden
+    best = next(s for s in cat.staff.values() if s.kind == "coach")
+    perfect = staffing.Staff(**{**best.__dict__, "attributes": {**best.attributes, "drafting": 20}})
+    weights, hidden = staffing.coach_lens(perfect)
+    assert not hidden and all(abs(w - 1) < 1e-9 for w in weights.values())
 
 
 def test_drafted_teams_stay_within_budget(drafted):
@@ -266,6 +358,7 @@ def test_a_lowball_offer_gets_a_counter_that_can_be_accepted(drafted):
 
 def test_an_insulting_offer_ends_the_talks(drafted):
     career = drafted.model_copy(deep=True)
+    career.teams["G2"].budget += 2000
     player = _free_agent(career)
     want = contracts.ask(cat, career, player.id)
     engine.apply(cat, career, OfferAction(type="offer", player=player.id, salary=int(want.salary * 0.3), years=want.years))

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from app.game import champ_select as cs
 from app.game import competitions as comps
 from app.game import match_engine, patches, roster
+from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
@@ -74,10 +75,11 @@ def lineup_of(cat: Catalog, career: Career, team: str) -> dict[str, str]:
 
 
 def draft_sides(cat: Catalog, career: Career, blue: str, red: str) -> dict[str, cs.DraftSide]:
-    return {
-        "blue": cs.DraftSide(blue, lineup_of(cat, career, blue), tactics_of(career, blue)),
-        "red": cs.DraftSide(red, lineup_of(cat, career, red), tactics_of(career, red)),
-    }
+    def side(team: str) -> cs.DraftSide:
+        noise = staffing.draft_noise(staffing.attribute(cat, career, team, "drafting"))
+        return cs.DraftSide(team, lineup_of(cat, career, team), tactics_of(career, team), noise)
+
+    return {"blue": side(blue), "red": side(red)}
 
 
 # ---------- after each game ----------
@@ -106,13 +108,16 @@ def record_game(cat: Catalog, career: Career, match: Match, result: match_engine
         season.champions[line.champion] = season.champions.get(line.champion, 0) + 1
         state.form = max(-3.0, min(3.0, state.form * 0.85 + (line.rating - 6.3) * 0.25))
         state.fatigue = min(100, state.fatigue + 6)
-        # Playing a champion on stage teaches it, a little.
+        # Playing a champion on stage teaches it, a little, more with a good coach.
         known = roster.mastery(cat, career, line.player, line.champion)
         if known < 80:
-            state.learned[line.champion] = state.learned.get(line.champion, 0) + (3 if known < 40 else 1)
+            teach = staffing.teaching_factor(staffing.attribute(cat, career, line.team, "teaching"))
+            gain = max(1, round((3 if known < 40 else 1) * teach))
+            state.learned[line.champion] = state.learned.get(line.champion, 0) + gain
     for team, lineup in lineups.items():
         if team in career.teams:
-            roster.record_games_together(career.teams[team], lineup)
+            weight = staffing.familiarity_per_game(staffing.attribute(cat, career, team, "motivation"))
+            roster.record_games_together(career.teams[team], lineup, weight)
 
 
 def finish_match(cat: Catalog, career: Career, match: Match) -> None:
@@ -122,7 +127,7 @@ def finish_match(cat: Catalog, career: Career, match: Match) -> None:
         state = career.teams.get(team or "")
         if not state:
             continue
-        delta = 4 if team == match.winner else -4
+        delta = 4 if team == match.winner else staffing.defeat_morale(staffing.attribute(cat, career, team, "motivation"))
         for pid in state.lineup.values():
             p = career.players[pid]
             p.morale = max(0, min(100, p.morale + delta))

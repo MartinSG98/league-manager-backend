@@ -9,10 +9,10 @@ Architecture decisions are recorded in [docs/adr](docs/adr/README.md), one numbe
 ## How a season goes
 
 1. **Pick a team.** Any of the 56 tier-one teams in the LCK, LPL, LEC, LCS, CBLOL and LCP.
-2. **The draft.** On December 1st every tier-one team is stripped down to its franchise player. The rest of the region's 2026 tier-one players and every tier-two player form one pool, about 700 players for EMEA with the LEC and its 13 ERLs. Teams pick in snake order, the weakest 2026 team first. The first four rounds fill the starting five, so you can only draft a role you still need. Two optional bench rounds follow. Salaries are fixed at each player's asking price, and every pick has to leave enough budget to fill your remaining roles. Every other region drafts at the same time with the AI.
+2. **The draft.** On December 1st every tier-one team is stripped down to its franchise player. The rest of the region's 2026 tier-one players and every tier-two player form one pool, about 700 players for EMEA with the LEC and its 13 ERLs. Teams pick in snake order, the weakest 2026 team first. The first four rounds fill the starting five, so you can only draft a role you still need. Two optional bench rounds follow, then a round for an assistant coach and a round for an analyst. Salaries are fixed at each player's and staff member's asking price, and every pick has to leave enough budget to fill your remaining roles and staff seats. Every other region drafts at the same time with the AI.
 3. **Splits.** Three per region, under their real names: the LEC Versus, Spring and Summer, the LCK Cup, Rounds 1-2 and Rounds 3-4, and so on. Each is a round robin (Bo1 or Bo3 depending on the league and split) followed by best-of-five playoffs with byes for the top seeds.
 4. **International events.** First Stand after split 1 has 8 teams in groups and then knockouts. MSI after split 2 has 10 teams, with a play-in and then an 8-team bracket. Worlds after split 3 has 16 teams in a Swiss stage and then best-of-five knockouts. Teams qualify by their playoff finish.
-5. **Match day.** Set your lineup and tactics, then draft champions in tournament order (or let the assistant do it), then watch the game play out minute by minute. Best-of series use fearless draft.
+5. **Match day.** Your analyst's report on the opponent is in the inbox. Set your lineup and tactics, then draft champions in tournament order (or let the assistant do it), then watch the game play out minute by minute. Best-of series use fearless draft.
 6. **Continue.** `advance` moves the calendar a day at a time and plays every other match in the world on the way, until your team plays next.
 7. **Contracts.** Once the draft is over you can sign free agents and extend your own players whose contracts run out, by negotiating salary and length, or release players for half of what is left on their deal.
 8. **The off-season.** After Worlds, contracts that end are gone (AI teams re-sign the players they value), prospects grow, veterans may decline, and every league drafts again, only for the roles its teams still need.
@@ -70,6 +70,7 @@ Actions are JSON objects tagged by `type`:
 | Action | Body | When |
 |---|---|---|
 | `draft_pick` | `player` | Your pick in the draft |
+| `draft_staff` | `staff` | Your pick in a staff round |
 | `draft_pass` | | Skip a bench-round pick |
 | `draft_auto` | | Let the assistant make this pick |
 | `draft_sim` | | Let the assistant finish the draft |
@@ -150,6 +151,23 @@ Chemistry runs from about -5 to +4 on top of the team's average.
 - **The answer.** At or above the floor, the player signs. Within reach, the player counters halfway between your offer and the ask. Under 60 percent, or after three failed rounds, the agent walks away for three weeks.
 - **Rosters and releases.** A roster holds 8 players. Releasing a player costs half of the remaining contract.
 
+**Staff.** Every team has an assistant coach and an analyst, with attributes from 1 to 20. An empty seat counts as 4.
+
+| Attribute | What it changes | At 4 | At 10 | At 20 |
+|---|---|---|---|---|
+| Development | weekly chance that a player grows towards potential | x0.76 | x1 | x1.4 |
+| Drafting | how the manager's coach weighs the reasons in champion select | up to 56% off, misses lanes and combos | up to 35% off | exact |
+| Drafting | how far an AI team wanders from its best pick | x1.4 | x1.1 | x0.6 |
+| Motivation | morale lost with a defeat | -5 | -4 | -3 |
+| Motivation | weekly morale recovery towards 70 | 1/9 of the gap | 1/7 | 1/4 |
+| Motivation | one game together counts as | 0.85 | 1 | 1.25 |
+| Teaching | mastery from playing a champion on stage | x0.76 | x1 | x1.4 |
+| Teaching | weekly chance a starter practises a top meta champion of their role (+2 mastery, up to 55) | 10% | 25% | 50% |
+| Scouting | the report on the next opponent: 1 basic, 2 adds what they play and their game plan, 3 adds ban priorities and their key player, 4 adds weak spots | level 1 | level 2 | level 4 |
+| Meta reading | the patch preview: 2 or 4 days ahead, names the nerf targets, with odds from 15, and spots mid-season updates from 12 | 2 days, some names wrong | 2 days, top 4 | 4 days, odds |
+
+The coach's misjudgements are fixed for each person, so a coach always over- or underrates the same things. Staff sign for two seasons. Your own staff renew automatically, and AI teams keep theirs about two times in three. The next draft has staff rounds when any team in the league has an empty seat.
+
 **Off-season.** Contracts that end leave the team. The franchise player renews automatically for three seasons. AI teams re-sign starters and anyone above their lineup's average more often than the rest. A player with fewer than 600 career games and room to grow closes 35 percent of the gap to potential, give or take. Past 1,100 career games a player can lose up to 2 overall a year. The next draft runs in reverse order of the last split's finish, with as many required rounds as the neediest team has open roles, plus one bench round.
 
 **Patches.** A new patch every two weeks from January 6th. The balance team nerfs 3-5 of the champions that were picked or banned most on the outgoing patch and buffs 3-6 that nobody played. Every sixth patch is a mid-season update that also moves a whole class up or down by one. Every other champion drifts 3 percent towards the middle each patch. The first patch's meta comes from real 2026 pro presence.
@@ -165,6 +183,7 @@ Chemistry runs from about -5 to +4 on top of the team's average.
 
 - **Rosters and stats.** Rosters, roles, nationalities and 2026 stat lines for 27 leagues come from [gol.gg](https://gol.gg), and so do career champion pools and 2026 champion presence. The scripts that fetch them are `scripts/fetch_golgg.py` and `scripts/fetch_meta.py`. Pages are cached in `.cache/`, so re-runs only fetch what is missing.
 - **Logos and photos.** Team logos, league and event logos, player photos and real names come from the lolesports.com API through `scripts/fetch_lolesports.py`, which writes `app/data/lolesports.json`. Only URLs are stored, and the images stay on Riot's CDN. Every tier-one team, 195 teams in all, every league and about 1,320 of 1,368 players have one.
+- **Staff.** Coaches and analysts of every tier-one team come from [Liquipedia](https://liquipedia.net/leagueoflegends) (CC BY-SA 3.0) through `scripts/fetch_staff.py`, which writes `app/data/staff.json`. The script makes one request every 31 seconds, as Liquipedia asks, and caches pages in `.cache/liquipedia`. Only names, positions and countries are kept. Ratings are this game's own, see [ADR 0010](docs/adr/0010-staff-from-liquipedia-with-own-ratings.md).
 - **Champions.** The champion list is Data Dragon 16.20.1, with roles, power curve, damage type and class tagged by hand in `scripts/build_champions.py`.
 - **Leagues.** `app/data/leagues.json` lists every league with its region, tier, strength and the gol.gg tournament its rosters come from.
 - **Teams.** `app/data/teams.json` holds tags, colours, prestige and franchise players for tier-one teams. Teams not listed there keep the best-rated starter as their franchise player.

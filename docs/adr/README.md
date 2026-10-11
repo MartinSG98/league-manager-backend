@@ -15,3 +15,4 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0007](0007-patches-move-the-meta.md) | Patches move the meta | Accepted |
 | [0008](0008-match-engine-tuned-with-a-harness.md) | Match engine tuned with a harness | Accepted |
 | [0009](0009-logos-and-photos-linked-from-lolesports.md) | Logos and photos linked from lolesports.com | Accepted |
+| [0010](0010-staff-from-liquipedia-with-own-ratings.md) | Staff from Liquipedia, with this game's own ratings | Accepted |

@@ -10,7 +10,10 @@ import re
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from app.game.staff import Staff
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
@@ -118,6 +121,7 @@ class Catalog:
     champions: dict[str, Champion]
     champion_by_key: dict[str, str]
     event_logos: dict[str, str] = field(default_factory=dict)  # FST, MSI, WORLDS
+    staff: "dict[str, Staff]" = field(default_factory=dict)  # coaches and analysts, see staff.py
 
     def tier_one(self, region: str) -> League:
         return self.leagues[self.regions[region].league]
@@ -159,7 +163,7 @@ def _read(name: str) -> dict:
 
 @lru_cache
 def get_catalog() -> Catalog:
-    from app.game import ratings
+    from app.game import ratings, staff
 
     config = _read("leagues.json")
     raw = _read("golgg_2026.json")
@@ -275,6 +279,9 @@ def get_catalog() -> Catalog:
             logo=(art["teams"].get(team_id) or {}).get("logo"),
         )
 
+    staff_raw = _read("staff.json") if (DATA / "staff.json").exists() else {"teams": {}}
+    tier_one = {tid: t for tid, t in teams.items() if t.tier == 1}
+
     return Catalog(
         patch=dragon["patch"],
         regions=regions,
@@ -284,4 +291,5 @@ def get_catalog() -> Catalog:
         champions=champions,
         champion_by_key=champion_by_key,
         event_logos={k: v for k, v in art["leagues"].items() if k in ("FST", "MSI", "WORLDS")},
+        staff=staff.build(staff_raw, tier_one, leagues, regions),
     )

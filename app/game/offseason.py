@@ -4,14 +4,17 @@ When Worlds ends the season's results go into the career history and contracts t
 end. AI teams re-sign the players they value (most of the good ones, few of the weak ones) if
 the budget allows; the manager has to extend their own players before the season ends or lose
 them. Players develop: prospects grow towards their potential, long careers start to decline.
-Then every league holds a new draft, only for the roles teams still need, from the free agents
-of the region, in reverse order of the last split's finish."""
+Staff sign for two seasons. When a contract ends the manager's staff renew automatically and
+AI teams keep theirs about two times in three. Then every league holds a new draft, only for the
+roles and staff seats teams still need, from the free agents of the region, in reverse order of
+the last split's finish."""
 
 from app.game import calendar, draft, patches, roster
+from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
 from app.game.rng import Rng
-from app.game.state import Career, Contract, DraftState, InboxMessage, PlayerSeason, SeasonSummary
+from app.game.state import Career, Contract, DraftState, InboxMessage, PlayerSeason, SeasonSummary, StaffState
 
 PROSPECT_GROWTH = 0.35  # share of the gap to potential a young player closes in an off-season
 VETERAN_GAMES = 1100  # career games after which a player may start to decline
@@ -78,6 +81,31 @@ def start_next_season(cat: Catalog, career: Career, rng: Rng) -> None:
                 leaving.append(cat.players[pid].name)
         team.lineup = _best_lineup(cat, career, team.roster)
 
+    # Staff
+    renewed, staff_left = [], []
+    for sid in cat.staff:
+        career.staff.setdefault(sid, StaffState(id=sid))
+    for team in career.teams.values():
+        for kind in ("coach", "analyst"):
+            sid = getattr(team, kind)
+            if not sid:
+                continue
+            state = career.staff[sid]
+            if state.contract and state.contract.until >= new_season:
+                continue
+            name = cat.staff[sid].name
+            if team.id == career.team or rng.chance(0.65):
+                salary = state.contract.salary if state.contract else cat.staff[sid].salary
+                state.contract = Contract(salary=salary, until=new_season + staffing.STAFF_YEARS - 1)
+                if team.id == career.team:
+                    renewed.append(name)
+                continue
+            setattr(team, kind, None)
+            state.team = None
+            state.contract = None
+            if team.id == career.team:
+                staff_left.append(name)
+
     # Development
     grew, declined = [], []
     for pid, state in career.players.items():
@@ -114,6 +142,10 @@ def start_next_season(cat: Catalog, career: Career, rng: Rng) -> None:
         body.append(f"Titles: {', '.join(summary.titles)}.")
     if leaving:
         body.append(f"Contracts ended: {', '.join(leaving)}.")
+    if renewed:
+        body.append(f"Staff renewed for {staffing.STAFF_YEARS} more seasons: {', '.join(renewed)}.")
+    if staff_left:
+        body.append(f"Staff who left: {', '.join(staff_left)}.")
     if grew:
         body.append(f"Improved: {', '.join(grew)}.")
     if declined:
@@ -150,17 +182,18 @@ def _setup_drafts(cat: Catalog, career: Career, orders: dict[str, list[str]], rn
         need = max((len(draft.open_roles(t)) for t in teams), default=0)
         top = pool[: max(1, need) * len(teams)]
         typical = sum(p.salary for p in top) / max(1, len(top))
+        kinds = [k for k in ("coach", "analyst") if any(getattr(t, k) is None for t in teams)]
         for team in teams:
             prestige = cat.teams[team.id].prestige
             scale = max(0.82, min(1.18, 0.85 + 0.3 * (prestige - 60) / 40))
             open_count = len(draft.open_roles(team))
-            team.budget = int(round((roster.payroll(career, team) + open_count * typical * scale + typical * 0.3) / 10) * 10)
+            staff_cost = draft.typical_staff_cost(cat, career, league, [k for k in kinds if getattr(team, k) is None])
+            team.budget = int(round((roster.payroll(career, team) + (open_count * typical + staff_cost) * scale
+                                     + typical * 0.3) / 10) * 10)
         order = orders[league]
-        rounds = max(1, need) + 1
-        sequence: list[str] = []
-        for rnd in range(rounds):
-            sequence += order if rnd % 2 == 0 else list(reversed(order))
-        d = DraftState(league=league, sequence=sequence, required_rounds=max(1, need), optional_rounds=1)
+        rounds = max(1, need) + 1 + len(kinds)
+        d = DraftState(league=league, sequence=draft.snake(order, rounds), required_rounds=max(1, need),
+                       optional_rounds=1, staff_rounds=kinds)
         career.drafts[league] = d
         if league != career.league:
             draft.run_until(cat, career, d, None, rng)

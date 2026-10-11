@@ -100,6 +100,7 @@ class DraftSide:
     team: str
     lineup: dict[str, str]  # role -> player id
     tactics: Tactics
+    noise: float = 1.0  # how far the AI wanders from its best option, set by the team's coach
     cache: dict[tuple[str, str], float] = field(default_factory=dict)
 
     def power(self, cat: Catalog, career: Career, champion: str, role: str) -> float:
@@ -419,19 +420,28 @@ def verdict(kind: str, score: float, notes: list[Note]) -> int:
     return 0
 
 
-def _entry(kind: str, score: float, notes: list[Note], role: str | None) -> dict:
+Lens = tuple[dict[str, float], set[str]]  # weight per kind of reason, kinds left out (see staff.coach_lens)
+
+
+def _entry(kind: str, score: float, notes: list[Note], role: str | None, lens: Lens | None = None) -> dict:
+    if lens is not None:
+        weights, hidden = lens
+        notes = [Note(n.kind, n.value * weights.get(n.kind, 1.0), n.text) for n in notes if n.kind not in hidden]
+        score = sum(n.value for n in notes)
     return {
         "role": role, "score": round(score, 2), "verdict": verdict(kind, score, notes),
-        "notes": [{"text": n.text, "value": round(n.value, 2)} for n in notes],
+        "notes": [{"kind": n.kind, "text": n.text, "value": round(n.value, 2)} for n in notes],
     }
 
 
-def board(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, enemy: DraftSide) -> dict:
+def board(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, enemy: DraftSide,
+          lens: Lens | None = None) -> dict:
     """Every available champion scored for this side's current ban or pick, with the reasons.
 
     For a pick each champion is scored in every open role it plays (`others` holds the roles after
     the best one), and `fits` is false when it plays none of them. For a ban `fits` is false when
-    nobody left on the enemy side plays it."""
+    nobody left on the enemy side plays it. With a `lens` the scores are the manager's coach's
+    read rather than the truth."""
     current = turn(select)
     if current is None:
         return {"kind": None, "champions": {}}
@@ -451,7 +461,7 @@ def board(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: Dra
             theirs = picks_of(select, other_side(side))
             role = max((r for r in ROLES if r not in theirs and r in champ.roles),
                        key=lambda r: enemy.power(cat, career, champ.id, r))
-            out[champ.id] = _entry("ban", score, notes, role) | {"fits": True, "others": {}}
+            out[champ.id] = _entry("ban", score, notes, role, lens) | {"fits": True, "others": {}}
         return {"kind": kind, "champions": out}
 
     open_roles = [r for r in ROLES if r not in picks_of(select, side)]
@@ -462,11 +472,35 @@ def board(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: Dra
         entries = {}
         for role in roles or open_roles:
             notes = []
-            entries[role] = _entry("pick", pick_score(cat, career, select, side, me, champ, role, notes), notes, role)
+            score = pick_score(cat, career, select, side, me, champ, role, notes)
+            entries[role] = _entry("pick", score, notes, role, lens)
         best = max(entries, key=lambda r: entries[r]["score"])
         others = {r: e for r, e in entries.items() if r != best} if roles else {}
         out[champ.id] = entries[best] | {"fits": bool(roles), "others": others}
     return {"kind": kind, "champions": out}
+
+
+def suggestions(board: dict, limit: int = 15) -> list[dict]:
+    """The assistant's best options, read off the board so they agree with its arrows."""
+    rows = []
+    for cid, entry in board["champions"].items():
+        if not entry["fits"]:
+            continue
+        for role, choice in [(entry["role"], entry), *entry["others"].items()]:
+            by_kind: dict[str, float] = {}
+            for n in choice["notes"]:
+                by_kind[n["kind"]] = by_kind.get(n["kind"], 0.0) + n["value"]
+            row = {"champion": cid, "score": choice["score"]}
+            if board["kind"] == "ban":
+                row["threat"] = choice["score"]
+            else:
+                row |= {"role": role,
+                        "power": round(sum(by_kind.get(k, 0.0) for k in ("comfort", "meta", "role")), 2),
+                        "need": round(sum(by_kind.get(k, 0.0) for k in ("comp", "combo")), 2),
+                        "counter": round(by_kind.get("lane", 0.0), 2)}
+            rows.append(row)
+    rows.sort(key=lambda r: -r["score"])
+    return rows[:limit]
 
 
 # ---------- taking turns ----------
@@ -481,14 +515,14 @@ def ai_step(cat: Catalog, career: Career, select: ChampSelect, sides: dict[str, 
     if kind == "ban":
         rows = ban_options(cat, career, select, side, me, enemy, limit=6)
         pool = rows[:4] if rows else []
-        choice = max(pool, key=lambda r: r["score"] + rng.next() * 1.5)["champion"] if pool else None
+        choice = max(pool, key=lambda r: r["score"] + rng.next() * 1.5 * me.noise)["champion"] if pool else None
         if choice is None:
             choice = next(c for c in cat.champions if c not in unavailable(select))
         ban(select, side, choice)
     else:
         rows = options(cat, career, select, side, me, enemy, limit=6)
         if rows:
-            best = max(rows[:4], key=lambda r: r["score"] + rng.next() * 1.2)
+            best = max(rows[:4], key=lambda r: r["score"] + rng.next() * 1.2 * me.noise)
             pick(cat, select, side, best["champion"], best["role"])
         else:
             # Everything in role is gone (fearless late in a series): take anything left.

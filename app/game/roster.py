@@ -31,7 +31,11 @@ def mastery(cat: Catalog, career: Career, pid: str, champion: str) -> int:
 
 
 def payroll(career: Career, team: TeamState) -> int:
-    return sum(career.players[pid].contract.salary for pid in team.roster if career.players[pid].contract)
+    """Players and staff under contract."""
+    players = sum(career.players[pid].contract.salary for pid in team.roster if career.players[pid].contract)
+    staff = sum(career.staff[sid].contract.salary for sid in (team.coach, team.analyst)
+                if sid and sid in career.staff and career.staff[sid].contract)
+    return players + staff
 
 
 # ---------- languages ----------
@@ -130,10 +134,11 @@ def _pair_key(a: str, b: str) -> str:
     return "|".join(sorted((a, b)))
 
 
-def record_games_together(team: TeamState, lineup: dict[str, str]) -> None:
+def record_games_together(team: TeamState, lineup: dict[str, str], weight: float = 1.0) -> None:
+    """Count a game started together for every pair; a motivating coach makes it count for more."""
     for a, b in combinations(sorted(lineup.values()), 2):
         key = _pair_key(a, b)
-        team.together[key] = team.together.get(key, 0) + 1
+        team.together[key] = round(team.together.get(key, 0) + weight, 3)
 
 
 # ---------- quick strength estimates for AI decisions and previews ----------

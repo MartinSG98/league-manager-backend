@@ -7,6 +7,7 @@ from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
 from app.game import matchday, patches, roster
+from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog, Player
 from app.game.state import Career, Competition, Match, Stage
 
@@ -51,6 +52,22 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "form": round(state.form, 1),
         "morale": state.morale,
         "fatigue": state.fatigue,
+    }
+
+
+def staff_row(cat: Catalog, career: Career, sid: str | None) -> dict | None:
+    if not sid or sid not in cat.staff:
+        return None
+    s = cat.staff[sid]
+    state = career.staff.get(sid)
+    origin = cat.teams.get(s.team or "")
+    contract = state.contract if state else None
+    return {
+        "id": s.id, "name": s.name, "real_name": s.real_name, "kind": s.kind, "position": s.position,
+        "country": s.country, "photo": s.photo, "generated": s.generated, "region": s.region,
+        "origin": {"id": origin.id, "name": origin.name, "tag": origin.tag, "logo": origin.logo} if origin else None,
+        "team": state.team if state else None, "attributes": s.attributes, "overall": s.overall,
+        "salary": contract.salary if contract else s.salary, "contract_until": contract.until if contract else None,
     }
 
 
@@ -147,6 +164,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
         "next_match": match_summary(cat, career, nxt) if nxt else None,
         "live": live,
         "draft": draft_info,
+        "staff": {"coach": staff_row(cat, career, team.coach), "analyst": staff_row(cat, career, team.analyst)},
         "unread": sum(1 for m in career.inbox if not m.read),
         "inbox": [m.model_dump(mode="json") for m in reversed(career.inbox[-40:])],
         "season_over": calendar.season_over(career),
@@ -174,6 +192,7 @@ def draft_view(cat: Catalog, career: Career) -> dict:
             "team": team_ref(cat, tid), "roster": [player_row(cat, career, p) for p in t.roster],
             "lineup": t.lineup, "budget": t.budget, "payroll": roster.payroll(career, t),
             "open_roles": drafting.open_roles(t), "franchise": t.franchise,
+            "coach": staff_row(cat, career, t.coach), "analyst": staff_row(cat, career, t.analyst),
         })
     pool = []
     for p in drafting.available(cat, career, d.league):
@@ -183,6 +202,12 @@ def draft_view(cat: Catalog, career: Career) -> dict:
         row["languages"] = sorted(roster.languages(cat, p))
         pool.append(row)
     pool.sort(key=lambda r: -r["overall"])
+    staff_pool = []
+    for s in drafting.available_staff(cat, career, d.league):
+        row = staff_row(cat, career, s.id)
+        row["problem"] = drafting.check_staff_pick(cat, career, d, me, s) if not d.done else "The draft is over"
+        staff_pool.append(row)
+    staff_pool.sort(key=lambda r: -r["overall"])
     open_roles = drafting.open_roles(me)
     return {
         "league": d.league,
@@ -195,17 +220,23 @@ def draft_view(cat: Catalog, career: Career) -> dict:
         "on_the_clock": d.on_the_clock,
         "my_turn": d.on_the_clock == career.team,
         "sequence": d.sequence,
+        "round_kind": d.round_kind if not d.done else "player",
+        "staff_rounds": d.staff_rounds,
         "picks": [
             {"number": pk.number, "round": pk.round, "team": pk.team, "salary": pk.salary,
-             "player": player_row(cat, career, pk.player) if pk.player else None}
+             "player": player_row(cat, career, pk.player) if pk.player else None,
+             "staff": staff_row(cat, career, pk.staff)}
             for pk in d.picks
         ],
         "teams": teams,
         "pool": pool,
+        "staff_pool": staff_pool,
         "me": {
             "budget": me.budget, "payroll": roster.payroll(career, me), "left": drafting.budget_left(career, me),
-            "open_roles": open_roles, "reserve": drafting.reserve(cat, career, d.league, open_roles),
-            "can_pass": not drafting.is_required_round(d) or not open_roles,
+            "open_roles": open_roles, "reserve": drafting.reserve(cat, career, d.league, open_roles)
+            + drafting.staff_reserve(cat, career, d, drafting.staff_needed(d, me)),
+            "staff_needed": drafting.staff_needed(d, me),
+            "can_pass": d.round_kind == "player" and (not drafting.is_required_round(d) or not open_roles),
         },
     }
 
@@ -230,6 +261,7 @@ def squad_view(cat: Catalog, career: Career, team_id: str | None = None) -> dict
         "cash": team.cash,
         "prestige": cat.teams[team_id].prestige,
         "franchise": team.franchise,
+        "staff": {"coach": staff_row(cat, career, team.coach), "analyst": staff_row(cat, career, team.analyst)},
     }
 
 
@@ -345,16 +377,13 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
     current = cs.turn(select) if live.phase == "draft" else None
     suggestions: list[dict] = []
     board = None
+    coach = cat.staff.get(career.teams[career.team].coach or "")
     if current and current[0] == live.our_side:
         me = teams[live.our_side]
         enemy = teams[cs.other_side(live.our_side)]
-        if current[1] == "pick":
-            suggestions = cs.options(cat, career, select, live.our_side, me, enemy, limit=15)
-        else:
-            suggestions = cs.ban_options(cat, career, select, live.our_side, me, enemy, limit=15)
-        for s in suggestions:
-            s["score"] = round(s["score"], 2)
-        board = cs.board(cat, career, select, live.our_side, me, enemy)
+        # The manager sees champion select through the coach's eyes, see staff.coach_lens.
+        board = cs.board(cat, career, select, live.our_side, me, enemy, lens=staffing.coach_lens(coach))
+        suggestions = cs.suggestions(board)
     view = {
         "match": match_view(cat, career, match),
         "game": live.game,
@@ -376,6 +405,9 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
             side: _composition(cat, picks)
             for side, picks in (("blue", select.blue_picks), ("red", select.red_picks))
         },
+        "coach": {"name": coach.name, "drafting": coach.attributes["drafting"]} if coach else None,
+        "scouting": next((m.report for m in reversed(career.inbox)
+                          if m.kind == "scouting" and m.report and m.report.get("match") == match.id), None),
         "bench": [player_row(cat, career, p) for p in career.teams[career.team].roster
                   if p not in career.teams[career.team].lineup.values()],
         "mastery": _mastery_table(cat, career, teams),
