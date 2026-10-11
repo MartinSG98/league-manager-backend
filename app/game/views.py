@@ -344,15 +344,17 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
     select = live.select
     current = cs.turn(select) if live.phase == "draft" else None
     suggestions: list[dict] = []
+    board = None
     if current and current[0] == live.our_side:
         me = teams[live.our_side]
-        enemy = teams["red" if live.our_side == "blue" else "blue"]
+        enemy = teams[cs.other_side(live.our_side)]
         if current[1] == "pick":
             suggestions = cs.options(cat, career, select, live.our_side, me, enemy, limit=15)
         else:
             suggestions = cs.ban_options(cat, career, select, live.our_side, me, enemy, limit=15)
         for s in suggestions:
             s["score"] = round(s["score"], 2)
+        board = cs.board(cat, career, select, live.our_side, me, enemy)
     view = {
         "match": match_view(cat, career, match),
         "game": live.game,
@@ -369,6 +371,7 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
             "locked": select.locked if live.phase != "lineup" else matchday.fearless_locks(match),
         },
         "suggestions": suggestions,
+        "board": board,
         "compositions": {
             side: _composition(cat, picks)
             for side, picks in (("blue", select.blue_picks), ("red", select.red_picks))

@@ -9,8 +9,9 @@ from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, AdvanceAction, ChampSelect, Competition, DraftPickAction, DraftSimAction, Match,
-    NextSeasonAction, OfferAction, ReleaseAction, SimSeriesAction, Stage,
+    AcceptCounterAction, AdvanceAction, BanAction, ChampSelect, Competition, DraftNextAction, DraftPickAction,
+    DraftSimAction, LiveSeries, Match, NextSeasonAction, OfferAction, OpponentTurnAction, ReleaseAction,
+    SimSeriesAction, Stage, StartDraftAction,
 )
 
 cat = get_catalog()
@@ -58,19 +59,30 @@ def test_franchise_overrides_are_respected():
 # ---------- draft ----------
 
 
-def test_new_career_strips_rosters_and_waits_for_the_managers_pick():
+def test_new_career_strips_rosters_and_the_ai_picks_one_at_a_time():
     career = engine.new_career(cat, "Tester", "G2", 7)
     d = career.drafts["LEC"]
     assert career.phase == "draft"
-    assert d.on_the_clock == "G2"
+    assert d.number == 0
     g2 = career.teams["G2"]
-    assert g2.roster[0] == cat.teams["G2"].franchise
+    assert g2.roster == [cat.teams["G2"].franchise]
     # every other region drafted at once
     assert all(career.drafts[lg].done for lg in career.drafts if lg != "LEC")
+
+    assert d.on_the_clock != "G2", "G2 finished high in 2026, so it does not pick first"
+    engine.apply(cat, career, DraftNextAction(type="draft_next"))
+    assert d.number == 1
+    engine.apply(cat, career, DraftNextAction(type="draft_next", until_mine=True))
+    assert d.on_the_clock == "G2"
+    # Waiting on the manager's own pick never picks for them.
+    before = d.number
+    engine.apply(cat, career, DraftNextAction(type="draft_next"))
+    assert d.number == before and d.on_the_clock == "G2"
 
 
 def test_a_pick_must_fill_an_open_role_and_fit_the_budget():
     career = engine.new_career(cat, "Tester", "G2", 7)
+    engine.apply(cat, career, DraftNextAction(type="draft_next", until_mine=True))
     caps_role = cat.players[cat.teams["G2"].franchise].role
     pool = draft.available(cat, career, "LEC")
     same_role = next(p for p in pool if p.role == caps_role)
@@ -156,6 +168,50 @@ def test_a_game_is_deterministic_for_a_seed(drafted):
         return result.record.winner, result.record.duration, tuple(result.record.kills)
 
     assert play(5) == play(5)
+
+
+def test_the_opponent_moves_one_turn_at_a_time_and_never_for_the_manager(drafted):
+    career = drafted.model_copy(deep=True)
+    match = Match(id="x", competition="x", stage="x", label="x", day=career.day, home="FNC", away="G2")
+    career.matches["x"] = match
+    career.live = LiveSeries(match="x", our_side="red")
+    engine.apply(cat, career, StartDraftAction(type="start_champ_select"))
+    select = career.live.select
+    assert select.step == 0, "blue (FNC) bans first, but only when asked"
+    engine.apply(cat, career, OpponentTurnAction(type="opponent_turn"))
+    assert select.step == 1 and len(select.blue_bans) == 1
+    engine.apply(cat, career, OpponentTurnAction(type="opponent_turn"))
+    assert select.step == 1, "red's turn: nothing happens"
+    engine.apply(cat, career, BanAction(type="ban", champion=matchday_suggestion(career)))
+    engine.apply(cat, career, OpponentTurnAction(type="opponent_turn", until_mine=True))
+    assert cs.turn(select) == ("red", "ban")
+
+
+def matchday_suggestion(career) -> str:
+    live = career.live
+    blue, red = matchday.sides(career.matches[live.match])
+    teams = matchday.draft_sides(cat, career, blue, red)
+    return cs.ban_options(cat, career, live.select, live.our_side, teams[live.our_side], teams["blue"])[0]["champion"]
+
+
+def test_the_grid_explains_the_same_scores_the_ai_uses(drafted):
+    career = drafted.model_copy(deep=True)
+    select = ChampSelect()
+    sides = matchday.draft_sides(cat, career, "G2", "FNC")
+    rng = Rng(career)
+    while cs.turn(select) != ("blue", "pick") or select.step < 10:
+        cs.ai_step(cat, career, select, sides, rng)
+    board = cs.board(cat, career, select, "blue", sides["blue"], sides["red"])
+    assert board["kind"] == "pick"
+    for row in cs.options(cat, career, select, "blue", sides["blue"], sides["red"], limit=40):
+        entry = board["champions"][row["champion"]]
+        scored = entry if entry["role"] == row["role"] else entry["others"][row["role"]]
+        assert scored["score"] == pytest.approx(row["score"], abs=0.01)
+        assert sum(n["value"] for n in scored["notes"]) == pytest.approx(row["score"], abs=0.05)
+    best = cs.options(cat, career, select, "blue", sides["blue"], sides["red"], limit=1)[0]
+    assert board["champions"][best["champion"]]["verdict"] >= 1
+    taken = cs.unavailable(select)
+    assert not taken & set(board["champions"])
 
 
 def test_composition_penalises_one_damage_type():

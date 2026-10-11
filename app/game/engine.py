@@ -1,7 +1,8 @@
 """Career flow and the one entry point for actions.
 
 A career starts on December 1st in the pre-season draft. Every other region drafts at once; in
-the manager's league the AI picks until it is the manager's turn. Once that draft is done the
+the manager's league the AI teams pick one at a time as the client asks for them (draft_next), so
+the manager watches the board fill up and can skip ahead to their own pick. Once that draft is done the
 season is scheduled and `advance` moves the calendar a day at a time, playing every AI series
 on the way, until the manager's team has a match (or something they should read happens)."""
 
@@ -13,10 +14,10 @@ from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, Action, AdvanceAction, AutoSelectAction, BanAction, Career, DraftAutoAction, DraftPassAction,
-    DraftPickAction, DraftSimAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction, PickAction,
-    PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, SetLineupAction, SetTacticsAction, SimSeriesAction,
-    StartDraftAction,
+    AcceptCounterAction, Action, AdvanceAction, AutoSelectAction, BanAction, Career, DraftAutoAction, DraftNextAction,
+    DraftPassAction, DraftPickAction, DraftSimAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
+    OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, SetLineupAction,
+    SetTacticsAction, SimSeriesAction, StartDraftAction,
 )
 
 FIRST_SEASON = 2027
@@ -66,8 +67,6 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
                if franchise else "")
             + f"You pick {_ordinal(position)} in the first round of the {league.name} draft, "
               f"with a budget of {career.teams[team_id].budget}k for the season.")
-    draft.run_until(cat, career, d, team_id, rng)
-    _maybe_finish_draft(cat, career, rng)
     return career
 
 
@@ -197,7 +196,7 @@ def _end_season(cat: Catalog, career: Career) -> None:
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     rng = Rng(career)
     outcome = Outcome()
-    if isinstance(action, (DraftPickAction, DraftPassAction, DraftAutoAction, DraftSimAction)):
+    if isinstance(action, (DraftPickAction, DraftPassAction, DraftAutoAction, DraftSimAction, DraftNextAction)):
         _draft_action(cat, career, action, rng)
     elif isinstance(action, AdvanceAction):
         advance(cat, career, rng)
@@ -213,6 +212,8 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         matchday.human_pick(cat, career, action.champion, action.role, rng)
     elif isinstance(action, AutoSelectAction):
         matchday.auto_select(cat, career, rng)
+    elif isinstance(action, OpponentTurnAction):
+        matchday.opponent_turn(cat, career, rng, action.until_mine)
     elif isinstance(action, PlayGameAction):
         outcome.details.append(matchday.play_live_game(cat, career, rng))
     elif isinstance(action, NextGameAction):
@@ -250,6 +251,13 @@ def _draft_action(cat: Catalog, career: Career, action: Action, rng: Rng) -> Non
     if isinstance(action, DraftSimAction):
         while not d.done:
             draft.auto_pick(cat, career, d, rng)
+    elif isinstance(action, DraftNextAction):
+        # Waiting on the manager's own turn does nothing, so a client on a timer never picks for them.
+        if d.on_the_clock != career.team:
+            if action.until_mine:
+                draft.run_until(cat, career, d, career.team, rng)
+            else:
+                draft.auto_pick(cat, career, d, rng)
     else:
         if d.on_the_clock != career.team:
             raise IllegalAction("It is not your pick")
@@ -259,5 +267,4 @@ def _draft_action(cat: Catalog, career: Career, action: Action, rng: Rng) -> Non
             draft.make_pick(cat, career, d, career.team, None)
         else:
             draft.auto_pick(cat, career, d, rng)
-        draft.run_until(cat, career, d, career.team, rng)
     _maybe_finish_draft(cat, career, rng)

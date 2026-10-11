@@ -73,6 +73,7 @@ Actions are JSON objects tagged by `type`:
 | `draft_pass` | | Skip a bench-round pick |
 | `draft_auto` | | Let the assistant make this pick |
 | `draft_sim` | | Let the assistant finish the draft |
+| `draft_next` | `until_mine` (optional) | The AI team on the clock picks, or every AI team up to your pick. Does nothing on your turn |
 | `advance` | | Continue to your next match |
 | `set_lineup` | `lineup` (role to player id) | Before champion select |
 | `set_tactics` | `tactics` (`style`, `lane`, `objectives`) | Any time |
@@ -80,6 +81,7 @@ Actions are JSON objects tagged by `type`:
 | `ban` | `champion` | Your ban turn |
 | `pick` | `champion`, `role` | Your pick turn |
 | `auto_select` | | Let the assistant finish champion select |
+| `opponent_turn` | `until_mine` (optional) | The opponent's next ban or pick, or all of them up to your turn. Does nothing on your turn |
 | `play_game` | | Champion select is done |
 | `next_game` | | After a game, starts the next one or ends the series |
 | `sim_series` | | Auto-draft and play out the rest of the series |
@@ -90,6 +92,8 @@ Actions are JSON objects tagged by `type`:
 | `next_season` | | After Worlds, start the next pre-season |
 
 An action that does not fit the career's current state returns 409 with the reason, for example drafting a second mid laner while you still have no jungler.
+
+The AI never moves on its own after one of your actions. In the draft and in champion select the client asks for each AI move with `draft_next` or `opponent_turn`, so it can give the other teams a few seconds per turn and offer a skip button.
 
 ## The rules in numbers
 
@@ -117,6 +121,20 @@ An average player sits at a baseline set by league strength. That is 15.5 for th
 - **Off role** costs 5.
 
 Compositions with a single damage type lose 2, and those with nobody in front lose 1.5. A tactic that matches the composition's power curve adds 0.8. 53 hand-picked champion duos from riftlike add 0.6 per point, for example Xayah and Rakan +2 or Jarvan IV and Orianna +1, and a few known bad pairs subtract.
+
+**Champion select.** A pick is scored as the player's comfort and meta power, plus what it does for the composition so far, plus half its lane edge against the enemy laner if that one is already picked.
+- **The composition.** The missing damage type is worth +1, or +2 in the last two picks. Piling on the damage type the team already has, while the other one is still missing, costs 0.5, or 1 in the last two picks. A first frontliner is worth 0.6, or 1.8 late. Fitting the game plan adds 0.6, and going against it costs 0.3. Duos count as above.
+- **Bans.** A ban is scored by the best enemy player still to pick on the champion. Combos with their picks and the lane it would win against ours are added. Four tenths of what the champion would be worth to us is taken off.
+- **The grid.** The AI uses these scores, and the manager's grid shows the same numbers with every reason. The arrows on the grid follow simple thresholds:
+
+| Arrow | Pick | Ban |
+|---|---|---|
+| Up | 2 or more | 2.5 or more |
+| Double up | 4.5 or more | 4.5 or more |
+| Down | -1.5 or less, with a lane, composition or meta reason | under 1, when we could play it ourselves |
+| Double down | -5 or less, with such a reason | |
+
+A champion is never marked down just because the player has not played it; its mastery badge already shows that.
 
 **Chemistry.**
 - Pairs that share a language count towards communication. Europe and North America play in English, Korea, China and Brazil in their own languages, and anyone playing abroad speaks English.

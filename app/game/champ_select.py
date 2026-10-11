@@ -3,8 +3,9 @@
 A champion helps the player on it by three things: how well that player knows it (mastery from
 career games), how strong it is on the current patch, and whether it is played in its own role.
 The AI scores every legal option on those, adds what the composition still needs (both damage
-types, someone to stand in front, a power curve that fits the tactic) and bans what the enemy
-players are best on. The same scoring powers the assistant's suggestions for the manager."""
+types, someone to stand in front, a power curve that fits the tactic, champion combos) and the
+lane it wins or loses, and bans what the enemy players are best on. The same scoring powers the
+assistant's suggestions and the arrows on the manager's champion grid, which also list the reasons."""
 
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -12,6 +13,7 @@ from functools import lru_cache
 from app.game import roster
 from app.game.catalog import ROLES, Catalog, Champion
 from app.game.errors import IllegalAction
+from app.game.patches import tier
 from app.game.rng import Rng
 from app.game.state import Career, ChampSelect, Side, Tactics
 
@@ -24,6 +26,7 @@ ORDER: tuple[tuple[Side, str], ...] = (
 
 OFF_ROLE = -5.0
 DUO_POWER = 0.6  # team power per point of champion duo synergy
+LANE_WEIGHT = 0.5  # how much a lane counter counts for in a pick, next to the player and the composition
 
 # Champion pairs that work well (or badly) together, carried over from riftlike's hand-picked list.
 _DUOS = [
@@ -84,6 +87,15 @@ _DUOS = [
 
 
 @dataclass
+class Note:
+    """One reason a champion is a good or bad choice, in the same units as the score it adds to."""
+
+    kind: str  # comfort, meta, role, comp, combo, lane, own
+    value: float
+    text: str
+
+
+@dataclass
 class DraftSide:
     team: str
     lineup: dict[str, str]  # role -> player id
@@ -123,12 +135,35 @@ def comfort(mastery: int) -> float:
     return (mastery - 35) * 0.075
 
 
-def champion_power(cat: Catalog, career: Career, pid: str, champion: str, role: str) -> float:
-    """How much a champion adds to (or takes from) this player's rating in this game."""
+def _comfort_text(name: str, mastery: int) -> str:
+    if mastery >= 75:
+        return f"{name}: signature champion (mastery {mastery})"
+    if mastery >= 50:
+        return f"{name}: comfort pick (mastery {mastery})"
+    if mastery >= 25:
+        return f"{name}: pocket pick (mastery {mastery})"
+    if mastery > 0:
+        return f"{name} has barely played it (mastery {mastery})"
+    return f"{name} has never played it on stage"
+
+
+def champion_power(cat: Catalog, career: Career, pid: str, champion: str, role: str,
+                   notes: list[Note] | None = None) -> float:
+    """How much a champion adds to (or takes from) this player's rating in this game. Pass `notes`
+    to also collect the reasons."""
     champ = cat.champions[champion]
-    value = comfort(roster.mastery(cat, career, pid, champion)) + career.meta.power.get(champion, 0.0) * 0.8
+    known = roster.mastery(cat, career, pid, champion)
+    fit = comfort(known)
+    meta = career.meta.power.get(champion, 0.0) * 0.8
+    value = fit + meta
     if role not in champ.roles:
         value += OFF_ROLE
+    if notes is not None:
+        name = cat.players[pid].name
+        notes.append(Note("comfort", fit, _comfort_text(name, known)))
+        notes.append(Note("meta", meta, f"{tier(meta / 0.8)} tier on patch {career.meta.version}"))
+        if role not in champ.roles:
+            notes.append(Note("role", OFF_ROLE, f"Off-role for {name}"))
     return value
 
 
@@ -149,26 +184,54 @@ def bans_of(select: ChampSelect, side: Side) -> list[str]:
     return select.blue_bans if side == "blue" else select.red_bans
 
 
+def other_side(side: Side) -> Side:
+    return "red" if side == "blue" else "blue"
+
+
 # ---------- composition ----------
 
 
-def _comp_need(cat: Catalog, picked: list[Champion], champ: Champion, tactics: Tactics, slots_left: int) -> float:
+def _comp_need(cat: Catalog, picked: list[Champion], champ: Champion, tactics: Tactics, slots_left: int,
+               notes: list[Note] | None = None) -> float:
+    """What a champion adds to the composition so far: the missing damage type, a frontline, the
+    game plan and champion combos. Negative when it makes a lopsided composition worse."""
     ad = sum(1 for c in picked if c.damage == "AD") + sum(0.5 for c in picked if c.damage == "MX")
     ap = sum(1 for c in picked if c.damage == "AP") + sum(0.5 for c in picked if c.damage == "MX")
-    value = 0.0
+    late = slots_left <= 2
+    parts: list[Note] = []
     if champ.damage == "AP" and ap < 1 and ad >= 2:
-        value += 1.0 + (1.0 if slots_left <= 2 else 0)
-    if champ.damage == "AD" and ad < 1 and ap >= 2:
-        value += 1.0 + (1.0 if slots_left <= 2 else 0)
+        parts.append(Note("comp", 2.0 if late else 1.0, "Adds the magic damage the team lacks"))
+    elif champ.damage == "AD" and ad < 1 and ap >= 2:
+        parts.append(Note("comp", 2.0 if late else 1.0, "Adds the physical damage the team lacks"))
+    elif champ.damage == "AD" and ap < 1 and ad >= 2:
+        parts.append(Note("comp", -1.0 if late else -0.5, "More physical damage, still no magic damage"))
+    elif champ.damage == "AP" and ad < 1 and ap >= 2:
+        parts.append(Note("comp", -1.0 if late else -0.5, "More magic damage, still no physical damage"))
     front = sum(1 for c in picked if c.cls == "Tank") + sum(0.5 for c in picked if c.cls == "Fighter")
-    if front < 1 and champ.cls in ("Tank", "Fighter"):
-        value += 0.6 + (1.2 if slots_left <= 2 else 0)
-    if tactics.style == "early" and champ.focus == "early":
-        value += 0.6
-    elif tactics.style == "scaling" and champ.focus == "late":
-        value += 0.6
-    value += DUO_POWER * duo_value(cat, champ.id, [c.id for c in picked])
-    return value
+    if front < 1:
+        if champ.cls in ("Tank", "Fighter"):
+            parts.append(Note("comp", 1.8 if late else 0.6, "Someone to stand in front"))
+        elif late:
+            parts.append(Note("comp", -0.6, "Still nobody to stand in front"))
+    if tactics.style == "early":
+        if champ.focus == "early":
+            parts.append(Note("comp", 0.6, "Fits the early-game plan"))
+        elif champ.focus == "late":
+            parts.append(Note("comp", -0.3, "A scaling pick in an early-game plan"))
+    elif tactics.style == "scaling":
+        if champ.focus == "late":
+            parts.append(Note("comp", 0.6, "Fits the scaling plan"))
+        elif champ.focus == "early":
+            parts.append(Note("comp", -0.3, "An early-game pick in a scaling plan"))
+    duos = _duos(cat)
+    for other in picked:
+        duo = duos.get(frozenset((champ.id, other.id)), 0)
+        if duo:
+            verb = "Combo" if duo > 0 else "Clashes"
+            parts.append(Note("combo", DUO_POWER * duo, f"{verb} with {other.name} ({duo:+d})"))
+    if notes is not None:
+        notes += parts
+    return sum(n.value for n in parts)
 
 
 def composition_modifier(cat: Catalog, picks: dict[str, str]) -> tuple[float, list[str]]:
@@ -208,6 +271,27 @@ def focus_bias(cat: Catalog, picks: dict[str, str]) -> float:
 # ---------- choices ----------
 
 
+def pick_score(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, champ: Champion,
+               role: str, notes: list[Note] | None = None) -> float:
+    """What picking this champion for this role is worth: the player on it, the composition and the lane."""
+    mine = picks_of(select, side)
+    theirs = picks_of(select, other_side(side))
+    picked = [cat.champions[c] for c in mine.values()]
+    if notes is None:
+        power = me.power(cat, career, champ.id, role)
+    else:
+        power = champion_power(cat, career, me.lineup[role], champ.id, role, notes)
+    need = _comp_need(cat, picked, champ, me.tactics, 5 - len(mine), notes)
+    counter = 0.0
+    if role in theirs:
+        enemy = cat.champions[theirs[role]]
+        counter = lane_edge(cat, champ, enemy)
+        if notes is not None and counter:
+            text = f"Wins the lane against {enemy.name}" if counter > 0 else f"Loses the lane to {enemy.name}"
+            notes.append(Note("lane", counter * LANE_WEIGHT, text))
+    return power + need + counter * LANE_WEIGHT
+
+
 def options(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, enemy: DraftSide,
             limit: int = 12) -> list[dict]:
     """Best legal picks for this side: champion, role and the reasons, best first."""
@@ -215,7 +299,7 @@ def options(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: D
     mine = picks_of(select, side)
     picked = [cat.champions[c] for c in mine.values()]
     slots_left = 5 - len(mine)
-    theirs = picks_of(select, "red" if side == "blue" else "blue")
+    theirs = picks_of(select, other_side(side))
     rows = []
     for role in ROLES:
         if role in mine:
@@ -224,32 +308,70 @@ def options(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: D
         for champ in _by_role(cat)[role]:
             if champ.id in taken:
                 continue
+            # The same sum as pick_score, without building the reasons for every option the AI looks at.
             power = me.power(cat, career, champ.id, role)
             need = _comp_need(cat, picked, champ, me.tactics, slots_left)
             counter = 0.0
             if role in theirs:
                 counter = lane_edge(cat, champ, cat.champions[theirs[role]])
             rows.append({"champion": champ.id, "role": role, "player": pid, "power": round(power, 2),
-                         "score": power + need + counter * 0.5, "need": round(need, 2), "counter": round(counter, 2)})
+                         "score": power + need + counter * LANE_WEIGHT, "need": round(need, 2),
+                         "counter": round(counter, 2)})
     rows.sort(key=lambda r: -r["score"])
     return rows[:limit]
+
+
+def ban_score(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, enemy: DraftSide,
+              champ: Champion, notes: list[Note] | None = None) -> float | None:
+    """How much banning a champion takes away from the enemy, or None if nobody left on their side plays it.
+
+    The threat is the best enemy player still to pick on it, plus combos with what they already have
+    and the lane it would win against our pick. Banning a champion we would play ourselves costs a little."""
+    theirs = picks_of(select, other_side(side))
+    ours = picks_of(select, side)
+    open_enemy = [r for r in ROLES if r not in theirs and r in champ.roles]
+    if not open_enemy:
+        return None
+    role = max(open_enemy, key=lambda r: enemy.power(cat, career, champ.id, r))
+    if notes is None:
+        threat = enemy.power(cat, career, champ.id, role)
+    else:
+        threat = champion_power(cat, career, enemy.lineup[role], champ.id, role, notes)
+    duo = duo_value(cat, champ.id, list(theirs.values()))
+    if duo:
+        threat += DUO_POWER * duo
+        if notes is not None:
+            partners = [cat.champions[c].name for c in theirs.values() if _duos(cat).get(frozenset((champ.id, c)))]
+            verb = "Combos" if duo > 0 else "Clashes"
+            notes.append(Note("combo", DUO_POWER * duo, f"{verb} with their {', '.join(partners)}"))
+    if role in ours:
+        edge = lane_edge(cat, champ, cat.champions[ours[role]])
+        threat += edge * LANE_WEIGHT
+        if notes is not None and edge:
+            mine = cat.champions[ours[role]].name
+            text = f"Would win the lane against your {mine}" if edge > 0 else f"Would lose the lane to your {mine}"
+            notes.append(Note("lane", edge * LANE_WEIGHT, text))
+    open_ours = [r for r in ROLES if r not in ours and r in champ.roles]
+    best = max(open_ours, key=lambda r: me.power(cat, career, champ.id, r), default=None)
+    cost = max(0.0, me.power(cat, career, champ.id, best)) * 0.4 if best else 0.0
+    if notes is not None and cost and best:
+        pid = me.lineup[best]
+        known = roster.mastery(cat, career, pid, champ.id)
+        notes.append(Note("own", -cost, f"Your {cat.players[pid].name} could play it too (mastery {known})"))
+    return threat - cost
 
 
 def ban_options(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, enemy: DraftSide,
                 limit: int = 12) -> list[dict]:
     taken = unavailable(select)
-    enemy_side: Side = "red" if side == "blue" else "blue"
-    open_enemy = [r for r in ROLES if r not in picks_of(select, enemy_side)]
     rows = []
     for champ in cat.champions.values():
         if champ.id in taken:
             continue
-        threat = max((enemy.power(cat, career, champ.id, r) for r in open_enemy if r in champ.roles), default=-9.0)
-        if threat <= -9:
+        score = ban_score(cat, career, select, side, me, enemy, champ)
+        if score is None:
             continue
-        own = max((me.power(cat, career, champ.id, r) for r in ROLES if r in champ.roles), default=-9.0)
-        score = threat - max(0.0, own) * 0.4
-        rows.append({"champion": champ.id, "score": score, "threat": round(threat, 2)})
+        rows.append({"champion": champ.id, "score": score, "threat": round(score, 2)})
     rows.sort(key=lambda r: -r["score"])
     return rows[:limit]
 
@@ -268,12 +390,94 @@ def lane_edge(cat: Catalog, mine: Champion, theirs: Champion) -> float:
     return value
 
 
+# ---------- the manager's champion grid ----------
+
+_SITUATIONAL = {"lane", "comp", "combo"}
+
+
+def verdict(kind: str, score: float, notes: list[Note]) -> int:
+    """-2..2, the arrow on a champion in the manager's grid.
+
+    Picks: up for a strong option. Down only when something about this game makes it worse: a lost
+    lane, a lopsided composition, a clash, a champion weak on the patch. A champion the player does
+    not know gets no arrow on that alone; the mastery badge already says so.
+    Bans: up for a real threat, down when the champion matters more to us than to them."""
+    if score >= 4.5:
+        return 2
+    if kind == "ban":
+        if score >= 2.5:
+            return 1
+        own = sum(n.value for n in notes if n.kind == "own")
+        return -1 if own <= -0.8 and score < 1 else 0
+    if score >= 2:
+        return 1
+    bad = any((n.kind in _SITUATIONAL and n.value <= -0.25) or (n.kind == "meta" and n.value <= -1.2) for n in notes)
+    if bad and score <= -5:
+        return -2
+    if bad and score <= -1.5:
+        return -1
+    return 0
+
+
+def _entry(kind: str, score: float, notes: list[Note], role: str | None) -> dict:
+    return {
+        "role": role, "score": round(score, 2), "verdict": verdict(kind, score, notes),
+        "notes": [{"text": n.text, "value": round(n.value, 2)} for n in notes],
+    }
+
+
+def board(cat: Catalog, career: Career, select: ChampSelect, side: Side, me: DraftSide, enemy: DraftSide) -> dict:
+    """Every available champion scored for this side's current ban or pick, with the reasons.
+
+    For a pick each champion is scored in every open role it plays (`others` holds the roles after
+    the best one), and `fits` is false when it plays none of them. For a ban `fits` is false when
+    nobody left on the enemy side plays it."""
+    current = turn(select)
+    if current is None:
+        return {"kind": None, "champions": {}}
+    kind = current[1]
+    taken = unavailable(select)
+    out: dict[str, dict] = {}
+    if kind == "ban":
+        for champ in cat.champions.values():
+            if champ.id in taken:
+                continue
+            notes: list[Note] = []
+            score = ban_score(cat, career, select, side, me, enemy, champ, notes)
+            if score is None:
+                out[champ.id] = {"role": None, "score": None, "verdict": 0, "fits": False, "others": {},
+                                 "notes": [{"text": "Nobody left on their side plays it", "value": 0}]}
+                continue
+            theirs = picks_of(select, other_side(side))
+            role = max((r for r in ROLES if r not in theirs and r in champ.roles),
+                       key=lambda r: enemy.power(cat, career, champ.id, r))
+            out[champ.id] = _entry("ban", score, notes, role) | {"fits": True, "others": {}}
+        return {"kind": kind, "champions": out}
+
+    open_roles = [r for r in ROLES if r not in picks_of(select, side)]
+    for champ in cat.champions.values():
+        if champ.id in taken:
+            continue
+        roles = [r for r in open_roles if r in champ.roles]
+        entries = {}
+        for role in roles or open_roles:
+            notes = []
+            entries[role] = _entry("pick", pick_score(cat, career, select, side, me, champ, role, notes), notes, role)
+        best = max(entries, key=lambda r: entries[r]["score"])
+        others = {r: e for r, e in entries.items() if r != best} if roles else {}
+        out[champ.id] = entries[best] | {"fits": bool(roles), "others": others}
+    return {"kind": kind, "champions": out}
+
+
+# ---------- taking turns ----------
+
+
 def ai_step(cat: Catalog, career: Career, select: ChampSelect, sides: dict[str, DraftSide], rng: Rng) -> None:
     current = turn(select)
     if current is None:
         return
     side, kind = current
-    me, enemy = sides[side], sides["red" if side == "blue" else "blue"]
+    me, enemy = sides[side], sides[other_side(side)]
     if kind == "ban":
         rows = ban_options(cat, career, select, side, me, enemy, limit=6)
         pool = rows[:4] if rows else []

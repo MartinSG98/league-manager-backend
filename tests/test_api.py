@@ -46,7 +46,9 @@ def test_unknown_team_is_rejected(client):
 def test_a_career_from_draft_to_a_played_game(client):
     career = client.post("/api/careers", json={"manager": "Martin", "team": "G2", "seed": 99}).json()
     save = career["id"]
-    assert career["phase"] == "draft" and career["draft"]["my_turn"]
+    assert career["phase"] == "draft" and career["draft"]["number"] == 1
+    career = act(client, save, {"type": "draft_next", "until_mine": True})["career"]
+    assert career["draft"]["my_turn"]
 
     board = client.get(f"/api/careers/{save}/draft").json()
     legal = next(p for p in board["pool"] if p["problem"] is None)
@@ -75,8 +77,12 @@ def test_a_career_from_draft_to_a_played_game(client):
     live = client.get(f"/api/careers/{save}/live").json()
     assert live["phase"] == "lineup"
     act(client, save, {"type": "start_champ_select"})
+    act(client, save, {"type": "opponent_turn", "until_mine": True})
     live = client.get(f"/api/careers/{save}/live").json()
     turn = live["select"]["turn"]
+    if turn:
+        assert turn["side"] == live["our_side"]
+        assert live["board"]["kind"] == turn["kind"] and live["board"]["champions"]
     if turn and turn["side"] == live["our_side"]:
         option = live["suggestions"][0]
         body = {"type": turn["kind"], "champion": option["champion"]}

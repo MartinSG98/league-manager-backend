@@ -165,7 +165,6 @@ def _setup_drafts(cat: Catalog, career: Career, orders: dict[str, list[str]], rn
         if league != career.league:
             draft.run_until(cat, career, d, None, rng)
             draft.finish(cat, career, d)
-    draft.run_until(cat, career, career.drafts[career.league], career.team, rng)
 
 
 def contract_warning(cat: Catalog, career: Career) -> None:

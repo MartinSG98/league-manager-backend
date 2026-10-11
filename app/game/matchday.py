@@ -178,15 +178,14 @@ def live_match(career: Career) -> Match:
 
 
 def start_champ_select(cat: Catalog, career: Career, rng: Rng) -> None:
+    """Open champion select. Nobody moves yet: the opponent's turns are played by opponent_turn, so
+    the client can let them take their time instead of locking in the moment the manager does."""
     live = career.live
     match = live_match(career)
     if live.phase != "lineup":
         raise IllegalAction("Champion select has already started")
     live.select = ChampSelect(locked=fearless_locks(match))
     live.phase = "draft"
-    blue, red = sides(match)
-    cs.run_ai(cat, career, live.select, draft_sides(cat, career, blue, red), rng, human=live.our_side)
-    _check_ready(career)
 
 
 def _check_ready(career: Career) -> None:
@@ -195,25 +194,36 @@ def _check_ready(career: Career) -> None:
         live.phase = "ready"
 
 
-def human_ban(cat: Catalog, career: Career, champion: str, rng: Rng) -> None:
+def _running_select(career: Career) -> ChampSelect:
     live = career.live
     if live is None or live.phase != "draft":
         raise IllegalAction("Champion select is not running")
-    match = live_match(career)
-    cs.ban(live.select, live.our_side, champion)
-    blue, red = sides(match)
-    cs.run_ai(cat, career, live.select, draft_sides(cat, career, blue, red), rng, human=live.our_side)
+    return live.select
+
+
+def human_ban(cat: Catalog, career: Career, champion: str, rng: Rng) -> None:
+    cs.ban(_running_select(career), career.live.our_side, champion)
     _check_ready(career)
 
 
 def human_pick(cat: Catalog, career: Career, champion: str, role: str, rng: Rng) -> None:
-    live = career.live
-    if live is None or live.phase != "draft":
-        raise IllegalAction("Champion select is not running")
-    match = live_match(career)
-    cs.pick(cat, live.select, live.our_side, champion, role)
-    blue, red = sides(match)
-    cs.run_ai(cat, career, live.select, draft_sides(cat, career, blue, red), rng, human=live.our_side)
+    cs.pick(cat, _running_select(career), career.live.our_side, champion, role)
+    _check_ready(career)
+
+
+def opponent_turn(cat: Catalog, career: Career, rng: Rng, until_mine: bool = False) -> None:
+    """The opponent's next ban or pick, or all of them up to the manager's turn. On the manager's
+    own turn this does nothing, so a client calling it on a timer can never move for the manager."""
+    select = _running_select(career)
+    current = cs.turn(select)
+    if current is None or current[0] == career.live.our_side:
+        return
+    blue, red = sides(live_match(career))
+    teams = draft_sides(cat, career, blue, red)
+    if until_mine:
+        cs.run_ai(cat, career, select, teams, rng, human=career.live.our_side)
+    else:
+        cs.ai_step(cat, career, select, teams, rng)
     _check_ready(career)
 
 

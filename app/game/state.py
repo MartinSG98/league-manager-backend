@@ -314,6 +314,11 @@ class DraftSimAction(BaseModel):
     type: Literal["draft_sim"]  # let the assistant finish the whole draft
 
 
+class DraftNextAction(BaseModel):
+    type: Literal["draft_next"]  # the team on the clock picks; nothing happens on the manager's turn
+    until_mine: bool = False  # every pick up to the manager's turn at once
+
+
 class AdvanceAction(BaseModel):
     type: Literal["advance"]
 
@@ -345,6 +350,11 @@ class PickAction(BaseModel):
 
 class AutoSelectAction(BaseModel):
     type: Literal["auto_select"]  # let the assistant finish champion select
+
+
+class OpponentTurnAction(BaseModel):
+    type: Literal["opponent_turn"]  # the opponent's next ban or pick; nothing happens on the manager's turn
+    until_mine: bool = False  # every opponent turn up to the manager's at once
 
 
 class PlayGameAction(BaseModel):
@@ -386,8 +396,9 @@ class NextSeasonAction(BaseModel):
 
 
 Action = Annotated[
-    DraftPickAction | DraftPassAction | DraftAutoAction | DraftSimAction | AdvanceAction | SetLineupAction
-    | SetTacticsAction | StartDraftAction | BanAction | PickAction | AutoSelectAction | PlayGameAction
+    DraftPickAction | DraftPassAction | DraftAutoAction | DraftSimAction | DraftNextAction | AdvanceAction
+    | SetLineupAction | SetTacticsAction | StartDraftAction | BanAction | PickAction | AutoSelectAction
+    | OpponentTurnAction | PlayGameAction
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction
     | NextSeasonAction,
     Field(discriminator="type"),
