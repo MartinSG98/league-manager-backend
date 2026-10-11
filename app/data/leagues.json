@@ -1,0 +1,45 @@
+{
+  "season": 2026,
+  "regions": [
+    {"id": "KR", "name": "Korea", "league": "LCK"},
+    {"id": "CN", "name": "China", "league": "LPL"},
+    {"id": "EMEA", "name": "Europe, Middle East & Africa", "league": "LEC"},
+    {"id": "NA", "name": "North America", "league": "LCS"},
+    {"id": "BR", "name": "Brazil", "league": "CBLOL"},
+    {"id": "APAC", "name": "Asia-Pacific", "league": "LCP"}
+  ],
+  "leagues": [
+    {"id": "LCK", "name": "LCK", "full_name": "League of Legends Champions Korea", "region": "KR", "tier": 1, "strength": 100, "roster": "LCK 2026 Rounds 3-4"},
+    {"id": "LCKCL", "name": "LCK CL", "full_name": "LCK Challengers League", "region": "KR", "tier": 2, "strength": 76, "roster": "LCK CL 2026 Rounds 3-4"},
+
+    {"id": "LPL", "name": "LPL", "full_name": "League of Legends Pro League", "region": "CN", "tier": 1, "strength": 98, "roster": "LPL 2026 Split 3"},
+
+    {"id": "LEC", "name": "LEC", "full_name": "League of Legends EMEA Championship", "region": "EMEA", "tier": 1, "strength": 88, "roster": "LEC 2026 Summer Season"},
+    {"id": "LFL", "name": "LFL", "full_name": "La Ligue Française", "region": "EMEA", "tier": 2, "strength": 68, "roster": "LFL 2026 Summer Split"},
+    {"id": "PRM", "name": "Prime League", "full_name": "Prime League 1st Division", "region": "EMEA", "tier": 2, "strength": 66, "roster": "Prime League 1st Div 2026 Summer Split"},
+    {"id": "LES", "name": "LES", "full_name": "Liga Española de League of Legends", "region": "EMEA", "tier": 2, "strength": 66, "roster": "LES 2026 Summer"},
+    {"id": "TCL", "name": "TCL", "full_name": "Turkish Championship League", "region": "EMEA", "tier": 2, "strength": 64, "roster": "TCL 2026 Summer"},
+    {"id": "NLC", "name": "NLC", "full_name": "Northern League of Legends Championship", "region": "EMEA", "tier": 2, "strength": 62, "roster": "NLC 2026 Summer Split"},
+    {"id": "RL", "name": "Rift Legends", "full_name": "Rift Legends", "region": "EMEA", "tier": 2, "strength": 62, "roster": "Rift Legends 2026 Summer Split"},
+    {"id": "HM", "name": "Hitpoint Masters", "full_name": "Hitpoint Masters", "region": "EMEA", "tier": 2, "strength": 60, "roster": "Hitpoint Masters 2026 Summer"},
+    {"id": "LIT", "name": "LIT", "full_name": "Lega Italiana", "region": "EMEA", "tier": 2, "strength": 58, "roster": "LIT 2026 Summer Split"},
+    {"id": "EBL", "name": "EBL", "full_name": "Esports Balkan League", "region": "EMEA", "tier": 2, "strength": 58, "roster": "EBL 2026 Summer"},
+    {"id": "ROL", "name": "Road of Legends", "full_name": "Road of Legends", "region": "EMEA", "tier": 2, "strength": 57, "roster": "Road Of Legends 2026 Summer Split"},
+    {"id": "HLL", "name": "HLL", "full_name": "Hellenic Legends League", "region": "EMEA", "tier": 2, "strength": 55, "roster": "HLL 2026 Summer Split"},
+    {"id": "LPLOL", "name": "LPLOL", "full_name": "Liga Portuguesa de League of Legends", "region": "EMEA", "tier": 2, "strength": 55, "roster": "LPLOL 2026 Summer Split"},
+    {"id": "AL", "name": "Arabian League", "full_name": "Arabian League", "region": "EMEA", "tier": 2, "strength": 54, "roster": "Arabian League 2026 Summer"},
+
+    {"id": "LCS", "name": "LCS", "full_name": "League Championship Series", "region": "NA", "tier": 1, "strength": 80, "roster": "LCS 2026 Summer"},
+    {"id": "NACL", "name": "NACL", "full_name": "North American Challengers League", "region": "NA", "tier": 2, "strength": 62, "roster": "NACL 2026 Summer"},
+    {"id": "LRN", "name": "LRN", "full_name": "Liga Regional Norte", "region": "NA", "tier": 2, "strength": 56, "roster": "LRN 2026 Split 2"},
+
+    {"id": "CBLOL", "name": "CBLOL", "full_name": "Campeonato Brasileiro de League of Legends", "region": "BR", "tier": 1, "strength": 74, "roster": "CBLOL 2026 Split 2"},
+    {"id": "CD", "name": "Circuito Desafiante", "full_name": "Circuito Desafiante", "region": "BR", "tier": 2, "strength": 58, "roster": "CD 2026 Split 2"},
+    {"id": "LRS", "name": "LRS", "full_name": "Liga Regional Sur", "region": "BR", "tier": 2, "strength": 54, "roster": "LRS 2026 Split 2"},
+
+    {"id": "LCP", "name": "LCP", "full_name": "League of Legends Championship Pacific", "region": "APAC", "tier": 1, "strength": 80, "roster": "LCP 2026 Split 3"},
+    {"id": "PCS", "name": "PCS", "full_name": "Pacific Championship Series", "region": "APAC", "tier": 2, "strength": 62, "roster": "PCS 2026 Summer Season"},
+    {"id": "VCS", "name": "VCS", "full_name": "Vietnam Championship Series", "region": "APAC", "tier": 2, "strength": 64, "roster": "VCS 2026 Summer"},
+    {"id": "LJL", "name": "LJL", "full_name": "League of Legends Japan League", "region": "APAC", "tier": 2, "strength": 58, "roster": "LJL 2026 Summer Championship"}
+  ]
+}

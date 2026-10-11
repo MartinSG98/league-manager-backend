@@ -1,0 +1,1555 @@
+{
+ "source": "gol.gg 2026 champion list",
+ "fetched": "2026-10-11",
+ "games": 8157,
+ "champions": {
+  "Orianna": {
+   "name": "Orianna",
+   "picks": 1481.0,
+   "bans": 4481.0,
+   "prio": 69.0,
+   "winrate": 53.0,
+   "gd15": 108.0,
+   "presence": 73.1
+  },
+  "JarvanIV": {
+   "name": "Jarvan IV",
+   "picks": 2030.0,
+   "bans": 2665.0,
+   "prio": 52.0,
+   "winrate": 52.0,
+   "gd15": -58.0,
+   "presence": 57.6
+  },
+  "Nocturne": {
+   "name": "Nocturne",
+   "picks": 1058.0,
+   "bans": 3386.0,
+   "prio": 50.0,
+   "winrate": 50.0,
+   "gd15": 19.0,
+   "presence": 54.5
+  },
+  "Rumble": {
+   "name": "Rumble",
+   "picks": 1897.0,
+   "bans": 2339.0,
+   "prio": 47.0,
+   "winrate": 53.0,
+   "gd15": 103.0,
+   "presence": 51.9
+  },
+  "Varus": {
+   "name": "Varus",
+   "picks": 1161.0,
+   "bans": 2797.0,
+   "prio": 44.0,
+   "winrate": 50.0,
+   "gd15": 115.0,
+   "presence": 48.5
+  },
+  "Nautilus": {
+   "name": "Nautilus",
+   "picks": 1674.0,
+   "bans": 2378.0,
+   "prio": 43.0,
+   "winrate": 46.0,
+   "gd15": -90.0,
+   "presence": 49.7
+  },
+  "Vi": {
+   "name": "Vi",
+   "picks": 1622.0,
+   "bans": 2235.0,
+   "prio": 41.0,
+   "winrate": 52.0,
+   "gd15": -73.0,
+   "presence": 47.3
+  },
+  "Ryze": {
+   "name": "Ryze",
+   "picks": 2068.0,
+   "bans": 1700.0,
+   "prio": 40.0,
+   "winrate": 51.0,
+   "gd15": -33.0,
+   "presence": 46.2
+  },
+  "Ezreal": {
+   "name": "Ezreal",
+   "picks": 2133.0,
+   "bans": 1559.0,
+   "prio": 40.0,
+   "winrate": 50.0,
+   "gd15": -38.0,
+   "presence": 45.3
+  },
+  "Jayce": {
+   "name": "Jayce",
+   "picks": 1172.0,
+   "bans": 2252.0,
+   "prio": 37.0,
+   "winrate": 48.0,
+   "gd15": 518.0,
+   "presence": 42.0
+  },
+  "Karma": {
+   "name": "Karma",
+   "picks": 1230.0,
+   "bans": 2143.0,
+   "prio": 37.0,
+   "winrate": 47.0,
+   "gd15": 42.0,
+   "presence": 41.4
+  },
+  "Bard": {
+   "name": "Bard",
+   "picks": 1525.0,
+   "bans": 1914.0,
+   "prio": 37.0,
+   "winrate": 55.0,
+   "gd15": 27.0,
+   "presence": 42.2
+  },
+  "Ambessa": {
+   "name": "Ambessa",
+   "picks": 1674.0,
+   "bans": 1659.0,
+   "prio": 35.0,
+   "winrate": 48.0,
+   "gd15": -71.0,
+   "presence": 40.9
+  },
+  "Cassiopeia": {
+   "name": "Cassiopeia",
+   "picks": 969.0,
+   "bans": 2120.0,
+   "prio": 35.0,
+   "winrate": 56.0,
+   "gd15": 107.0,
+   "presence": 37.9
+  },
+  "Akali": {
+   "name": "Akali",
+   "picks": 896.0,
+   "bans": 2220.0,
+   "prio": 34.0,
+   "winrate": 54.0,
+   "gd15": 59.0,
+   "presence": 38.2
+  },
+  "Pantheon": {
+   "name": "Pantheon",
+   "picks": 1528.0,
+   "bans": 1609.0,
+   "prio": 33.0,
+   "winrate": 49.0,
+   "gd15": 3.0,
+   "presence": 38.5
+  },
+  "XinZhao": {
+   "name": "Xin Zhao",
+   "picks": 1902.0,
+   "bans": 997.0,
+   "prio": 29.0,
+   "winrate": 48.0,
+   "gd15": -106.0,
+   "presence": 35.5
+  },
+  "Syndra": {
+   "name": "Syndra",
+   "picks": 1162.0,
+   "bans": 1303.0,
+   "prio": 26.0,
+   "winrate": 48.0,
+   "gd15": 136.0,
+   "presence": 30.2
+  },
+  "Lucian": {
+   "name": "Lucian",
+   "picks": 1196.0,
+   "bans": 1275.0,
+   "prio": 25.0,
+   "winrate": 50.0,
+   "gd15": 117.0,
+   "presence": 30.3
+  },
+  "KSante": {
+   "name": "KSante",
+   "picks": 1689.0,
+   "bans": 770.0,
+   "prio": 25.0,
+   "winrate": 45.0,
+   "gd15": -141.0,
+   "presence": 30.1
+  },
+  "Gnar": {
+   "name": "Gnar",
+   "picks": 1501.0,
+   "bans": 977.0,
+   "prio": 24.0,
+   "winrate": 55.0,
+   "gd15": 211.0,
+   "presence": 30.4
+  },
+  "Yunara": {
+   "name": "Yunara",
+   "picks": 1736.0,
+   "bans": 731.0,
+   "prio": 24.0,
+   "winrate": 50.0,
+   "gd15": 103.0,
+   "presence": 30.2
+  },
+  "Caitlyn": {
+   "name": "Caitlyn",
+   "picks": 1075.0,
+   "bans": 1209.0,
+   "prio": 23.0,
+   "winrate": 53.0,
+   "gd15": 247.0,
+   "presence": 28.0
+  },
+  "Wukong": {
+   "name": "Wukong",
+   "picks": 1565.0,
+   "bans": 848.0,
+   "prio": 23.0,
+   "winrate": 45.0,
+   "gd15": -33.0,
+   "presence": 29.6
+  },
+  "Sion": {
+   "name": "Sion",
+   "picks": 1394.0,
+   "bans": 904.0,
+   "prio": 23.0,
+   "winrate": 47.0,
+   "gd15": -333.0,
+   "presence": 28.2
+  },
+  "Poppy": {
+   "name": "Poppy",
+   "picks": 419.0,
+   "bans": 1649.0,
+   "prio": 23.0,
+   "winrate": 54.0,
+   "gd15": -96.0,
+   "presence": 25.4
+  },
+  "Neeko": {
+   "name": "Neeko",
+   "picks": 994.0,
+   "bans": 1236.0,
+   "prio": 23.0,
+   "winrate": 50.0,
+   "gd15": 88.0,
+   "presence": 27.3
+  },
+  "LeeSin": {
+   "name": "Lee Sin",
+   "picks": 1058.0,
+   "bans": 1134.0,
+   "prio": 23.0,
+   "winrate": 54.0,
+   "gd15": 175.0,
+   "presence": 26.9
+  },
+  "Lulu": {
+   "name": "Lulu",
+   "picks": 1328.0,
+   "bans": 896.0,
+   "prio": 21.0,
+   "winrate": 49.0,
+   "gd15": -20.0,
+   "presence": 27.3
+  },
+  "Seraphine": {
+   "name": "Seraphine",
+   "picks": 1209.0,
+   "bans": 839.0,
+   "prio": 21.0,
+   "winrate": 54.0,
+   "gd15": 81.0,
+   "presence": 25.1
+  },
+  "Azir": {
+   "name": "Azir",
+   "picks": 899.0,
+   "bans": 963.0,
+   "prio": 20.0,
+   "winrate": 44.0,
+   "gd15": -127.0,
+   "presence": 22.8
+  },
+  "Renekton": {
+   "name": "Renekton",
+   "picks": 1221.0,
+   "bans": 886.0,
+   "prio": 20.0,
+   "winrate": 50.0,
+   "gd15": 174.0,
+   "presence": 25.8
+  },
+  "Ashe": {
+   "name": "Ashe",
+   "picks": 1135.0,
+   "bans": 804.0,
+   "prio": 19.0,
+   "winrate": 57.0,
+   "gd15": -84.0,
+   "presence": 23.8
+  },
+  "Aurora": {
+   "name": "Aurora",
+   "picks": 1127.0,
+   "bans": 835.0,
+   "prio": 19.0,
+   "winrate": 44.0,
+   "gd15": 26.0,
+   "presence": 24.1
+  },
+  "Ahri": {
+   "name": "Ahri",
+   "picks": 1214.0,
+   "bans": 764.0,
+   "prio": 19.0,
+   "winrate": 53.0,
+   "gd15": 54.0,
+   "presence": 24.2
+  },
+  "Naafiri": {
+   "name": "Naafiri",
+   "picks": 925.0,
+   "bans": 919.0,
+   "prio": 18.0,
+   "winrate": 50.0,
+   "gd15": 131.0,
+   "presence": 22.6
+  },
+  "Viktor": {
+   "name": "Viktor",
+   "picks": 1247.0,
+   "bans": 615.0,
+   "prio": 18.0,
+   "winrate": 50.0,
+   "gd15": -78.0,
+   "presence": 22.8
+  },
+  "Corki": {
+   "name": "Corki",
+   "picks": 1325.0,
+   "bans": 403.0,
+   "prio": 16.0,
+   "winrate": 47.0,
+   "gd15": -149.0,
+   "presence": 21.2
+  },
+  "Vayne": {
+   "name": "Vayne",
+   "picks": 318.0,
+   "bans": 1115.0,
+   "prio": 16.0,
+   "winrate": 59.0,
+   "gd15": 151.0,
+   "presence": 17.6
+  },
+  "Anivia": {
+   "name": "Anivia",
+   "picks": 810.0,
+   "bans": 770.0,
+   "prio": 16.0,
+   "winrate": 53.0,
+   "gd15": 15.0,
+   "presence": 19.4
+  },
+  "Olaf": {
+   "name": "Olaf",
+   "picks": 600.0,
+   "bans": 891.0,
+   "prio": 16.0,
+   "winrate": 55.0,
+   "gd15": 95.0,
+   "presence": 18.3
+  },
+  "Alistar": {
+   "name": "Alistar",
+   "picks": 1037.0,
+   "bans": 557.0,
+   "prio": 15.0,
+   "winrate": 53.0,
+   "gd15": -119.0,
+   "presence": 19.5
+  },
+  "Sivir": {
+   "name": "Sivir",
+   "picks": 936.0,
+   "bans": 596.0,
+   "prio": 15.0,
+   "winrate": 53.0,
+   "gd15": 27.0,
+   "presence": 18.8
+  },
+  "Jhin": {
+   "name": "Jhin",
+   "picks": 1221.0,
+   "bans": 365.0,
+   "prio": 15.0,
+   "winrate": 45.0,
+   "gd15": -152.0,
+   "presence": 19.4
+  },
+  "Camille": {
+   "name": "Camille",
+   "picks": 614.0,
+   "bans": 740.0,
+   "prio": 14.0,
+   "winrate": 52.0,
+   "gd15": 120.0,
+   "presence": 16.6
+  },
+  "Kaisa": {
+   "name": "Kaisa",
+   "picks": 836.0,
+   "bans": 598.0,
+   "prio": 14.0,
+   "winrate": 52.0,
+   "gd15": 64.0,
+   "presence": 17.6
+  },
+  "Taliyah": {
+   "name": "Taliyah",
+   "picks": 881.0,
+   "bans": 533.0,
+   "prio": 14.0,
+   "winrate": 48.0,
+   "gd15": -187.0,
+   "presence": 17.3
+  },
+  "Galio": {
+   "name": "Galio",
+   "picks": 834.0,
+   "bans": 544.0,
+   "prio": 13.0,
+   "winrate": 46.0,
+   "gd15": -399.0,
+   "presence": 16.9
+  },
+  "Rell": {
+   "name": "Rell",
+   "picks": 1034.0,
+   "bans": 384.0,
+   "prio": 13.0,
+   "winrate": 48.0,
+   "gd15": -76.0,
+   "presence": 17.4
+  },
+  "Leona": {
+   "name": "Leona",
+   "picks": 902.0,
+   "bans": 411.0,
+   "prio": 13.0,
+   "winrate": 49.0,
+   "gd15": -51.0,
+   "presence": 16.1
+  },
+  "Gwen": {
+   "name": "Gwen",
+   "picks": 464.0,
+   "bans": 733.0,
+   "prio": 12.0,
+   "winrate": 55.0,
+   "gd15": 103.0,
+   "presence": 14.7
+  },
+  "Rakan": {
+   "name": "Rakan",
+   "picks": 973.0,
+   "bans": 391.0,
+   "prio": 12.0,
+   "winrate": 52.0,
+   "gd15": -21.0,
+   "presence": 16.7
+  },
+  "Ziggs": {
+   "name": "Ziggs",
+   "picks": 506.0,
+   "bans": 629.0,
+   "prio": 12.0,
+   "winrate": 44.0,
+   "gd15": -189.0,
+   "presence": 13.9
+  },
+  "Locke": {
+   "name": "Locke",
+   "picks": 316.0,
+   "bans": 723.0,
+   "prio": 12.0,
+   "winrate": 50.0,
+   "gd15": 356.0,
+   "presence": 12.7
+  },
+  "Annie": {
+   "name": "Annie",
+   "picks": 669.0,
+   "bans": 553.0,
+   "prio": 12.0,
+   "winrate": 53.0,
+   "gd15": -261.0,
+   "presence": 15.0
+  },
+  "Nami": {
+   "name": "Nami",
+   "picks": 830.0,
+   "bans": 362.0,
+   "prio": 11.0,
+   "winrate": 48.0,
+   "gd15": -68.0,
+   "presence": 14.6
+  },
+  "LeBlanc": {
+   "name": "LeBlanc",
+   "picks": 343.0,
+   "bans": 686.0,
+   "prio": 11.0,
+   "winrate": 51.0,
+   "gd15": 365.0,
+   "presence": 12.6
+  },
+  "Aatrox": {
+   "name": "Aatrox",
+   "picks": 744.0,
+   "bans": 419.0,
+   "prio": 11.0,
+   "winrate": 49.0,
+   "gd15": 90.0,
+   "presence": 14.3
+  },
+  "Malphite": {
+   "name": "Malphite",
+   "picks": 250.0,
+   "bans": 666.0,
+   "prio": 10.0,
+   "winrate": 49.0,
+   "gd15": -425.0,
+   "presence": 11.2
+  },
+  "Skarner": {
+   "name": "Skarner",
+   "picks": 651.0,
+   "bans": 406.0,
+   "prio": 10.0,
+   "winrate": 53.0,
+   "gd15": -307.0,
+   "presence": 13.0
+  },
+  "Sylas": {
+   "name": "Sylas",
+   "picks": 509.0,
+   "bans": 504.0,
+   "prio": 10.0,
+   "winrate": 50.0,
+   "gd15": -193.0,
+   "presence": 12.4
+  },
+  "Qiyana": {
+   "name": "Qiyana",
+   "picks": 414.0,
+   "bans": 495.0,
+   "prio": 9.0,
+   "winrate": 54.0,
+   "gd15": 646.0,
+   "presence": 11.1
+  },
+  "Milio": {
+   "name": "Milio",
+   "picks": 942.0,
+   "bans": 109.0,
+   "prio": 9.0,
+   "winrate": 48.0,
+   "gd15": -40.0,
+   "presence": 12.9
+  },
+  "Shen": {
+   "name": "Shen",
+   "picks": 577.0,
+   "bans": 296.0,
+   "prio": 9.0,
+   "winrate": 51.0,
+   "gd15": -178.0,
+   "presence": 10.7
+  },
+  "Zaahen": {
+   "name": "Zaahen",
+   "picks": 682.0,
+   "bans": 287.0,
+   "prio": 9.0,
+   "winrate": 52.0,
+   "gd15": -62.0,
+   "presence": 11.9
+  },
+  "Yorick": {
+   "name": "Yorick",
+   "picks": 479.0,
+   "bans": 417.0,
+   "prio": 9.0,
+   "winrate": 48.0,
+   "gd15": -135.0,
+   "presence": 11.0
+  },
+  "Ornn": {
+   "name": "Ornn",
+   "picks": 573.0,
+   "bans": 271.0,
+   "prio": 8.0,
+   "winrate": 47.0,
+   "gd15": -769.0,
+   "presence": 10.3
+  },
+  "Trundle": {
+   "name": "Trundle",
+   "picks": 587.0,
+   "bans": 347.0,
+   "prio": 8.0,
+   "winrate": 53.0,
+   "gd15": -112.0,
+   "presence": 11.5
+  },
+  "Jax": {
+   "name": "Jax",
+   "picks": 463.0,
+   "bans": 379.0,
+   "prio": 8.0,
+   "winrate": 49.0,
+   "gd15": -11.0,
+   "presence": 10.3
+  },
+  "Mel": {
+   "name": "Mel",
+   "picks": 416.0,
+   "bans": 393.0,
+   "prio": 8.0,
+   "winrate": 41.0,
+   "gd15": 334.0,
+   "presence": 9.9
+  },
+  "Braum": {
+   "name": "Braum",
+   "picks": 367.0,
+   "bans": 337.0,
+   "prio": 7.0,
+   "winrate": 47.0,
+   "gd15": -32.0,
+   "presence": 8.6
+  },
+  "Yone": {
+   "name": "Yone",
+   "picks": 400.0,
+   "bans": 316.0,
+   "prio": 7.0,
+   "winrate": 49.0,
+   "gd15": 89.0,
+   "presence": 8.8
+  },
+  "Xayah": {
+   "name": "Xayah",
+   "picks": 539.0,
+   "bans": 233.0,
+   "prio": 7.0,
+   "winrate": 54.0,
+   "gd15": 133.0,
+   "presence": 9.5
+  },
+  "Aphelios": {
+   "name": "Aphelios",
+   "picks": 403.0,
+   "bans": 275.0,
+   "prio": 6.0,
+   "winrate": 48.0,
+   "gd15": 106.0,
+   "presence": 8.3
+  },
+  "Pyke": {
+   "name": "Pyke",
+   "picks": 203.0,
+   "bans": 379.0,
+   "prio": 6.0,
+   "winrate": 48.0,
+   "gd15": 185.0,
+   "presence": 7.1
+  },
+  "Kalista": {
+   "name": "Kalista",
+   "picks": 334.0,
+   "bans": 284.0,
+   "prio": 6.0,
+   "winrate": 52.0,
+   "gd15": 151.0,
+   "presence": 7.6
+  },
+  "TwistedFate": {
+   "name": "Twisted Fate",
+   "picks": 313.0,
+   "bans": 277.0,
+   "prio": 5.0,
+   "winrate": 56.0,
+   "gd15": 504.0,
+   "presence": 7.2
+  },
+  "MissFortune": {
+   "name": "Miss Fortune",
+   "picks": 375.0,
+   "bans": 163.0,
+   "prio": 4.0,
+   "winrate": 48.0,
+   "gd15": 72.0,
+   "presence": 6.6
+  },
+  "Tristana": {
+   "name": "Tristana",
+   "picks": 315.0,
+   "bans": 169.0,
+   "prio": 4.0,
+   "winrate": 49.0,
+   "gd15": 34.0,
+   "presence": 5.9
+  },
+  "Hwei": {
+   "name": "Hwei",
+   "picks": 288.0,
+   "bans": 132.0,
+   "prio": 4.0,
+   "winrate": 44.0,
+   "gd15": -71.0,
+   "presence": 5.1
+  },
+  "Zoe": {
+   "name": "Zoe",
+   "picks": 128.0,
+   "bans": 200.0,
+   "prio": 3.0,
+   "winrate": 52.0,
+   "gd15": 309.0,
+   "presence": 4.0
+  },
+  "RenataGlasc": {
+   "name": "Renata Glasc",
+   "picks": 327.0,
+   "bans": 88.0,
+   "prio": 3.0,
+   "winrate": 51.0,
+   "gd15": 28.0,
+   "presence": 5.1
+  },
+  "Fiora": {
+   "name": "Fiora",
+   "picks": 75.0,
+   "bans": 213.0,
+   "prio": 3.0,
+   "winrate": 47.0,
+   "gd15": 343.0,
+   "presence": 3.5
+  },
+  "Kennen": {
+   "name": "Kennen",
+   "picks": 159.0,
+   "bans": 169.0,
+   "prio": 3.0,
+   "winrate": 47.0,
+   "gd15": 336.0,
+   "presence": 4.0
+  },
+  "Zeri": {
+   "name": "Zeri",
+   "picks": 252.0,
+   "bans": 75.0,
+   "prio": 3.0,
+   "winrate": 49.0,
+   "gd15": 182.0,
+   "presence": 4.0
+  },
+  "Irelia": {
+   "name": "Irelia",
+   "picks": 90.0,
+   "bans": 140.0,
+   "prio": 2.0,
+   "winrate": 52.0,
+   "gd15": 777.0,
+   "presence": 2.8
+  },
+  "Yasuo": {
+   "name": "Yasuo",
+   "picks": 95.0,
+   "bans": 138.0,
+   "prio": 2.0,
+   "winrate": 44.0,
+   "gd15": -139.0,
+   "presence": 2.9
+  },
+  "Sejuani": {
+   "name": "Sejuani",
+   "picks": 228.0,
+   "bans": 69.0,
+   "prio": 2.0,
+   "winrate": 49.0,
+   "gd15": -249.0,
+   "presence": 3.6
+  },
+  "Thresh": {
+   "name": "Thresh",
+   "picks": 193.0,
+   "bans": 61.0,
+   "prio": 2.0,
+   "winrate": 48.0,
+   "gd15": -9.0,
+   "presence": 3.1
+  },
+  "Maokai": {
+   "name": "Maokai",
+   "picks": 201.0,
+   "bans": 74.0,
+   "prio": 2.0,
+   "winrate": 48.0,
+   "gd15": -212.0,
+   "presence": 3.4
+  },
+  "Viego": {
+   "name": "Viego",
+   "picks": 109.0,
+   "bans": 93.0,
+   "prio": 2.0,
+   "winrate": 38.0,
+   "gd15": 274.0,
+   "presence": 2.5
+  },
+  "Senna": {
+   "name": "Senna",
+   "picks": 172.0,
+   "bans": 49.0,
+   "prio": 2.0,
+   "winrate": 48.0,
+   "gd15": -188.0,
+   "presence": 2.7
+  },
+  "RekSai": {
+   "name": "RekSai",
+   "picks": 153.0,
+   "bans": 55.0,
+   "prio": 2.0,
+   "winrate": 55.0,
+   "gd15": 36.0,
+   "presence": 2.5
+  },
+  "Kled": {
+   "name": "Kled",
+   "picks": 94.0,
+   "bans": 76.0,
+   "prio": 2.0,
+   "winrate": 51.0,
+   "gd15": 105.0,
+   "presence": 2.1
+  },
+  "Jinx": {
+   "name": "Jinx",
+   "picks": 188.0,
+   "bans": 47.0,
+   "prio": 2.0,
+   "winrate": 49.0,
+   "gd15": -27.0,
+   "presence": 2.9
+  },
+  "Chogath": {
+   "name": "Chogath",
+   "picks": 144.0,
+   "bans": 54.0,
+   "prio": 2.0,
+   "winrate": 44.0,
+   "gd15": -249.0,
+   "presence": 2.4
+  },
+  "Draven": {
+   "name": "Draven",
+   "picks": 52.0,
+   "bans": 102.0,
+   "prio": 2.0,
+   "winrate": 56.0,
+   "gd15": 544.0,
+   "presence": 1.9
+  },
+  "Smolder": {
+   "name": "Smolder",
+   "picks": 117.0,
+   "bans": 62.0,
+   "prio": 2.0,
+   "winrate": 37.0,
+   "gd15": -528.0,
+   "presence": 2.2
+  },
+  "Rengar": {
+   "name": "Rengar",
+   "picks": 18.0,
+   "bans": 114.0,
+   "prio": 2.0,
+   "winrate": 61.0,
+   "gd15": 434.0,
+   "presence": 1.6
+  },
+  "Gragas": {
+   "name": "Gragas",
+   "picks": 150.0,
+   "bans": 42.0,
+   "prio": 1.0,
+   "winrate": 47.0,
+   "gd15": -380.0,
+   "presence": 2.4
+  },
+  "Volibear": {
+   "name": "Volibear",
+   "picks": 100.0,
+   "bans": 59.0,
+   "prio": 1.0,
+   "winrate": 50.0,
+   "gd15": 55.0,
+   "presence": 1.9
+  },
+  "Lux": {
+   "name": "Lux",
+   "picks": 97.0,
+   "bans": 61.0,
+   "prio": 1.0,
+   "winrate": 60.0,
+   "gd15": 184.0,
+   "presence": 1.9
+  },
+  "Lissandra": {
+   "name": "Lissandra",
+   "picks": 114.0,
+   "bans": 63.0,
+   "prio": 1.0,
+   "winrate": 47.0,
+   "gd15": -139.0,
+   "presence": 2.2
+  },
+  "Shyvana": {
+   "name": "Shyvana",
+   "picks": 91.0,
+   "bans": 68.0,
+   "prio": 1.0,
+   "winrate": 48.0,
+   "gd15": 98.0,
+   "presence": 1.9
+  },
+  "Yuumi": {
+   "name": "Yuumi",
+   "picks": 125.0,
+   "bans": 42.0,
+   "prio": 1.0,
+   "winrate": 45.0,
+   "gd15": -87.0,
+   "presence": 2.0
+  },
+  "Blitzcrank": {
+   "name": "Blitzcrank",
+   "picks": 91.0,
+   "bans": 58.0,
+   "prio": 1.0,
+   "winrate": 52.0,
+   "gd15": -108.0,
+   "presence": 1.8
+  },
+  "Nasus": {
+   "name": "Nasus",
+   "picks": 69.0,
+   "bans": 67.0,
+   "prio": 1.0,
+   "winrate": 54.0,
+   "gd15": -519.0,
+   "presence": 1.7
+  },
+  "Darius": {
+   "name": "Darius",
+   "picks": 43.0,
+   "bans": 72.0,
+   "prio": 1.0,
+   "winrate": 47.0,
+   "gd15": 19.0,
+   "presence": 1.4
+  },
+  "Ivern": {
+   "name": "Ivern",
+   "picks": 45.0,
+   "bans": 73.0,
+   "prio": 1.0,
+   "winrate": 40.0,
+   "gd15": -290.0,
+   "presence": 1.4
+  },
+  "AurelionSol": {
+   "name": "Aurelion Sol",
+   "picks": 51.0,
+   "bans": 63.0,
+   "prio": 1.0,
+   "winrate": 61.0,
+   "gd15": -349.0,
+   "presence": 1.4
+  },
+  "Zed": {
+   "name": "Zed",
+   "picks": 46.0,
+   "bans": 63.0,
+   "prio": 1.0,
+   "winrate": 48.0,
+   "gd15": 285.0,
+   "presence": 1.3
+  },
+  "Swain": {
+   "name": "Swain",
+   "picks": 65.0,
+   "bans": 44.0,
+   "prio": 1.0,
+   "winrate": 57.0,
+   "gd15": 129.0,
+   "presence": 1.3
+  },
+  "KogMaw": {
+   "name": "KogMaw",
+   "picks": 93.0,
+   "bans": 31.0,
+   "prio": 1.0,
+   "winrate": 42.0,
+   "gd15": 49.0,
+   "presence": 1.5
+  },
+  "Kindred": {
+   "name": "Kindred",
+   "picks": 38.0,
+   "bans": 57.0,
+   "prio": 1.0,
+   "winrate": 26.0,
+   "gd15": -146.0,
+   "presence": 1.2
+  },
+  "KhaZix": {
+   "name": "KhaZix",
+   "picks": 76.0,
+   "bans": 40.0,
+   "prio": 1.0,
+   "winrate": 51.0,
+   "gd15": 520.0,
+   "presence": 1.4
+  },
+  "Elise": {
+   "name": "Elise",
+   "picks": 63.0,
+   "bans": 38.0,
+   "prio": 1.0,
+   "winrate": 46.0,
+   "gd15": 368.0,
+   "presence": 1.2
+  },
+  "Diana": {
+   "name": "Diana",
+   "picks": 29.0,
+   "bans": 53.0,
+   "prio": 1.0,
+   "winrate": 52.0,
+   "gd15": 333.0,
+   "presence": 1.0
+  },
+  "Gangplank": {
+   "name": "Gangplank",
+   "picks": 43.0,
+   "bans": 45.0,
+   "prio": 1.0,
+   "winrate": 58.0,
+   "gd15": 239.0,
+   "presence": 1.1
+  },
+  "Nidalee": {
+   "name": "Nidalee",
+   "picks": 60.0,
+   "bans": 40.0,
+   "prio": 1.0,
+   "winrate": 55.0,
+   "gd15": 411.0,
+   "presence": 1.2
+  },
+  "Urgot": {
+   "name": "Urgot",
+   "picks": 24.0,
+   "bans": 49.0,
+   "prio": 1.0,
+   "winrate": 50.0,
+   "gd15": 390.0,
+   "presence": 0.9
+  },
+  "Zyra": {
+   "name": "Zyra",
+   "picks": 48.0,
+   "bans": 36.0,
+   "prio": 1.0,
+   "winrate": 42.0,
+   "gd15": 174.0,
+   "presence": 1.0
+  },
+  "Vladimir": {
+   "name": "Vladimir",
+   "picks": 51.0,
+   "bans": 28.0,
+   "prio": 1.0,
+   "winrate": 33.0,
+   "gd15": -11.0,
+   "presence": 1.0
+  },
+  "Mordekaiser": {
+   "name": "Mordekaiser",
+   "picks": 63.0,
+   "bans": 15.0,
+   "prio": 1.0,
+   "winrate": 38.0,
+   "gd15": -3.0,
+   "presence": 1.0
+  },
+  "Heimerdinger": {
+   "name": "Heimerdinger",
+   "picks": 6.0,
+   "bans": 49.0,
+   "prio": 1.0,
+   "winrate": 33.0,
+   "gd15": -307.0,
+   "presence": 0.7
+  },
+  "Graves": {
+   "name": "Graves",
+   "picks": 37.0,
+   "bans": 31.0,
+   "prio": 1.0,
+   "winrate": 54.0,
+   "gd15": 461.0,
+   "presence": 0.8
+  },
+  "Xerath": {
+   "name": "Xerath",
+   "picks": 45.0,
+   "bans": 24.0,
+   "prio": 1.0,
+   "winrate": 42.0,
+   "gd15": -95.0,
+   "presence": 0.8
+  },
+  "Kassadin": {
+   "name": "Kassadin",
+   "picks": 15.0,
+   "bans": 35.0,
+   "prio": 1.0,
+   "winrate": 27.0,
+   "gd15": -435.0,
+   "presence": 0.6
+  },
+  "Hecarim": {
+   "name": "Hecarim",
+   "picks": 20.0,
+   "bans": 32.0,
+   "prio": 1.0,
+   "winrate": 25.0,
+   "gd15": -21.0,
+   "presence": 0.6
+  },
+  "Veigar": {
+   "name": "Veigar",
+   "picks": 32.0,
+   "bans": 18.0,
+   "prio": 0.0,
+   "winrate": 34.0,
+   "gd15": -101.0,
+   "presence": 0.6
+  },
+  "Belveth": {
+   "name": "Belveth",
+   "picks": 9.0,
+   "bans": 28.0,
+   "prio": 0.0,
+   "winrate": 22.0,
+   "gd15": -385.0,
+   "presence": 0.5
+  },
+  "Lillia": {
+   "name": "Lillia",
+   "picks": 21.0,
+   "bans": 22.0,
+   "prio": 0.0,
+   "winrate": 52.0,
+   "gd15": 29.0,
+   "presence": 0.5
+  },
+  "Ekko": {
+   "name": "Ekko",
+   "picks": 20.0,
+   "bans": 19.0,
+   "prio": 0.0,
+   "winrate": 30.0,
+   "gd15": 2.0,
+   "presence": 0.5
+  },
+  "Malzahar": {
+   "name": "Malzahar",
+   "picks": 21.0,
+   "bans": 22.0,
+   "prio": 0.0,
+   "winrate": 48.0,
+   "gd15": -162.0,
+   "presence": 0.5
+  },
+  "Tryndamere": {
+   "name": "Tryndamere",
+   "picks": 25.0,
+   "bans": 17.0,
+   "prio": 0.0,
+   "winrate": 44.0,
+   "gd15": 774.0,
+   "presence": 0.5
+  },
+  "Riven": {
+   "name": "Riven",
+   "picks": 12.0,
+   "bans": 23.0,
+   "prio": 0.0,
+   "winrate": 58.0,
+   "gd15": 258.0,
+   "presence": 0.4
+  },
+  "Udyr": {
+   "name": "Udyr",
+   "picks": 21.0,
+   "bans": 15.0,
+   "prio": 0.0,
+   "winrate": 38.0,
+   "gd15": -308.0,
+   "presence": 0.4
+  },
+  "Soraka": {
+   "name": "Soraka",
+   "picks": 36.0,
+   "bans": 9.0,
+   "prio": 0.0,
+   "winrate": 50.0,
+   "gd15": -223.0,
+   "presence": 0.6
+  },
+  "Vex": {
+   "name": "Vex",
+   "picks": 29.0,
+   "bans": 15.0,
+   "prio": 0.0,
+   "winrate": 59.0,
+   "gd15": 211.0,
+   "presence": 0.5
+  },
+  "Zac": {
+   "name": "Zac",
+   "picks": 14.0,
+   "bans": 19.0,
+   "prio": 0.0,
+   "winrate": 29.0,
+   "gd15": -413.0,
+   "presence": 0.4
+  },
+  "TahmKench": {
+   "name": "Tahm Kench",
+   "picks": 32.0,
+   "bans": 9.0,
+   "prio": 0.0,
+   "winrate": 34.0,
+   "gd15": -342.0,
+   "presence": 0.5
+  },
+  "Garen": {
+   "name": "Garen",
+   "picks": 28.0,
+   "bans": 9.0,
+   "prio": 0.0,
+   "winrate": 46.0,
+   "gd15": 44.0,
+   "presence": 0.5
+  },
+  "Illaoi": {
+   "name": "Illaoi",
+   "picks": 16.0,
+   "bans": 15.0,
+   "prio": 0.0,
+   "winrate": 44.0,
+   "gd15": -18.0,
+   "presence": 0.4
+  },
+  "Singed": {
+   "name": "Singed",
+   "picks": 14.0,
+   "bans": 16.0,
+   "prio": 0.0,
+   "winrate": 50.0,
+   "gd15": -675.0,
+   "presence": 0.4
+  },
+  "Nunu": {
+   "name": "Nunu",
+   "picks": 10.0,
+   "bans": 17.0,
+   "prio": 0.0,
+   "winrate": 60.0,
+   "gd15": -270.0,
+   "presence": 0.3
+  },
+  "Sett": {
+   "name": "Sett",
+   "picks": 26.0,
+   "bans": 9.0,
+   "prio": 0.0,
+   "winrate": 58.0,
+   "gd15": 277.0,
+   "presence": 0.4
+  },
+  "Kayle": {
+   "name": "Kayle",
+   "picks": 13.0,
+   "bans": 14.0,
+   "prio": 0.0,
+   "winrate": 31.0,
+   "gd15": -115.0,
+   "presence": 0.3
+  },
+  "Morgana": {
+   "name": "Morgana",
+   "picks": 22.0,
+   "bans": 10.0,
+   "prio": 0.0,
+   "winrate": 55.0,
+   "gd15": 137.0,
+   "presence": 0.4
+  },
+  "Amumu": {
+   "name": "Amumu",
+   "picks": 22.0,
+   "bans": 6.0,
+   "prio": 0.0,
+   "winrate": 45.0,
+   "gd15": -40.0,
+   "presence": 0.3
+  },
+  "Taric": {
+   "name": "Taric",
+   "picks": 15.0,
+   "bans": 6.0,
+   "prio": 0.0,
+   "winrate": 20.0,
+   "gd15": -293.0,
+   "presence": 0.3
+  },
+  "Zilean": {
+   "name": "Zilean",
+   "picks": 12.0,
+   "bans": 8.0,
+   "prio": 0.0,
+   "winrate": 33.0,
+   "gd15": -315.0,
+   "presence": 0.2
+  },
+  "Janna": {
+   "name": "Janna",
+   "picks": 9.0,
+   "bans": 8.0,
+   "prio": 0.0,
+   "winrate": 33.0,
+   "gd15": 8.0,
+   "presence": 0.2
+  },
+  "VelKoz": {
+   "name": "VelKoz",
+   "picks": 17.0,
+   "bans": 1.0,
+   "prio": 0.0,
+   "winrate": 59.0,
+   "gd15": 113.0,
+   "presence": 0.2
+  },
+  "Karthus": {
+   "name": "Karthus",
+   "picks": 10.0,
+   "bans": 7.0,
+   "prio": 0.0,
+   "winrate": 40.0,
+   "gd15": 44.0,
+   "presence": 0.2
+  },
+  "Sona": {
+   "name": "Sona",
+   "picks": 16.0,
+   "bans": 4.0,
+   "prio": 0.0,
+   "winrate": 44.0,
+   "gd15": 17.0,
+   "presence": 0.2
+  },
+  "Warwick": {
+   "name": "Warwick",
+   "picks": 7.0,
+   "bans": 8.0,
+   "prio": 0.0,
+   "winrate": 86.0,
+   "gd15": 973.0,
+   "presence": 0.2
+  },
+  "Talon": {
+   "name": "Talon",
+   "picks": 7.0,
+   "bans": 8.0,
+   "prio": 0.0,
+   "winrate": 43.0,
+   "gd15": 1723.0,
+   "presence": 0.2
+  },
+  "Fiddlesticks": {
+   "name": "Fiddlesticks",
+   "picks": 7.0,
+   "bans": 6.0,
+   "prio": 0.0,
+   "winrate": 14.0,
+   "gd15": -338.0,
+   "presence": 0.2
+  },
+  "Brand": {
+   "name": "Brand",
+   "picks": 12.0,
+   "bans": 2.0,
+   "prio": 0.0,
+   "winrate": 25.0,
+   "gd15": -592.0,
+   "presence": 0.2
+  },
+  "Kayn": {
+   "name": "Kayn",
+   "picks": 7.0,
+   "bans": 5.0,
+   "prio": 0.0,
+   "winrate": 43.0,
+   "gd15": -204.0,
+   "presence": 0.1
+  },
+  "Shaco": {
+   "name": "Shaco",
+   "picks": 5.0,
+   "bans": 5.0,
+   "prio": 0.0,
+   "winrate": 80.0,
+   "gd15": -237.0,
+   "presence": 0.1
+  },
+  "Rammus": {
+   "name": "Rammus",
+   "picks": 4.0,
+   "bans": 6.0,
+   "prio": 0.0,
+   "winrate": 25.0,
+   "gd15": -334.0,
+   "presence": 0.1
+  },
+  "MasterYi": {
+   "name": "Master Yi",
+   "picks": 4.0,
+   "bans": 4.0,
+   "prio": 0.0,
+   "winrate": 25.0,
+   "gd15": -134.0,
+   "presence": 0.1
+  },
+  "Briar": {
+   "name": "Briar",
+   "picks": 2.0,
+   "bans": 5.0,
+   "prio": 0.0,
+   "winrate": 0.0,
+   "gd15": -916.0,
+   "presence": 0.1
+  },
+  "Samira": {
+   "name": "Samira",
+   "picks": 10.0,
+   "bans": 2.0,
+   "prio": 0.0,
+   "winrate": 70.0,
+   "gd15": 679.0,
+   "presence": 0.1
+  },
+  "Twitch": {
+   "name": "Twitch",
+   "picks": 8.0,
+   "bans": 1.0,
+   "prio": 0.0,
+   "winrate": 50.0,
+   "gd15": 319.0,
+   "presence": 0.1
+  },
+  "Fizz": {
+   "name": "Fizz",
+   "picks": 6.0,
+   "bans": 1.0,
+   "prio": 0.0,
+   "winrate": 33.0,
+   "gd15": 300.0,
+   "presence": 0.1
+  },
+  "Quinn": {
+   "name": "Quinn",
+   "picks": 4.0,
+   "bans": 2.0,
+   "prio": 0.0,
+   "winrate": 50.0,
+   "gd15": -550.0,
+   "presence": 0.1
+  },
+  "Akshan": {
+   "name": "Akshan",
+   "picks": 0.0,
+   "bans": 3.0,
+   "prio": 0.0,
+   "winrate": null,
+   "gd15": null,
+   "presence": 0.0
+  },
+  "Teemo": {
+   "name": "Teemo",
+   "picks": 2.0,
+   "bans": 2.0,
+   "prio": 0.0,
+   "winrate": 50.0,
+   "gd15": 1364.0,
+   "presence": 0.0
+  },
+  "Nilah": {
+   "name": "Nilah",
+   "picks": 3.0,
+   "bans": 1.0,
+   "prio": 0.0,
+   "winrate": 33.0,
+   "gd15": -780.0,
+   "presence": 0.0
+  },
+  "Evelynn": {
+   "name": "Evelynn",
+   "picks": 0.0,
+   "bans": 2.0,
+   "prio": 0.0,
+   "winrate": null,
+   "gd15": null,
+   "presence": 0.0
+  },
+  "Katarina": {
+   "name": "Katarina",
+   "picks": 0.0,
+   "bans": 0.0,
+   "prio": 0.0,
+   "winrate": null,
+   "gd15": null,
+   "presence": 0.0
+  }
+ }
+}
