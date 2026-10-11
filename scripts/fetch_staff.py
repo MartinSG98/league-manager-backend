@@ -79,7 +79,7 @@ def staff_rows(html: str) -> list[dict]:
     """Active coaches and analysts from the roster and organization tables."""
     rows = []
     seen = set()
-    for anchor in ("Player_Roster", "Organization"):
+    for anchor in ("Player_Roster", "Organization", "Current_Staff"):
         for row in re.findall(r"<tr[^>]*>(.*?)</tr>", _active_part(html, anchor), re.S):
             cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
             texts = [_text(c) for c in cells]

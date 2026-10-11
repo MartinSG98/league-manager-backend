@@ -1,0 +1,1432 @@
+{
+ "teams": {
+  "LOS": [
+   {
+    "handle": "Enatron",
+    "name": "Ilias Theodorou",
+    "position": "Head Coach",
+    "country": "Greece",
+    "photo": null
+   },
+   {
+    "handle": "Brandão",
+    "name": "Felipe Brandão",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "Invokid",
+    "name": "Arda Başaran",
+    "position": "Strategic Coach",
+    "country": "Turkey",
+    "photo": null
+   },
+   {
+    "handle": "Yariet",
+    "name": "Michele Maneggia",
+    "position": "Analyst",
+    "country": "Italy",
+    "photo": null
+   }
+  ],
+  "LOUD": [
+   {
+    "handle": "Raise",
+    "name": "Oh Ji-hwan",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Sephis",
+    "name": "Diego Alejandro de Alencar Jara",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   }
+  ],
+  "FUR": [
+   {
+    "handle": "Furyz",
+    "name": "Erick Susin",
+    "position": "Head Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "Luuukz",
+    "name": "Lucas Yudi",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "Lanterninho",
+    "name": "Caio Felippe",
+    "position": "Analyst",
+    "country": "Brazil",
+    "photo": null
+   }
+  ],
+  "VKS": [
+   {
+    "handle": "bieLzera",
+    "name": "Gabriel de Mattos",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "kksh",
+    "name": "Otávio Alves",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "LJ",
+    "name": "Kang Dae-hee",
+    "position": "Positional Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "PNG": [
+   {
+    "handle": "Von",
+    "name": "Gabriel Barbosa",
+    "position": "Head Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "Sarkis",
+    "name": "Matheus Guimarães Sarquis",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   }
+  ],
+  "RED": [
+   {
+    "handle": "tockers",
+    "name": "Gabriel Claumann",
+    "position": "Head Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "BeellzY",
+    "name": "Lucas Spínola",
+    "position": "Positional Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "Vinicin",
+    "name": "Vinicius Garcia",
+    "position": "Assistant Coach",
+    "country": "Brazil",
+    "photo": null
+   },
+   {
+    "handle": "Greco",
+    "name": null,
+    "position": "Analyst",
+    "country": "Greece",
+    "photo": null
+   }
+  ],
+  "FX": [
+   {
+    "handle": "Guchi",
+    "name": "Andres Castro",
+    "position": "Head Coach",
+    "country": "Argentina",
+    "photo": null
+   },
+   {
+    "handle": "Nothing",
+    "name": "Brandon Merlo",
+    "position": "Positional Coach",
+    "country": "Argentina",
+    "photo": null
+   },
+   {
+    "handle": "Lyfaenia",
+    "name": "Henrique Ruoso",
+    "position": "Analyst",
+    "country": "Brazil",
+    "photo": null
+   }
+  ],
+  "LEV": [
+   {
+    "handle": "Kouke",
+    "name": "Jorge Eduardo Bravo González",
+    "position": "Head Coach",
+    "country": "Peru",
+    "photo": null
+   },
+   {
+    "handle": "LautaLoval",
+    "name": "Lautaro Nicolas Lo Valvo",
+    "position": "Assistant Coach",
+    "country": "Argentina",
+    "photo": null
+   }
+  ],
+  "GEN": [
+   {
+    "handle": "Ryu",
+    "name": "Yoo Sang-wook",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Lyn",
+    "name": "Kim Da-bin",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Nova",
+    "name": "Park Chan-ho",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "NS": [
+   {
+    "handle": "DanDy",
+    "name": "Choi In-kyu",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Crazy",
+    "name": "Kim Jae-hee",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Chelly",
+    "name": "Park Seung-jin",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "DNS": [
+   {
+    "handle": "Ggoong",
+    "name": "Yu Byeong-jun",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Cube",
+    "name": "Kim Chang-seong",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Minit",
+    "name": "Yang Hyun-min",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Millimas",
+    "name": "Kim Geon-woo",
+    "position": "Analyst",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "DK": [
+   {
+    "handle": "cvMax",
+    "name": "Kim Dae-ho",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Hachani",
+    "name": "Ha Seung-chan",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "PoohManDu",
+    "name": "Lee Jeong-hyeon",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "BRO": [
+   {
+    "handle": "SSONG",
+    "name": "Kim Sang-soo",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Duke",
+    "name": "Lee Ho-seong",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "HLE": [
+   {
+    "handle": "Homme",
+    "name": "Yoon Sung-young",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Mowgli",
+    "name": "Lee Jae-ha",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Sin",
+    "name": "Yeon Hyeong-mo",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "BFX": [
+   {
+    "handle": "Edo",
+    "name": "Park Jun-seok",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Rather",
+    "name": "Shin Hyoung-seop",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "LirA",
+    "name": "Nam Tae-yoo",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "T1": [
+   {
+    "handle": "Tom",
+    "name": "Im Jae-hyeon",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Mata",
+    "name": "Cho Se-hyoung",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Easyhoon",
+    "name": "Lee Ji-hoon",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "KT": [
+   {
+    "handle": "Score",
+    "name": "Go Dong-bin",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Museong",
+    "name": "Kim Moo-seong",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "S0NSTAR",
+    "name": "Son Seung-ik",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Highness",
+    "name": "Park Ji-won",
+    "position": "Analyst",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "DRX": [
+   {
+    "handle": "Joker",
+    "name": "Cho Jae-eup",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "NaeHyun",
+    "name": "Yoo Nae-hyun",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Saroo",
+    "name": "Lee Jong-won",
+    "position": "Analyst",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "TSW": [
+   {
+    "handle": "WarHorse",
+    "name": "Chen Ju-chih",
+    "position": "Head Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Ciel",
+    "name": "Trần Tiến Thịnh",
+    "position": "Coach",
+    "country": "Vietnam",
+    "photo": null
+   }
+  ],
+  "CFO": [
+   {
+    "handle": "Chawy",
+    "name": "Wong Xing Lei",
+    "position": "Head Coach",
+    "country": "Singapore",
+    "photo": null
+   },
+   {
+    "handle": "Wulala",
+    "name": "Liu Sheng-wei",
+    "position": "Coach",
+    "country": "Taiwan",
+    "photo": null
+   }
+  ],
+  "GZ": [
+   {
+    "handle": "Skywalk",
+    "name": "John Wong Chun Him",
+    "position": "Head Coach",
+    "country": "Hong Kong",
+    "photo": null
+   },
+   {
+    "handle": "Ratis",
+    "name": "Weng Yu-fan",
+    "position": "Coach",
+    "country": "Taiwan",
+    "photo": null
+   }
+  ],
+  "GAM": [
+   {
+    "handle": "Hype",
+    "name": "Trần Hữu Toàn",
+    "position": "Head Coach",
+    "country": "Vietnam",
+    "photo": null
+   },
+   {
+    "handle": "Naul",
+    "name": "Võ Thành Luân",
+    "position": "Head Coach",
+    "country": "Vietnam",
+    "photo": null
+   }
+  ],
+  "MVK": [
+   {
+    "handle": "SofM",
+    "name": "Lê Quang Duy",
+    "position": "Head Coach",
+    "country": "Vietnam",
+    "photo": null
+   },
+   {
+    "handle": "Bigkoro",
+    "name": "Đặng Ngọc Tài",
+    "position": "Coach",
+    "country": "Vietnam",
+    "photo": null
+   },
+   {
+    "handle": "Suga",
+    "name": "Phan Bá Phúc",
+    "position": "Analyst",
+    "country": "Vietnam",
+    "photo": null
+   },
+   {
+    "handle": "Zuko",
+    "name": "Nguyễn Hoàng Thái",
+    "position": "Analyst",
+    "country": "Vietnam",
+    "photo": null
+   }
+  ],
+  "DCG": [
+   {
+    "handle": "REFRA1N",
+    "name": "Chen Kuan-ting",
+    "position": "Head Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Lxz",
+    "name": "Chiu Liang-jung",
+    "position": "Assistant Coach",
+    "country": "Taiwan",
+    "photo": null
+   }
+  ],
+  "DFM": [
+   {
+    "handle": "Paz",
+    "name": "Shirou Sasaki",
+    "position": "Coach",
+    "country": "Japan",
+    "photo": null
+   },
+   {
+    "handle": "TaNa",
+    "name": "Lee Sang-wook",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Gismo",
+    "name": "Haruhiko Aoki",
+    "position": "Analyst",
+    "country": "Japan",
+    "photo": null
+   }
+  ],
+  "SHG": [
+   {
+    "handle": "CorGi",
+    "name": "Cheng Pin-lun",
+    "position": "Head Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Maru",
+    "name": "Lee Sang-hun",
+    "position": "Assistant Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "LYON": [
+   {
+    "handle": "Reignover",
+    "name": "Kim Yeu-jin",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Rigby",
+    "name": "Han Earl",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "TL": [
+   {
+    "handle": "Spawn",
+    "name": "Jake Tiberi",
+    "position": "Head Coach",
+    "country": "Australia",
+    "photo": null
+   },
+   {
+    "handle": "Spookz",
+    "name": "Samuel Broadley",
+    "position": "Assistant Coach",
+    "country": "Australia",
+    "photo": null
+   },
+   {
+    "handle": "Haitham",
+    "name": "Haitham Algbory",
+    "position": "Head Analyst",
+    "country": "Iraq",
+    "photo": null
+   },
+   {
+    "handle": "TeeKay",
+    "name": null,
+    "position": "Analyst",
+    "country": "United States",
+    "photo": null
+   }
+  ],
+  "C9": [
+   {
+    "handle": "IWillDominate",
+    "name": "Christian Rivera",
+    "position": "Head Coach",
+    "country": "United States",
+    "photo": null
+   },
+   {
+    "handle": "Veigarv2",
+    "name": "Marius Aune",
+    "position": "Assistant Coach",
+    "country": "Norway",
+    "photo": null
+   },
+   {
+    "handle": "Arrow",
+    "name": "Noh Dong-hyeon",
+    "position": "Assistant Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "YamatoCannon",
+    "name": "Jakob Mebdi",
+    "position": "Assistant Coach",
+    "country": "Sweden",
+    "photo": null
+   }
+  ],
+  "SEN": [
+   {
+    "handle": "Goldenglue",
+    "name": "Greyson Gilmer",
+    "position": "Head Coach",
+    "country": "United States",
+    "photo": null
+   },
+   {
+    "handle": "Dayos",
+    "name": "Mervin-Angelo Lachica",
+    "position": "Assistant Coach",
+    "country": "Canada",
+    "photo": null
+   }
+  ],
+  "SR": [
+   {
+    "handle": "Reven",
+    "name": "Seong Sang-hyeon",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Damonte",
+    "name": "Tanner Damonte",
+    "position": "Assistant Coach",
+    "country": "United States",
+    "photo": null
+   },
+   {
+    "handle": "Nulu",
+    "name": "Marcin Pawel Wolski",
+    "position": "Positional Coach",
+    "country": "Poland",
+    "photo": null
+   }
+  ],
+  "FLY": [
+   {
+    "handle": "Thinkcard",
+    "name": "Thomas Slotkin",
+    "position": "Head Coach",
+    "country": "United States",
+    "photo": null
+   },
+   {
+    "handle": "Apollo",
+    "name": null,
+    "position": "Strategic Coach",
+    "country": null,
+    "photo": null
+   }
+  ],
+  "DSG": [
+   {
+    "handle": "Ido",
+    "name": "Ian McCormick",
+    "position": "Head Coach",
+    "country": "United States",
+    "photo": null
+   },
+   {
+    "handle": "Brandini",
+    "name": "Brandon Chen",
+    "position": "Assistant Coach",
+    "country": "United States",
+    "photo": null
+   }
+  ],
+  "DIG": [
+   {
+    "handle": "POILK",
+    "name": "Vilhelm Flennmark",
+    "position": "Assistant Analyst",
+    "country": "Sweden",
+    "photo": null
+   },
+   {
+    "handle": "Swiffer",
+    "name": "Simon Papamarkos",
+    "position": "Head Coach",
+    "country": "Australia",
+    "photo": null
+   },
+   {
+    "handle": "Emi",
+    "name": "Emanuel Ursachi",
+    "position": "Assistant Coach",
+    "country": "Romania",
+    "photo": null
+   },
+   {
+    "handle": "Yariet",
+    "name": "Michele Maneggia",
+    "position": "Head Analyst",
+    "country": "Italy",
+    "photo": null
+   }
+  ],
+  "KC": [
+   {
+    "handle": "Clément",
+    "name": "Clément Thillier",
+    "position": "Performance Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Ferra",
+    "name": null,
+    "position": "Head of Coaching Development",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Reapered",
+    "name": "Bok Han-gyu",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Zeph",
+    "name": "Quentin Viguié",
+    "position": "Assistant Coach",
+    "country": "France",
+    "photo": null
+   }
+  ],
+  "G2": [
+   {
+    "handle": "Ismind",
+    "name": "Ismael Pedraza",
+    "position": "Performance Coach",
+    "country": "Colombia",
+    "photo": null
+   },
+   {
+    "handle": "Perkz",
+    "name": "Luka Perković",
+    "position": "Head Coach",
+    "country": "Croatia",
+    "photo": null
+   },
+   {
+    "handle": "Memento",
+    "name": "Jonas Elmarghichi",
+    "position": "Assistant Coach",
+    "country": "Sweden",
+    "photo": null
+   },
+   {
+    "handle": "Rodrigo",
+    "name": "Rodrigo Oliveira",
+    "position": "Head Analyst",
+    "country": "Portugal",
+    "photo": "https://static.lolesports.com/players/default-headshot.png"
+   }
+  ],
+  "VIT": [
+   {
+    "handle": "Mac",
+    "name": "James MacCormack",
+    "position": "Head of Coaching Development",
+    "country": "United Kingdom",
+    "photo": null
+   },
+   {
+    "handle": "Pad",
+    "name": "Patrick Suckow-Breum",
+    "position": "Head Coach",
+    "country": "Denmark",
+    "photo": null
+   },
+   {
+    "handle": "Arvindir",
+    "name": "Danusch Fischer",
+    "position": "Strategic Coach",
+    "country": "Germany",
+    "photo": null
+   },
+   {
+    "handle": "Garih",
+    "name": "Mauro Garih Vidal",
+    "position": "Assistant Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Hansen",
+    "name": "Bjørn-Vegar Hansen",
+    "position": "Assistant Coach",
+    "country": "Norway",
+    "photo": null
+   },
+   {
+    "handle": "Milan",
+    "name": "Jonas Morisot",
+    "position": "Analyst",
+    "country": "France",
+    "photo": null
+   }
+  ],
+  "GX": [
+   {
+    "handle": "Guilhoto",
+    "name": "André Guilhoto",
+    "position": "Head Coach",
+    "country": "Portugal",
+    "photo": null
+   },
+   {
+    "handle": "rhuckz",
+    "name": "Rúben Barbosa",
+    "position": "Assistant Coach",
+    "country": "Portugal",
+    "photo": null
+   },
+   {
+    "handle": "Maxlore",
+    "name": "Nubar Sarafian",
+    "position": "Assistant Coach",
+    "country": "United Kingdom",
+    "photo": null
+   }
+  ],
+  "NAVI": [
+   {
+    "handle": "TheRock7",
+    "name": "Vasilis Voltis",
+    "position": "Head Coach",
+    "country": "Greece",
+    "photo": null
+   },
+   {
+    "handle": "GotoOne",
+    "name": "Adrien Picard",
+    "position": "Assistant Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Lopon",
+    "name": "Jorge Andrés López Alonso",
+    "position": "Assistant Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Sanchi",
+    "name": "Maciej Bieńkowski",
+    "position": "Analyst",
+    "country": "Poland",
+    "photo": null
+   }
+  ],
+  "MKOI": [
+   {
+    "handle": "Melzhet",
+    "name": "Tomás Campelos Fernández",
+    "position": "Head Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Independent",
+    "name": "Eric Ruiz",
+    "position": "Assistant Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Alphari",
+    "name": "Barney Morris",
+    "position": "Assistant Coach",
+    "country": "United Kingdom",
+    "photo": null
+   }
+  ],
+  "FNC": [
+   {
+    "handle": "Immanuelity",
+    "name": null,
+    "position": "Performance Coach",
+    "country": "Germany",
+    "photo": null
+   },
+   {
+    "handle": "GrabbZ",
+    "name": "Fabian Lohmann",
+    "position": "Head Coach",
+    "country": "Germany",
+    "photo": null
+   },
+   {
+    "handle": "Gaax",
+    "name": "Pablo Pérez",
+    "position": "Assistant Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Odoamne",
+    "name": "Andrei Pascu",
+    "position": "Assistant Coach",
+    "country": "Romania",
+    "photo": null
+   }
+  ],
+  "SK": [
+   {
+    "handle": "Own3r",
+    "name": "David Rodríguez de la Torre",
+    "position": "Head Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Baguette",
+    "name": "Simon Cordonnier",
+    "position": "Assistant Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Duffman",
+    "name": "Christopher Duff",
+    "position": "Assistant Coach",
+    "country": "United Kingdom",
+    "photo": null
+   },
+   {
+    "handle": "Proba",
+    "name": null,
+    "position": "Analyst",
+    "country": "France",
+    "photo": null
+   }
+  ],
+  "SHFT": [
+   {
+    "handle": "Bernie",
+    "name": "Bernadette Ramaker",
+    "position": "Performance Coach",
+    "country": "Netherlands",
+    "photo": null
+   },
+   {
+    "handle": "Striker",
+    "name": "Yanis Kella",
+    "position": "Head Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Jujutw0",
+    "name": "Julien Izzo",
+    "position": "Assistant Coach",
+    "country": "France",
+    "photo": "https://static.lolesports.com/players/1639647042551_placeholder.png"
+   },
+   {
+    "handle": "MenQ",
+    "name": "Marek Dziemian",
+    "position": "Strategic Coach",
+    "country": "Poland",
+    "photo": null
+   },
+   {
+    "handle": "Mew",
+    "name": "Théo Ponzoni",
+    "position": "Positional Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Cabochard",
+    "name": "Lucas Simon-Meslet",
+    "position": "Assistant Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Arces",
+    "name": "Damian Osuch",
+    "position": "Analyst",
+    "country": "Poland",
+    "photo": null
+   }
+  ],
+  "TH": [
+   {
+    "handle": "Ewbuff",
+    "name": null,
+    "position": "Performance Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Nukeduck",
+    "name": "Erlend Våtevik Holm",
+    "position": "Head Coach",
+    "country": "Norway",
+    "photo": null
+   },
+   {
+    "handle": "mithy",
+    "name": "Alfonso Aguirre Rodríguez",
+    "position": "Assistant Coach",
+    "country": "Spain",
+    "photo": null
+   },
+   {
+    "handle": "Hidon",
+    "name": "Jonas Vraa",
+    "position": "Assistant Coach",
+    "country": "Denmark",
+    "photo": null
+   },
+   {
+    "handle": "sOAZ",
+    "name": "Paul Boyer",
+    "position": "Positional Coach",
+    "country": "France",
+    "photo": null
+   },
+   {
+    "handle": "Deam147",
+    "name": null,
+    "position": "Analyst",
+    "country": "Costa Rica",
+    "photo": null
+   }
+  ],
+  "NIP": [
+   {
+    "handle": "Maizijian",
+    "name": "Zeng Xinyi",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Cluo",
+    "name": "Shin Min-sung",
+    "position": "Analyst",
+    "country": "South Korea",
+    "photo": null
+   }
+  ],
+  "BLG": [
+   {
+    "handle": "Daeny",
+    "name": "Yang Dae-in",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Ben",
+    "name": "Nam Dong-hyun",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Chieh",
+    "name": "Li Chieh",
+    "position": "Assistant Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Zyb",
+    "name": "Zhuang Yibin",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "AL": [
+   {
+    "handle": "MingZhe",
+    "name": "Zhang Yu",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "BigWei",
+    "name": "Fu Chien-wei",
+    "position": "Head Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Pewpew",
+    "name": "Jin Can",
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Teacherma",
+    "name": "Jiang Chen",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Despa1r",
+    "name": "Zhou Lipeng",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "May",
+    "name": "Bo Renjie",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "IG": [
+   {
+    "handle": "Helper",
+    "name": "Kwon Young-jae",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Fury",
+    "name": "Lee Jin-yong",
+    "position": "Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Chengz",
+    "name": "Ye Shengliao",
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "TES": [
+   {
+    "handle": "Poppy",
+    "name": "Chang Po-hao",
+    "position": "Head Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "River",
+    "name": "Wang Yang",
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Shuijing",
+    "name": null,
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Bobo",
+    "name": null,
+    "position": "Assistant Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Leo",
+    "name": null,
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "BZ",
+    "name": "Zhao Yetong",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "JDG": [
+   {
+    "handle": "Tabe",
+    "name": "Wong Pak Kan",
+    "position": "Head Coach",
+    "country": "Hong Kong",
+    "photo": null
+   },
+   {
+    "handle": "Zoom",
+    "name": "Zhang Xingran",
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Xiaobai",
+    "name": "Yang Zhonghe",
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Huge",
+    "name": "Cui Hu",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Vus5o",
+    "name": "Wu Shuo",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Karma",
+    "name": "Huang Yihong",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Zizheng",
+    "name": "Jia Zizheng",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "LGD": [
+   {
+    "handle": "1874",
+    "name": "Chen Lixin",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Chelizi",
+    "name": "Xia Hanxi",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "WE": [
+   {
+    "handle": "Condi",
+    "name": "Xiang Renjie",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "JinJin",
+    "name": "Jin Guanghua",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "694",
+    "name": "He Xin",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "zhaozhao",
+    "name": null,
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "WBG": [
+   {
+    "handle": "Shine",
+    "name": "Shin Dong-wook",
+    "position": "Head Coach",
+    "country": "South Korea",
+    "photo": null
+   },
+   {
+    "handle": "Clearlove",
+    "name": "Ming Kai",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Tselin",
+    "name": "Zhao Zelin",
+    "position": "Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Medusa",
+    "name": null,
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "TT": [
+   {
+    "handle": "NoName",
+    "name": "Zhou Qilin",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Benny",
+    "name": "Lien Hsiu-chi",
+    "position": "Assistant Coach",
+    "country": "Taiwan",
+    "photo": null
+   },
+   {
+    "handle": "Vlone",
+    "name": null,
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "EDG": [
+   {
+    "handle": "Mni",
+    "name": "Peng Fang",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Liet",
+    "name": "Liu Zhengyang",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ],
+  "LNG": [
+   {
+    "handle": "YiL",
+    "name": "Wang Liangyi",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "LvMao",
+    "name": "Zuo Minghao",
+    "position": "Head Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "Xiasu",
+    "name": "Chen Long",
+    "position": "Assistant Coach",
+    "country": "China",
+    "photo": null
+   },
+   {
+    "handle": "333",
+    "name": "Huang Yihong",
+    "position": "Analyst",
+    "country": "China",
+    "photo": null
+   }
+  ]
+ }
+}
