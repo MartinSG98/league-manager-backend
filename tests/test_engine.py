@@ -197,6 +197,20 @@ def test_the_coach_sets_how_hard_a_defeat_hits_and_how_fast_players_grow():
     assert not hidden and all(abs(w - 1) < 1e-9 for w in weights.values())
 
 
+def test_a_career_saved_before_staff_existed_hires_them_on_the_next_action(drafted):
+    from app.game.state import ReadMessageAction
+
+    career = drafted.model_copy(deep=True)
+    for team in career.teams.values():
+        team.coach = team.analyst = None
+    career.staff = {}
+    engine.apply(cat, career, ReadMessageAction(type="read_message"))
+    assert all(t.coach and t.analyst for t in career.teams.values())
+    assert career.inbox[-1].kind == "staff"
+    assert all(roster.payroll(career, t) <= t.budget + 1 for t in career.teams.values()
+               if roster.payroll(drafted, drafted.teams[t.id]) <= drafted.teams[t.id].budget)
+
+
 def test_drafted_teams_stay_within_budget(drafted):
     over = [t.id for t in drafted.teams.values() if roster.payroll(drafted, t) > t.budget]
     assert not over

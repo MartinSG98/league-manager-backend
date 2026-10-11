@@ -223,10 +223,33 @@ def _end_season(cat: Catalog, career: Career) -> None:
 
 
 def _migrate(cat: Catalog, career: Career) -> None:
-    """Careers saved before staff existed get the staff pool; their teams fill seats next pre-season."""
+    """Careers saved before staff existed get the staff pool, and once their draft is over every
+    team hires an assistant coach and an analyst straight away (see _hire_staff)."""
     if len(career.staff) < len(cat.staff):
         for sid in cat.staff:
             career.staff.setdefault(sid, StaffState(id=sid))
+    if career.phase != "draft" and not any(t.coach or t.analyst for t in career.teams.values()):
+        _hire_staff(cat, career)
+
+
+def _hire_staff(cat: Catalog, career: Career) -> None:
+    """The boards hire staff without a draft: the biggest organisations choose first, each takes
+    the best value it sees, and the board raises the budget by the salary."""
+    for team in sorted(career.teams.values(), key=lambda t: -cat.teams[t.id].prestige):
+        for kind in ("coach", "analyst"):
+            pool = draft.available_staff(cat, career, team.league, kind)
+            if not pool:
+                continue
+            person = max(pool, key=lambda s: s.overall - 60 * s.salary / max(1, team.budget))
+            draft.hire(career, team, person)
+            team.budget += person.salary
+    mine = career.teams[career.team]
+    names = [f"{cat.staff[sid].name} as {draft.STAFF_NAMES[kind]}"
+             for kind, sid in (("coach", mine.coach), ("analyst", mine.analyst)) if sid]
+    if names:
+        message(career, "staff", "The board has hired your staff",
+                f"New this season: {' and '.join(names)}. Their salaries come on top of your budget. "
+                "When their contracts end, new staff are drafted after the players.")
 
 
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
