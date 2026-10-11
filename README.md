@@ -146,6 +146,7 @@ Chemistry runs from about -5 to +4 on top of the team's average.
 ## Data
 
 - **Rosters and stats.** Rosters, roles, nationalities and 2026 stat lines for 27 leagues come from [gol.gg](https://gol.gg), and so do career champion pools and 2026 champion presence. The scripts that fetch them are `scripts/fetch_golgg.py` and `scripts/fetch_meta.py`. Pages are cached in `.cache/`, so re-runs only fetch what is missing.
+- **Logos and photos.** Team logos, league and event logos, player photos and real names come from the lolesports.com API through `scripts/fetch_lolesports.py`, which writes `app/data/lolesports.json`. Only URLs are stored, and the images stay on Riot's CDN. Every tier-one team, 195 teams in all, every league and about 1,320 of 1,368 players have one.
 - **Champions.** The champion list is Data Dragon 16.20.1, with roles, power curve, damage type and class tagged by hand in `scripts/build_champions.py`.
 - **Leagues.** `app/data/leagues.json` lists every league with its region, tier, strength and the gol.gg tournament its rosters come from.
 - **Teams.** `app/data/teams.json` holds tags, colours, prestige and franchise players for tier-one teams. Teams not listed there keep the best-rated starter as their franchise player.

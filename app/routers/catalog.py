@@ -9,6 +9,7 @@ def _player(p: Player) -> dict:
     return {
         "id": p.id, "name": p.name, "role": p.role, "country": p.country, "league": p.league, "overall": p.overall,
         "potential": p.potential, "salary": p.salary, "signatures": list(p.signatures), "games": p.games,
+        "photo": p.photo, "real_name": p.real_name,
     }
 
 
@@ -21,7 +22,7 @@ def catalog() -> dict:
             continue
         teams.append({
             "id": t.id, "name": t.name, "tag": t.tag, "league": t.league, "region": t.region, "color": t.color,
-            "prestige": t.prestige, "rank": t.rank, "wins": t.wins, "losses": t.losses,
+            "logo": t.logo, "prestige": t.prestige, "rank": t.rank, "wins": t.wins, "losses": t.losses,
             "franchise": _player(cat.players[t.franchise]) if t.franchise else None,
         })
     teams.sort(key=lambda t: (t["league"], t["rank"]))
@@ -30,10 +31,11 @@ def catalog() -> dict:
         "regions": [{"id": r.id, "name": r.name, "league": r.league} for r in cat.regions.values()],
         "leagues": [
             {"id": lg.id, "name": lg.name, "full_name": lg.full_name, "region": lg.region, "tier": lg.tier,
-             "players": sum(1 for p in cat.players.values() if p.league == lg.id)}
+             "logo": lg.logo, "players": sum(1 for p in cat.players.values() if p.league == lg.id)}
             for lg in cat.leagues.values()
         ],
         "teams": teams,
+        "event_logos": cat.event_logos,
         "champions": [
             {"id": c.id, "name": c.name, "roles": list(c.roles), "focus": c.focus, "damage": c.damage, "cls": c.cls}
             for c in sorted(cat.champions.values(), key=lambda c: c.name)
@@ -50,7 +52,7 @@ def team(team_id: str) -> dict:
     region_pool = [p for p in cat.region_players(t.region) if p.id != t.franchise]
     return {
         "id": t.id, "name": t.name, "tag": t.tag, "league": t.league, "region": t.region, "color": t.color,
-        "prestige": t.prestige, "rank": t.rank, "wins": t.wins, "losses": t.losses,
+        "logo": t.logo, "prestige": t.prestige, "rank": t.rank, "wins": t.wins, "losses": t.losses,
         "franchise": _player(cat.players[t.franchise]) if t.franchise else None,
         "roster_2026": [_player(cat.players[pid]) | {"starter": pid in t.starters.values()} for pid in t.roster],
         "pool_size": len(region_pool),

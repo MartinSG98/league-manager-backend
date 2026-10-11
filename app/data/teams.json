@@ -1,5 +1,5 @@
 {
-  "_comment": "Hand-kept details for tier-one teams, keyed by the team name gol.gg uses. franchise is the player the team keeps when everyone else goes into the draft; leave it out and the best-rated starter is kept. Teams not listed get a generated tag and colour.",
+  "_comment": "Hand-kept details for tier-one teams, keyed by the team name gol.gg uses. franchise is the player the team keeps when everyone else goes into the draft; leave it out and the best-rated starter is kept. lolesports is the team's code on lolesports.com when its name there differs. Teams not listed get a generated tag and colour.",
   "teams": {
     "Gen.G": {"id": "GEN", "tag": "GEN", "color": "#b8952e", "prestige": 92, "franchise": "Chovy"},
     "Hanwha Life Esports": {"id": "HLE", "tag": "HLE", "color": "#f37321", "prestige": 88, "franchise": "Zeus"},
@@ -37,7 +37,7 @@
     "Shifters": {"id": "SHFT", "tag": "SHFT", "color": "#00c9a7", "prestige": 66},
 
     "Cloud9": {"id": "C9", "tag": "C9", "color": "#00aeef", "prestige": 90, "franchise": "Blaber"},
-    "Team Liquid": {"id": "TL", "tag": "TL", "color": "#4a90e2", "prestige": 88, "franchise": "CoreJJ"},
+    "Team Liquid": {"id": "TL", "tag": "TL", "color": "#4a90e2", "prestige": 88, "franchise": "CoreJJ", "lolesports": "TLAW"},
     "FlyQuest": {"id": "FLY", "tag": "FLY", "color": "#2ecc71", "prestige": 80},
     "LYON": {"id": "LYON", "tag": "LYON", "color": "#29b6d8", "prestige": 75, "franchise": "Inspired"},
     "Sentinels": {"id": "SEN", "tag": "SEN", "color": "#e4002b", "prestige": 75},

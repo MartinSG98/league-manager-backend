@@ -34,6 +34,9 @@ def test_catalog_lists_tier_one_teams_and_every_champion(client):
     assert len(data["champions"]) >= 170
     g2 = client.get("/api/catalog/teams/G2").json()
     assert g2["franchise"]["name"] == "Caps"
+    assert g2["logo"].startswith("https://") and g2["franchise"]["photo"].startswith("https://")
+    assert all(lg["logo"] for lg in data["leagues"])
+    assert set(data["event_logos"]) == {"FST", "MSI", "WORLDS"}
 
 
 def test_unknown_team_is_rejected(client):

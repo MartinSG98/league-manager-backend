@@ -7,7 +7,7 @@ gol.gg stat lines when the catalog loads (see ratings.py), so retuning them need
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -54,6 +54,7 @@ class League:
     region: str
     tier: int
     strength: int  # 100 = LCK, drives the rating baseline of everyone who played there
+    logo: str | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,8 @@ class Player:
     pool: tuple[ChampionRecord, ...]  # most played first
     mastery: dict[str, int] = field(default_factory=dict)  # champion id -> 0-100
     signatures: tuple[str, ...] = ()
+    photo: str | None = None  # URL on Riot's esports CDN
+    real_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,7 @@ class Team:
     starters: dict[str, str]  # role -> player id
     franchise: str | None  # player id the team keeps when the draft resets everyone else
     prestige: int  # 0-100, budget and sponsor pull
+    logo: str | None = None
 
 
 @dataclass(frozen=True, eq=False)  # hashed by identity so helpers can cache per catalog
@@ -113,6 +117,7 @@ class Catalog:
     players: dict[str, Player]
     champions: dict[str, Champion]
     champion_by_key: dict[str, str]
+    event_logos: dict[str, str] = field(default_factory=dict)  # FST, MSI, WORLDS
 
     def tier_one(self, region: str) -> League:
         return self.leagues[self.regions[region].league]
@@ -161,10 +166,12 @@ def get_catalog() -> Catalog:
     meta = _read("meta_2026.json")["champions"]
     team_meta = _read("teams.json")["teams"] if (DATA / "teams.json").exists() else {}
     dragon = _read("champions.json")
+    art = _read("lolesports.json") if (DATA / "lolesports.json").exists() else {"leagues": {}, "teams": {}, "players": {}}
 
     regions = {r["id"]: Region(r["id"], r["name"], r["league"]) for r in config["regions"]}
     leagues = {
-        lg["id"]: League(lg["id"], lg["name"], lg["full_name"], lg["region"], lg["tier"], lg["strength"])
+        lg["id"]: League(lg["id"], lg["name"], lg["full_name"], lg["region"], lg["tier"], lg["strength"],
+                         logo=art["leagues"].get(lg["id"]))
         for lg in config["leagues"]
     }
 
@@ -223,7 +230,9 @@ def get_catalog() -> Catalog:
             "career": careers.get(gol_id, []),
         })
     for player in ratings.rate_players(rows, leagues, champion_by_key):
-        players[player.id] = player
+        extra = art["players"].get(player.id) or {}
+        names = " ".join(n for n in (extra.get("first_name"), extra.get("last_name")) if n)
+        players[player.id] = replace(player, photo=extra.get("photo"), real_name=names or None)
 
     teams: dict[str, Team] = {}
     for team_id, entry in teams_raw.items():
@@ -263,6 +272,7 @@ def get_catalog() -> Catalog:
             starters=starters,
             franchise=franchise,
             prestige=int(prestige),
+            logo=(art["teams"].get(team_id) or {}).get("logo"),
         )
 
     return Catalog(
@@ -273,4 +283,5 @@ def get_catalog() -> Catalog:
         players=players,
         champions=champions,
         champion_by_key=champion_by_key,
+        event_logos={k: v for k, v in art["leagues"].items() if k in ("FST", "MSI", "WORLDS")},
     )

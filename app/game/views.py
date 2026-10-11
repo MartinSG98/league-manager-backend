@@ -17,7 +17,14 @@ def team_ref(cat: Catalog, team_id: str | None) -> dict | None:
     if team_id is None:
         return None
     t = cat.teams[team_id]
-    return {"id": t.id, "name": t.name, "tag": t.tag, "color": t.color, "league": t.league, "region": t.region}
+    return {"id": t.id, "name": t.name, "tag": t.tag, "color": t.color, "league": t.league, "region": t.region,
+            "logo": t.logo}
+
+
+def competition_logo(cat: Catalog, comp: Competition) -> str | None:
+    if comp.league:
+        return cat.leagues[comp.league].logo
+    return cat.event_logos.get(comp.id.split("-", 1)[1])
 
 
 def player_row(cat: Catalog, career: Career, pid: str) -> dict:
@@ -27,10 +34,12 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
     return {
         "id": p.id,
         "name": p.name,
+        "real_name": p.real_name,
+        "photo": p.photo,
         "role": p.role,
         "country": p.country,
         "league": p.league,
-        "origin": {"id": origin.id, "name": origin.name, "tag": origin.tag} if origin else None,
+        "origin": {"id": origin.id, "name": origin.name, "tag": origin.tag, "logo": origin.logo} if origin else None,
         "team": state.team,
         "overall": roster.overall(cat, career, pid),
         "potential": p.potential,
@@ -85,6 +94,7 @@ def match_summary(cat: Catalog, career: Career, match: Match) -> dict:
         "id": match.id,
         "competition": comp.id,
         "competition_name": comp.name,
+        "competition_logo": competition_logo(cat, comp),
         "stage": match.stage,
         "label": match.label,
         "day": match.day.isoformat(),
@@ -129,6 +139,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
         "patch": career.meta.version,
         "team": team_ref(cat, career.team),
         "league": career.league,
+        "league_logo": cat.leagues[career.league].logo,
         "region": career.region,
         "budget": team.budget,
         "payroll": roster.payroll(career, team),
@@ -246,7 +257,7 @@ def competitions_view(cat: Catalog, career: Career) -> list[dict]:
     for comp in sorted(career.competitions.values(), key=lambda c: (c.start, c.id)):
         out.append({
             "id": comp.id, "name": comp.name, "short": comp.short, "kind": comp.kind, "league": comp.league,
-            "split": comp.split, "status": comp.status, "start": comp.start.isoformat(), "end": comp.end.isoformat(),
+            "logo": competition_logo(cat, comp), "split": comp.split, "status": comp.status, "start": comp.start.isoformat(), "end": comp.end.isoformat(),
             "winner": team_ref(cat, comp.placements[0]) if comp.placements else None,
             "mine": career.team in comp.entrants,
         })
@@ -276,7 +287,8 @@ def _stage_view(cat: Catalog, career: Career, stage: Stage) -> dict:
 def competition_view(cat: Catalog, career: Career, comp: Competition) -> dict:
     return {
         "id": comp.id, "name": comp.name, "short": comp.short, "kind": comp.kind, "status": comp.status,
-        "league": comp.league, "start": comp.start.isoformat(), "end": comp.end.isoformat(),
+        "league": comp.league, "logo": competition_logo(cat, comp), "start": comp.start.isoformat(),
+        "end": comp.end.isoformat(),
         "prize_pool": comp.prize_pool, "entrants": [team_ref(cat, t) for t in comp.entrants],
         "placements": [team_ref(cat, t) for t in comp.placements],
         "stages": [_stage_view(cat, career, s) for s in comp.stages],
