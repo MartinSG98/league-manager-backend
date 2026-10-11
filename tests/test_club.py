@@ -116,6 +116,34 @@ def test_titles_raise_both_reputations(drafted):
     assert career.manager_reputation > manager
 
 
+def test_qualifying_for_msi_and_a_deep_run_are_bonuses(drafted):
+    career = drafted.model_copy(deep=True)
+    assert {b.id for b in career.board.bonuses} == {x[0] for x in board.BONUSES}
+    others = [t for t in _last(career) if t != career.team]
+    confidence, cash = career.board.confidence, career.teams[career.team].cash
+    msi = Competition(id=f"{career.board.season}-MSI", name="MSI", short="Mid-Season Invitational",
+                      kind="international", start=career.day, end=career.day, entrants=[career.team] + others[:7])
+    career.competitions[msi.id] = msi
+    board.event_created(cat, career, msi)
+    qualify = next(b for b in career.board.bonuses if b.id == "MSI-in")
+    assert qualify.status == "earned" and career.board.confidence == confidence + qualify.confidence
+    assert career.teams[career.team].cash == cash + board.bonus_payment(career, qualify)
+    msi.placements = [others[0], career.team] + others[1:7]
+    msi.status = "finished"
+    board.after_competition(cat, career, msi, Rng(career))
+    status = {b.id: b.status for b in career.board.bonuses}
+    assert status["MSI-top4"] == "earned" and status["MSI-final"] == "earned"
+
+    # Missing First Stand costs nothing.
+    before = career.board.confidence
+    fst = Competition(id=f"{career.board.season}-FST", name="FST", short="First Stand", kind="international",
+                      start=career.day, end=career.day, entrants=others[:8])
+    career.competitions[fst.id] = fst
+    board.event_created(cat, career, fst)
+    assert all(b.status == "missed" for b in career.board.bonuses if b.event == "FST")
+    assert career.board.confidence == before
+
+
 # ---------- training ----------
 
 

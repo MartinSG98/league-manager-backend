@@ -341,10 +341,24 @@ class Objective(BaseModel):
     result: str = ""
 
 
+class Bonus(BaseModel):
+    """Something the board rewards but does not demand: qualifying for First Stand or MSI, or a
+    deep run there."""
+
+    id: str
+    event: Literal["FST", "MSI"]
+    place: int  # 0: qualify; otherwise finish at this place or better
+    confidence: int
+    reputation: float  # the manager's
+    sponsors: float  # share of the salary budget the sponsors pay
+    status: Literal["pending", "earned", "missed"] = "pending"
+
+
 class BoardState(BaseModel):
     season: int = 0  # the season the objectives are for
     confidence: int = 60  # 0..100
     objectives: list[Objective] = []
+    bonuses: list[Bonus] = []
     meeting: bool = False  # a meeting about the objectives is waiting
     warned: bool = False  # one more bad review and the manager is sacked
     sacked: bool = False

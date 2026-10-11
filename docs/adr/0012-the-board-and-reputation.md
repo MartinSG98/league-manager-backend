@@ -19,6 +19,7 @@ The board meets the manager when a job starts and at the start of every off-seas
 - **Waiting.** While the meeting waits, the draft, `advance` and new signings wait too.
 
 Confidence starts at 60 and moves when an objective is decided: after each split and after Worlds.
+- **Bonuses.** First Stand and MSI are bonuses, not objectives: qualifying and a deep run add confidence, manager reputation and a sponsor payment, and missing them costs nothing. The manager asked for qualifying and doing well there to be rewarded.
 - **Warnings and the sack.** A review below 22 is a warning, and the next review still below 22 is the sack.
 - **Grace.** Nobody is warned in their first 75 days at a club, and each new season pulls confidence part of the way back to 60. One terrible split never ends a career.
 

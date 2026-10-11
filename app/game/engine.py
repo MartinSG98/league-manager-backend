@@ -140,11 +140,16 @@ def _todays_matches(career: Career) -> list:
 
 
 def _update_competitions(cat: Catalog, career: Career, rng: Rng) -> None:
-    """Move the competitions on, then let reputations and the board react to what finished."""
+    """Move the competitions on, then let reputations and the board react to what finished and
+    to the international events that were just set."""
+    before = set(career.competitions)
     for comp_id in calendar.update(cat, career, rng):
         comp = career.competitions[comp_id]
         reputation.after_competition(cat, career, comp)
         board.after_competition(cat, career, comp, rng)
+    for comp_id in set(career.competitions) - before:
+        if career.competitions[comp_id].kind == "international":
+            board.event_created(cat, career, career.competitions[comp_id])
 
 
 def _check_free(career: Career) -> None:
@@ -288,6 +293,11 @@ def migrate(cat: Catalog, career: Career) -> bool:
     if not career.board.season:
         board.start_job(cat, career, career.season + 1 if career.phase == "offseason" else career.season)
         changed = True
+    elif not career.board.bonuses:
+        bonuses = board.bonuses_for(career, career.board.season)
+        if bonuses:
+            career.board.bonuses = bonuses
+            changed = True
     if career.phase == "offseason" and not any(h.season == career.season for h in career.history):
         # Saved at the end of a season under the old rules, before the transfer window existed.
         offseason.start_offseason(cat, career, Rng(career))

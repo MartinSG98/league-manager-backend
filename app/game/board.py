@@ -12,6 +12,10 @@ Confidence (0-100, 60 for a new manager) moves when an objective is decided: up 
 met, more for one the manager promised, down for a miss, more the bigger the miss. Titles add
 on top. A new season starts confidence two-fifths of the way back to 60.
 
+First Stand and MSI are not objectives but bonuses (see BONUSES): qualifying, and a deep run,
+add confidence and manager reputation and bring a sponsor payment to the bank. Missing them
+costs nothing.
+
 The board reviews the manager after each split and after Worlds. Below 22 confidence the first
 review is a warning and the next one still below it is the sack; back above 35 lifts the
 warning. Nobody is warned or sacked in their first 75 days, which covers the first split of a
@@ -22,13 +26,22 @@ from app.game import calendar, reputation
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
-from app.game.state import BoardState, Career, Competition, InboxMessage, Objective
+from app.game.state import BoardState, Bonus, Career, Competition, InboxMessage, Objective
 
 START_CONFIDENCE = 60
 WARNING = 22  # below this a review is a warning, and after a warning the sack
 SAFE = 35  # back above this and the warning is lifted
 GRACE_DAYS = 75
 BUDGET_STEP = 0.04
+# id, event, place (0: qualify), confidence, manager reputation, sponsor payment as a share of the budget
+BONUSES = (
+    ("FST-in", "FST", 0, 4, 1.0, 0.04),
+    ("FST-final", "FST", 2, 3, 1.0, 0.03),
+    ("MSI-in", "MSI", 0, 4, 1.0, 0.05),
+    ("MSI-top4", "MSI", 4, 3, 1.0, 0.03),
+    ("MSI-final", "MSI", 2, 3, 1.0, 0.03),
+)
+EVENT_NAMES = {"FST": "First Stand", "MSI": "MSI"}
 WORLDS_STEPS = {
     0: "Worlds would be a bonus",
     1: "Qualify for Worlds",
@@ -119,7 +132,8 @@ def stance_target(cat: Catalog, career: Career, obj: Objective, stance: int) -> 
 def start_job(cat: Catalog, career: Career, season: int) -> None:
     """A new board relationship: fresh confidence and a meeting about this season's objectives."""
     career.board = BoardState(season=season, confidence=START_CONFIDENCE, joined=career.day,
-                              objectives=propose(cat, career, career.team, season), meeting=True)
+                              objectives=propose(cat, career, career.team, season), meeting=True,
+                              bonuses=bonuses_for(career, season))
 
 
 def new_season(cat: Catalog, career: Career, season: int) -> None:
@@ -128,7 +142,74 @@ def new_season(cat: Catalog, career: Career, season: int) -> None:
     b.confidence = round(b.confidence + (START_CONFIDENCE - b.confidence) * 0.4)
     b.season = season
     b.objectives = propose(cat, career, career.team, season)
+    b.bonuses = bonuses_for(career, season)
     b.meeting = True
+
+
+# ---------- bonuses ----------
+
+
+def bonuses_for(career: Career, season: int) -> list[Bonus]:
+    """The bonuses still to play for: none for an event that is already over or under way."""
+    out = []
+    for bid, event, place, confidence, rep, sponsors in BONUSES:
+        if f"{season}-{event}" in career.competitions:
+            continue
+        out.append(Bonus(id=bid, event=event, place=place, confidence=confidence,  # type: ignore[arg-type]
+                         reputation=rep, sponsors=sponsors))
+    return out
+
+
+def describe_bonus(bonus: Bonus) -> str:
+    name = EVENT_NAMES[bonus.event]
+    if bonus.place == 0:
+        return f"Qualify for {name}"
+    if bonus.place == 2:
+        return f"Reach the {name} final"
+    return f"Reach the {name} semi-finals"
+
+
+def bonus_payment(career: Career, bonus: Bonus) -> int:
+    return int(round(career.teams[career.team].budget * bonus.sponsors / 10) * 10)
+
+
+def _settle(career: Career, bonus: Bonus, earned: bool) -> None:
+    b = career.board
+    bonus.status = "earned" if earned else "missed"
+    if not earned:
+        return
+    b.confidence = min(100, b.confidence + bonus.confidence)
+    reputation.change_manager(career, bonus.reputation)
+    payment = bonus_payment(career, bonus)
+    career.teams[career.team].cash += payment
+    b.history.append(f"{career.day.isoformat()} Bonus: {describe_bonus(bonus)}. Confidence {b.confidence}/100.")
+    _message(career, f"Board bonus: {describe_bonus(bonus)}",
+             f"The board is pleased: +{bonus.confidence} confidence. The sponsors pay a bonus of {payment}k into the bank.")
+
+
+def event_created(cat: Catalog, career: Career, comp: Competition) -> None:
+    """An international event is set: the qualification bonus is decided."""
+    event = comp.id.split("-", 1)[1]
+    if career.board.sacked or not comp.id.startswith(f"{career.board.season}-"):
+        return
+    qualified = career.team in comp.entrants
+    for bonus in career.board.bonuses:
+        if bonus.event != event or bonus.status != "pending":
+            continue
+        if bonus.place == 0:
+            _settle(career, bonus, qualified)
+        elif not qualified:
+            bonus.status = "missed"
+
+
+def _event_finished(career: Career, comp: Competition) -> None:
+    event = comp.id.split("-", 1)[1]
+    if not comp.id.startswith(f"{career.board.season}-"):
+        return
+    place = comp.placements.index(career.team) + 1 if career.team in comp.placements else 99
+    for bonus in career.board.bonuses:
+        if bonus.event == event and bonus.status == "pending" and bonus.place:
+            _settle(career, bonus, place <= bonus.place)
 
 
 def hold_meeting(cat: Catalog, career: Career, stances: dict[str, int]) -> None:
@@ -179,6 +260,8 @@ def after_competition(cat: Catalog, career: Career, comp: Competition, rng: Rng)
     b = career.board
     if b.sacked or b.meeting or not comp.placements:
         return
+    if comp.kind == "international":
+        _event_finished(career, comp)
     team = career.team
     title = comp.placements[0] == team
     if title:

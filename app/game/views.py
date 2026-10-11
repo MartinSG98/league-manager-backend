@@ -186,6 +186,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
             "meeting": b.meeting, "sacked": b.sacked, "season": b.season,
             "objectives": [{"id": o.id, "text": boardroom.describe(cat, career, o), "status": o.status,
                             "result": o.result} for o in b.objectives],
+            "bonuses": _bonuses(career),
         },
         "reputation": _reputation(cat, career),
         "job_offers": [_job_offer(cat, career, t) for t in career.job_offers],
@@ -197,6 +198,11 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
             "talks": sum(1 for c in career.conversations if not c.resolved),
         },
     }
+
+
+def _bonuses(career: Career) -> list[dict]:
+    return [{"id": x.id, "text": boardroom.describe_bonus(x), "status": x.status, "confidence": x.confidence,
+             "payment": boardroom.bonus_payment(career, x)} for x in career.board.bonuses]
 
 
 def _reputation(cat: Catalog, career: Career) -> dict:
@@ -564,6 +570,7 @@ def board_view(cat: Catalog, career: Career) -> dict:
         "sacked": b.sacked,
         "joined": b.joined.isoformat() if b.joined else None,
         "objectives": objectives,
+        "bonuses": _bonuses(career),
         "history": list(reversed(b.history[-12:])),
         "reputation": _reputation(cat, career) | {"prestige": cat.teams[career.team].prestige},
         "finances": {
