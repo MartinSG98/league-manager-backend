@@ -5,9 +5,14 @@ them, laid out on real dates.
     Jan 17       split 1 (LEC Versus, LCK Cup, LCS Lock-In, ...), playoffs from Feb 20
     Mar 13-22    First Stand, the split 1 winners (and LCK/LPL runners-up)
     Mar 28       split 2, playoffs from May 22
-    Jun 26-Jul 12  MSI
+    Jun 26-Jul 12  MSI: a play-in, then a double-elimination bracket of eight
     Jul 18       split 3, playoffs from Sep 4
     Oct 1-Nov 7  Worlds: a Swiss stage, then best-of-five knockouts
+
+Every domestic playoff is a best-of-five double-elimination bracket, as in 2026: eight teams in
+the LPL and the LEC Versus, six everywhere else. The LEC (Spring and Summer) and the LCS Spring
+put their top four in the upper bracket and 5th and 6th in the lower one; the LCK, CBLOL, LCP and
+the other LCS splits send their top two straight to the upper semifinals.
 
 Domestic schedules are built when the season starts. Playoffs are built when the regular season
 ends, and each international event when every region has finished the split before it."""
@@ -54,6 +59,10 @@ FORMATS = {
     "CBLOL": ((2, 1, 6), (2, 1, 6), (2, 3, 6)),
     "LCP": ((1, 3, 6), (1, 3, 6), (1, 3, 6)),
 }
+
+# Six-team playoffs with the top four in the upper bracket; every other six-team playoff gives the
+# top two a bye (see competitions.DOUBLE_ELIM).
+UPPER_FOUR = {("LEC", 2), ("LEC", 3), ("LCS", 2)}
 
 # Prize pool of one split in thousands of USD; the last split pays half again as much.
 DOMESTIC_PRIZE = {"LCK": 350, "LPL": 450, "LEC": 300, "LCS": 250, "CBLOL": 90, "LCP": 120}
@@ -133,13 +142,26 @@ def _playoff_days(start: date, end: date, rounds: int) -> list[list[date]]:
     return out
 
 
+def playoff_shape(league: str, split: int, teams: int) -> str | None:
+    if teams == 8:
+        return "eight"
+    if teams == 6:
+        return "six_upper_four" if (league, split) in UPPER_FOUR else "six_byes"
+    return None
+
+
 def _build_playoffs(career: Career, comp: Competition, seeds: list[str]) -> None:
     split = SPLITS[comp.split - 1]  # type: ignore[operator]
+    start, end = _d(career.season, split.playoffs[0]), _d(career.season, split.playoffs[1])
+    shape = playoff_shape(comp.league or "", comp.split or 0, len(seeds))
+    if shape:
+        stage = Stage(id=f"{comp.id}-PO", name="Playoffs", kind="double_elim", teams=seeds, best_of=5)
+        comp.stages.append(stage)
+        comps.build_double_elim(career, comp, stage, shape, start, end)
+        return
     stage = Stage(id=f"{comp.id}-PO", name="Playoffs", kind="single_elim", teams=seeds, best_of=5, final_best_of=5)
     comp.stages.append(stage)
-    rounds = 3 if len(seeds) > 4 else 2
-    days = _playoff_days(_d(career.season, split.playoffs[0]), _d(career.season, split.playoffs[1]), rounds)
-    comps.build_single_elim(career, comp, stage, days)
+    comps.build_single_elim(career, comp, stage, _playoff_days(start, end, 3 if len(seeds) > 4 else 2))
 
 
 # ---------- international ----------
@@ -194,6 +216,11 @@ def create_international(cat: Catalog, career: Career, event: International, rng
 
 def _build_international_knockout(career: Career, comp: Competition, seeds: list[str]) -> None:
     season = career.season
+    if comp.id.endswith("MSI") and len(seeds) == 8:
+        stage = Stage(id=f"{comp.id}-KO", name="Bracket stage", kind="double_elim", teams=seeds, best_of=5)
+        comp.stages.append(stage)
+        comps.build_double_elim(career, comp, stage, "eight", date(season, 7, 2), date(season, 7, 12))
+        return
     stage = Stage(id=f"{comp.id}-KO", name="Knockouts", kind="single_elim", teams=seeds, best_of=5, final_best_of=5)
     comp.stages.append(stage)
     if comp.id.endswith("FST"):
@@ -249,12 +276,10 @@ def _advance_competition(cat: Catalog, career: Career, comp: Competition, stage:
             _build_international_knockout(career, comp, stage.ranking[: stage.advance])
             return
         if stage.id.endswith("-PI"):
-            # Direct seeds arrive as LCK1, LPL1, LEC1, LCS1, LCK2, LPL2. Korea and China's second
-            # seeds go to the middle of the bracket so the first seeds cannot meet before the final.
+            # Direct seeds arrive as LCK1, LPL1, LEC1, LCS1, LCK2, LPL2 and keep that order, then
+            # the two play-in winners: first seeds meet the play-in teams and LCS1 meets LCK2.
             direct = [t for t in comp.entrants if t not in stage.teams]
-            order = (0, 1, 5, 4, 2, 3)
-            seeds = [direct[i] for i in order if i < len(direct)] + stage.ranking[:2]
-            _build_international_knockout(career, comp, seeds)
+            _build_international_knockout(career, comp, direct + stage.ranking[:2])
             return
         earlier = [s for s in comp.stages if s is not stage]
         rest: list[str] = []

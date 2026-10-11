@@ -1,6 +1,7 @@
 """Competition stages: round robins (optionally in groups), seeded single-elimination brackets
-with byes, and a Swiss stage. Each stage owns its matches; when the last one is played the
-stage ranks its teams and the competition moves on to the next stage or finishes."""
+with byes, double-elimination brackets with an upper and a lower bracket, and a Swiss stage.
+Each stage owns its matches; when the last one is played the stage ranks its teams and the
+competition moves on to the next stage or finishes."""
 
 from collections import defaultdict
 from datetime import date, timedelta
@@ -39,11 +40,11 @@ def spread_days(start: date, end: date, count: int) -> list[date]:
 
 def new_match(career: Career, comp: Competition, stage: Stage, label: str, day: date, best_of: int,
               home: str | None = None, away: str | None = None, home_from: str | None = None,
-              away_from: str | None = None) -> Match:
+              away_from: str | None = None, **bracket) -> Match:
     mid = f"{stage.id}-{len(stage.matches) + 1}"
     match = Match(
         id=mid, competition=comp.id, stage=stage.id, label=label, day=day, home=home, away=away,
-        best_of=best_of, fearless=best_of > 1, home_from=home_from, away_from=away_from,
+        best_of=best_of, fearless=best_of > 1, home_from=home_from, away_from=away_from, **bracket,
     )
     career.matches[mid] = match
     stage.matches.append(mid)
@@ -198,6 +199,111 @@ def elim_ranking(career: Career, stage: Stage) -> list[str]:
     return sorted(survivors, key=lambda t: seed[t]) + eliminated
 
 
+# ---------- double elimination ----------
+
+# Every bracket as data: key, label, bracket, round, home, away, and the place the loser finishes
+# (0 when they drop to the lower bracket). Sources are "S:<seed>", "W:<key>" or "L:<key>".
+DoubleElimShape = list[tuple[str, str, str, int, str, str, int]]
+
+DOUBLE_ELIM: dict[str, DoubleElimShape] = {
+    # Eight teams, all in the upper bracket (LEC Versus, LPL, MSI's bracket stage).
+    "eight": [
+        ("U1", "Upper quarterfinal", "upper", 0, "S:1", "S:8", 0),
+        ("U2", "Upper quarterfinal", "upper", 0, "S:4", "S:5", 0),
+        ("U3", "Upper quarterfinal", "upper", 0, "S:2", "S:7", 0),
+        ("U4", "Upper quarterfinal", "upper", 0, "S:3", "S:6", 0),
+        ("U5", "Upper semifinal", "upper", 1, "W:U1", "W:U2", 0),
+        ("U6", "Upper semifinal", "upper", 1, "W:U3", "W:U4", 0),
+        ("L1", "Lower round 1", "lower", 1, "L:U1", "L:U2", 7),
+        ("L2", "Lower round 1", "lower", 1, "L:U3", "L:U4", 7),
+        ("L3", "Lower round 2", "lower", 2, "W:L1", "L:U6", 5),
+        ("L4", "Lower round 2", "lower", 2, "W:L2", "L:U5", 5),
+        ("UF", "Upper final", "upper", 3, "W:U5", "W:U6", 0),
+        ("L5", "Lower round 3", "lower", 3, "W:L3", "W:L4", 4),
+        ("LF", "Lower final", "lower", 4, "L:UF", "W:L5", 3),
+        ("GF", "Grand final", "final", 5, "W:UF", "W:LF", 2),
+    ],
+    # Six teams, the top four in the upper bracket and 5th and 6th in the lower (LEC, LCS Spring).
+    "six_upper_four": [
+        ("U1", "Upper round 1", "upper", 0, "S:1", "S:4", 0),
+        ("U2", "Upper round 1", "upper", 0, "S:2", "S:3", 0),
+        ("L1", "Lower round 1", "lower", 1, "L:U1", "S:5", 5),
+        ("L2", "Lower round 1", "lower", 1, "L:U2", "S:6", 5),
+        ("UF", "Upper final", "upper", 1, "W:U1", "W:U2", 0),
+        ("L3", "Lower round 2", "lower", 2, "W:L1", "W:L2", 4),
+        ("LF", "Lower final", "lower", 3, "L:UF", "W:L3", 3),
+        ("GF", "Grand final", "final", 4, "W:UF", "W:LF", 2),
+    ],
+    # Six teams, the top two straight into the upper semifinals (LCK, CBLOL, LCS Lock-In and Summer, LCP).
+    "six_byes": [
+        ("U1", "Upper round 1", "upper", 0, "S:3", "S:6", 0),
+        ("U2", "Upper round 1", "upper", 0, "S:4", "S:5", 0),
+        ("U3", "Upper semifinal", "upper", 1, "S:1", "W:U2", 0),
+        ("U4", "Upper semifinal", "upper", 1, "S:2", "W:U1", 0),
+        ("L1", "Lower round 1", "lower", 2, "L:U3", "L:U1", 5),
+        ("L2", "Lower round 1", "lower", 2, "L:U4", "L:U2", 5),
+        ("UF", "Upper final", "upper", 2, "W:U3", "W:U4", 0),
+        ("L3", "Lower round 2", "lower", 3, "W:L1", "W:L2", 4),
+        ("LF", "Lower final", "lower", 4, "L:UF", "W:L3", 3),
+        ("GF", "Grand final", "final", 5, "W:UF", "W:LF", 2),
+    ],
+}
+
+
+def bracket_days(start: date, end: date, per_round: list[int]) -> list[list[date]]:
+    """A day for every match: each round starts after the one before, spread over the window,
+    and its matches go two a day until the next round starts."""
+    total = (end - start).days + 1
+    count = len(per_round)
+    starts = [round(r * (total - 1) / max(1, count - 1)) for r in range(count)]
+    for r in range(1, count):
+        starts[r] = max(starts[r], starts[r - 1] + 1)
+    out = []
+    for r, matches in enumerate(per_round):
+        last = starts[r + 1] - 1 if r + 1 < count else starts[r]
+        span = [start + timedelta(days=d) for d in range(starts[r], max(starts[r], last) + 1)]
+        out.append([span[min(i // 2, len(span) - 1)] for i in range(matches)])
+    return out
+
+
+def build_double_elim(career: Career, comp: Competition, stage: Stage, shape: str, start: date, end: date) -> None:
+    """Every match of the bracket up front, fed by the results before it (see _resolve). Seeds
+    come from stage.teams in order."""
+    rows = DOUBLE_ELIM[shape]
+    rounds = max(r[3] for r in rows) + 1
+    per_round = [sum(1 for r in rows if r[3] == n) for n in range(rounds)]
+    days = bracket_days(start, end, per_round)
+    taken = [0] * rounds
+    ids: dict[str, str] = {}
+
+    def source(ref: str) -> str:
+        kind, _, key = ref.partition(":")
+        return ref if kind == "S" else f"{kind}:{ids[key]}"
+
+    for key, label, bracket, rnd, home, away, eliminates in sorted(rows, key=lambda r: r[3]):
+        day = days[rnd][taken[rnd]]
+        taken[rnd] += 1
+        match = new_match(career, comp, stage, label, day, stage.best_of, home_from=source(home),
+                          away_from=source(away), bracket=bracket, round=rnd, eliminates=eliminates)
+        _resolve(career, stage, match)
+        ids[key] = match.id
+    stage.days = sorted({career.matches[m].day for m in stage.matches})
+
+
+def double_elim_ranking(career: Career, stage: Stage) -> list[str]:
+    """The grand final's winner, then everyone by the place the match they went out in gives,
+    better seed first among teams that went out at the same point."""
+    seed = {t: i for i, t in enumerate(stage.teams)}
+    place: dict[str, int] = {}
+    for mid in stage.matches:
+        m = career.matches[mid]
+        if m.loser and m.eliminates:
+            place[m.loser] = m.eliminates
+            if m.bracket == "final" and m.winner:
+                place[m.winner] = 1
+    return sorted(stage.teams, key=lambda t: (place.get(t, 99), seed[t]))
+
+
 # ---------- swiss ----------
 
 
@@ -264,6 +370,8 @@ def rank_stage(career: Career, stage: Stage) -> list[str]:
         return [r["team"] for r in standings(career, stage)]
     if stage.kind == "single_elim":
         return elim_ranking(career, stage)
+    if stage.kind == "double_elim":
+        return double_elim_ranking(career, stage)
     return swiss_ranking(career, stage)
 
 

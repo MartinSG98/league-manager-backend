@@ -253,6 +253,46 @@ def test_six_team_bracket_gives_the_top_two_a_bye(drafted):
 # ---------- champion select and games ----------
 
 
+@pytest.mark.parametrize("shape,size,lower_starts", [("eight", 8, 0), ("six_upper_four", 6, 2), ("six_byes", 6, 0)])
+def test_a_double_elimination_bracket_gives_everyone_two_lives(drafted, shape, size, lower_starts):
+    career = drafted.model_copy(deep=True)
+    teams = [t.id for t in cat.league_teams("LPL")][:size]
+    comp = Competition(id="T", name="T", short="T", kind="league", start=date(2027, 2, 20), end=date(2027, 3, 1))
+    career.competitions["T"] = comp
+    stage = Stage(id="T-PO", name="PO", kind="double_elim", teams=teams, best_of=5)
+    comp.stages.append(stage)
+    comps.build_double_elim(career, comp, stage, shape, date(2027, 2, 20), date(2027, 3, 1))
+    matches = [career.matches[m] for m in stage.matches]
+    assert all(a.day <= b.day for a, b in zip(matches, matches[1:]))
+    losses = {t: 0 for t in teams}
+    rng = Rng(career)
+    for m in matches:
+        assert m.home and m.away, f"{m.label} is waiting on a result that has not happened"
+        m.winner = m.home if rng.chance(0.5) else m.away
+        losses[m.loser] += 1
+        comps.on_match_finished(career, m)
+    ranking = comps.rank_stage(career, stage)
+    assert sorted(ranking) == sorted(teams) and matches[-1].label == "Grand final"
+    assert ranking[0] == matches[-1].winner and ranking[1] == matches[-1].loser
+    # Everyone but the finalists is out after two defeats, or one if they started in the lower bracket.
+    lower = set(teams[size - lower_starts:])
+    for team in teams:
+        if team == ranking[0]:
+            assert losses[team] <= 1
+        elif team == ranking[1]:
+            assert losses[team] <= 2
+        else:
+            assert losses[team] == (1 if team in lower else 2), team
+
+
+def test_playoffs_and_msi_are_double_elimination(finished):
+    for comp in finished.competitions.values():
+        if comp.kind == "league" or comp.short == "Mid-Season Invitational":
+            assert comp.stages[-1].kind == "double_elim", comp.name
+    worlds = finished.competitions[f"{finished.season}-WORLDS"]
+    assert worlds.stages[-1].kind == "single_elim"
+
+
 def test_ai_champion_select_fills_both_sides_without_repeats(drafted):
     rng = Rng(drafted.model_copy())
     select = ChampSelect(locked=["Orianna", "Azir"])

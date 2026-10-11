@@ -202,6 +202,9 @@ class Match(BaseModel):
     games: list[GameRecord] = []
     winner: str | None = None
     plays_used: dict[str, list[str]] = {}  # team -> set plays already run in this series
+    bracket: Literal["upper", "lower", "final"] | None = None  # double elimination only
+    round: int = 0  # column in a double-elimination bracket
+    eliminates: int = 0  # double elimination: the place the loser finishes, 0 when they drop to the lower bracket
 
     @property
     def score(self) -> tuple[int, int]:
@@ -218,7 +221,7 @@ class Match(BaseModel):
 class Stage(BaseModel):
     id: str
     name: str
-    kind: Literal["round_robin", "single_elim", "swiss"]
+    kind: Literal["round_robin", "single_elim", "double_elim", "swiss"]
     teams: list[str]
     best_of: int
     final_best_of: int | None = None

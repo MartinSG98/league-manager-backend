@@ -132,6 +132,8 @@ def match_summary(cat: Catalog, career: Career, match: Match) -> dict:
         "score": list(match.score),
         "winner": match.winner,
         "games": len(match.games),
+        "bracket": match.bracket,
+        "round": match.round,
     }
 
 

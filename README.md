@@ -11,8 +11,8 @@ Architecture decisions are recorded in [docs/adr](docs/adr/README.md), one numbe
 1. **Pick a team.** Any of the 56 tier-one teams in the LCK, LPL, LEC, LCS, CBLOL and LCP.
 2. **Meet the board.** The board proposes a finish for each split and a target at Worlds, from where your club's reputation ranks it in the league. Accept each one, ask for less (4 percent less budget a step) or promise more (4 percent more).
 3. **The draft.** Only when the career starts. On December 1st every tier-one team is stripped down to its franchise player. The rest of the region's 2026 tier-one players and every tier-two player form one pool, about 700 players for EMEA with the LEC and its 13 ERLs. Teams pick in snake order, the weakest 2026 team first. The first four rounds fill the starting five, so you can only draft a role you still need. Two optional bench rounds follow, then a round for an assistant coach and a round for an analyst. Salaries are fixed at each player's and staff member's asking price, and every pick has to leave enough budget to fill your remaining roles and staff seats. Every other region drafts at the same time with the AI.
-4. **Splits.** Three per region, under their real names: the LEC Versus, Spring and Summer, the LCK Cup, Rounds 1-2 and Rounds 3-4, and so on. Each is a round robin (Bo1 or Bo3 depending on the league and split) followed by best-of-five playoffs with byes for the top seeds.
-5. **International events.** First Stand after split 1 has 8 teams in groups and then knockouts. MSI after split 2 has 10 teams, with a play-in and then an 8-team bracket. Worlds after split 3 has 16 teams in a Swiss stage and then best-of-five knockouts. Teams qualify by their playoff finish.
+4. **Splits.** Three per region, under their real names: the LEC Versus, Spring and Summer, the LCK Cup, Rounds 1-2 and Rounds 3-4, and so on. Each is a round robin (Bo1 or Bo3 depending on the league and split) followed by best-of-five double-elimination playoffs, as in 2026: eight teams in the LPL and the LEC Versus, six elsewhere. The LEC Spring and Summer and the LCS Spring start their top four in the upper bracket and 5th and 6th in the lower one; the other six-team playoffs send the top two straight to the upper semifinals. A team is out after two defeats, or one in the lower bracket, and there is no bracket reset in the grand final.
+5. **International events.** First Stand after split 1 has 8 teams in groups and then knockouts. MSI after split 2 has 10 teams, with a play-in and then an 8-team double-elimination bracket. Worlds after split 3 has 16 teams in a Swiss stage and then best-of-five knockouts. Teams qualify by their playoff finish.
 6. **Match day.** Your analyst's report on the opponent is in the inbox. Set your lineup and tactics, then draft champions in tournament order (or let the assistant do it), call one of your set plays, then watch the game play out minute by minute. Best-of series use fearless draft, and each set play can be run once a series.
 7. **Training.** Every week your team scrims at the load you set, works on up to two team areas and drills a set play, and each player can work on an attribute or learn a champion. Every few games the analyst says what costs you the most.
 8. **Continue.** `advance` moves the calendar a day at a time and plays every other match in the world on the way, until your team plays next.
@@ -246,7 +246,7 @@ python -m scripts.simulate 2000 --season 3
 ```
 
 The tests cover:
-- the data, the draft rules and budgets, and round robin and bracket shapes
+- the data, the draft rules and budgets, and round robin, single and double elimination shapes
 - champion select with fearless, set plays, and determinism
 - a full season through Worlds, the transfer window and into the next season
 - the board's objectives, warnings, the sack and a new job
@@ -280,7 +280,7 @@ app/
     ├── training.py   loads, team areas, players' own training, growth, the analyst's review
     ├── plays.py      set plays and how likely they are to work
     ├── calendar.py   the season: splits, First Stand, MSI, Worlds
-    ├── competitions.py  round robins, brackets, Swiss, standings
+    ├── competitions.py  round robins, single and double elimination brackets, Swiss, standings
     ├── patches.py    the meta and the patches that move it
     ├── champ_select.py  tournament draft order, AI picks and bans
     ├── match_engine.py  one game, minute by minute
