@@ -307,7 +307,8 @@ def schedule_view(cat: Catalog, career: Career, team_id: str | None = None) -> l
 
 def game_summary(cat: Catalog, record) -> dict:
     return record.model_dump(mode="json") | {
-        "players": [ln.model_dump(mode="json") | {"name": cat.players[ln.player].name} for ln in record.players],
+        "players": [ln.model_dump(mode="json") | {"name": cat.players[ln.player].name, "photo": cat.players[ln.player].photo}
+                    for ln in record.players],
     }
 
 
