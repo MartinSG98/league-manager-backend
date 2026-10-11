@@ -113,18 +113,22 @@ def asking_fee(cat: Catalog, career: Career, pid: str) -> int | None:
 
 
 def interest(cat: Catalog, career: Career, pid: str, team_id: str) -> tuple[str, str]:
-    """("keen" | "open" | "reluctant" | "refuses", why). Players look at the club's reputation
-    against their own; an unsettled player is easier to tempt."""
+    """("keen" | "open" | "reluctant" | "refuses", why). Players measure the club's reputation
+    against their own standing: their reputation, or that of the club they play for less 12,
+    whichever is higher, so nobody at a top club steps far down. An unsettled player is easier
+    to tempt."""
     p = cat.players[pid]
     state = career.players[pid]
     if state.team == team_id:
         return "keen", "Already at the club"
     club = reputation.team_reputation(cat, career, team_id)
     now = reputation.team_reputation(cat, career, state.team) if state.team in career.teams else 0.0
-    gap = p.reputation - (club - 10) - (8 if state.unsettled else 0)
+    standing = max(p.reputation, now - 12)
+    gap = standing - (club - 10) - (8 if state.unsettled else 0)
     stars = reputation.stars(club)
     if gap > 20:
-        return "refuses", f"{p.name} does not want to join a {stars:g}-star club; their reputation is far above it"
+        reason = "their reputation is far above it" if p.reputation >= now - 12 else "they would not leave a bigger club for it"
+        return "refuses", f"{p.name} does not want to join a {stars:g}-star club; {reason}"
     if gap > 8:
         return "reluctant", f"{p.name} would need convincing (and more money) to join a {stars:g}-star club"
     if club >= now + 8:
@@ -560,10 +564,10 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
 
 
 def _news(cat: Catalog, career: Career, pid: str, seller: str | None, buyer: str, fee: int) -> None:
-    """Moves the manager would care about: their league, or a big name."""
+    """Moves the manager would care about: paid moves in their league, or the biggest names."""
     p = cat.players[pid]
     leagues = {cat.teams[buyer].league} | ({cat.teams[seller].league} if seller else set())
-    if career.league not in leagues and p.reputation < 70:
+    if career.league not in leagues and p.reputation < 85:
         return
     origin = f"from {cat.teams[seller].name} for {fee}k" if seller else "as a free agent"
     _message(career, "news", f"{cat.teams[buyer].tag} sign {p.name}", f"{cat.teams[buyer].name} sign {p.name} ({p.role}) {origin}.")
@@ -678,8 +682,8 @@ def player_market(cat: Catalog, career: Career, pid: str) -> dict:
     state = career.players[pid]
     level, why = interest(cat, career, pid, career.team)
     mine = state.team == career.team
-    offer = next((o for o in career.offers if o.player == pid and o.buyer == career.team
-                  and o.status in ("open", "agreed")), None)
+    # The latest bid, whatever became of it, so the page can show the selling club's answer.
+    offer = next((o for o in reversed(career.offers) if o.player == pid and o.buyer == career.team), None)
     return {
         "window_open": window_open(career),
         "value": market_value(cat, career, pid) if state.team else 0,

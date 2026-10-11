@@ -24,7 +24,11 @@ def _load(session: Session, save_id: str):
     found = repository.load_save(session, save_id)
     if found is None:
         raise HTTPException(404, "No such career")
-    return found
+    save, career = found
+    # A save from an older version is brought up to date the first time it is opened.
+    if engine.migrate(get_catalog(), career):
+        repository.store(session, save, career)
+    return save, career
 
 
 @router.post("")

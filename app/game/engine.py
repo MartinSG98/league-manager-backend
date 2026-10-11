@@ -261,27 +261,38 @@ def skip_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
 # ---------- actions ----------
 
 
-def _migrate(cat: Catalog, career: Career) -> None:
-    """Bring a career saved by an older version up to date.
+def migrate(cat: Catalog, career: Career) -> bool:
+    """Bring a career saved by an older version up to date. Returns True when anything changed.
 
     Staff: every team gets the staff pool, and once the draft is over every team hires an
     assistant coach and an analyst straight away (see _hire_staff). Training, reputation and the
     board: every team gets its team areas and set plays, reputations start at prestige and the
     board meets the manager about the season's objectives."""
+    changed = False
     if len(career.staff) < len(cat.staff):
         for sid in cat.staff:
             career.staff.setdefault(sid, StaffState(id=sid))
+        changed = True
     if career.phase != "draft" and not any(t.coach or t.analyst for t in career.teams.values()):
         _hire_staff(cat, career)
+        changed = True
     if not career.seed:
         career.seed = career.rs or 1
-    reputation.ensure(cat, career)
-    training.ensure(cat, career)
+        changed = True
+    if not career.manager_reputation or any(not t.reputation for t in career.teams.values()):
+        reputation.ensure(cat, career)
+        changed = True
+    if any(not t.skills or not t.plays for t in career.teams.values()):
+        training.ensure(cat, career)
+        changed = True
     if not career.board.season:
         board.start_job(cat, career, career.season + 1 if career.phase == "offseason" else career.season)
+        changed = True
     if career.phase == "offseason" and not any(h.season == career.season for h in career.history):
         # Saved at the end of a season under the old rules, before the transfer window existed.
         offseason.start_offseason(cat, career, Rng(career))
+        changed = True
+    return changed
 
 
 def _hire_staff(cat: Catalog, career: Career) -> None:
@@ -312,7 +323,7 @@ _NEED_THE_BOARD = (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAuto
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     rng = Rng(career)
     outcome = Outcome()
-    _migrate(cat, career)
+    migrate(cat, career)
     if career.board.sacked and not isinstance(action, _ALWAYS):
         raise IllegalAction("You have no club: choose one of the job offers first")
     if career.board.meeting and isinstance(action, DraftNextAction):

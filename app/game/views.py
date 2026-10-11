@@ -47,7 +47,8 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "team": state.team,
         "franchise": bool(state.team and career.teams.get(state.team) and career.teams[state.team].franchise == pid),
         "overall": roster.overall(cat, career, pid),
-        "potential": p.potential,
+        # The scouts' estimate, never below what the player already is.
+        "potential": max(p.potential, roster.overall(cat, career, pid)),
         "salary": state.contract.salary if state.contract else p.salary,
         "contract_until": state.contract.until if state.contract else None,
         "reputation": p.reputation,

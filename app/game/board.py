@@ -4,18 +4,19 @@ When a manager takes a job, and again at the start of every off-season for the s
 the board meets them with its objectives: a finish in each of the three splits and how far to
 go at Worlds. The targets come from where the club's reputation ranks it in its league: the
 favourite is asked for a top-two finish, the second club for a top three, everyone else for a
-finish at most two places below their rank, and the easiest target is staying off the bottom. The manager can accept each target, ask for one step less (the
-board trims the budget by 4 percent a step) or promise one step more (4 percent more).
+finish at most two places below their rank, and the easiest target is staying off the bottom.
+The manager can accept each target, ask for one step less (the board trims the budget by 4
+percent a step) or promise one step more (4 percent more).
 
 Confidence (0-100, 60 for a new manager) moves when an objective is decided: up for a target
 met, more for one the manager promised, down for a miss, more the bigger the miss. Titles add
 on top. A new season starts confidence two-fifths of the way back to 60.
 
 The board reviews the manager after each split and after Worlds. Below 22 confidence the first
-review is a warning and the next one still below it is the sack; back above 35 lifts the warning. Nobody
-is warned or sacked in their first 75 days, which covers the first split of a job. A sacked
-manager gets offers from clubs up to one and a half stars above their own reputation (see
-reputation.py) and picks where to go next."""
+review is a warning and the next one still below it is the sack; back above 35 lifts the
+warning. Nobody is warned or sacked in their first 75 days, which covers the first split of a
+job. A sacked manager gets offers from clubs up to one and a half stars above their own
+reputation (see reputation.py) and picks where to go next."""
 
 from app.game import calendar, reputation
 from app.game.catalog import Catalog
