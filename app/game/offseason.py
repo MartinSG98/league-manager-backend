@@ -1,23 +1,36 @@
-"""From Worlds to the next pre-season.
+"""From the Worlds final to the next season.
 
-When Worlds ends the season's results go into the career history and contracts that run out
-end. AI teams re-sign the players they value (most of the good ones, few of the weak ones) if
-the budget allows; the manager has to extend their own players before the season ends or lose
-them. Players develop: prospects grow towards their potential, long careers start to decline.
-Staff sign for two seasons. When a contract ends the manager's staff renew automatically and
-AI teams keep theirs about two times in three. Then every league holds a new draft, only for the
-roles and staff seats teams still need, from the free agents of the region, in reverse order of
-the last split's finish."""
+There is only one draft, when a career starts. After that the off-season is a transfer window
+(see transfers.py) that runs from the day after the Worlds final to December 15th.
 
-from app.game import calendar, draft, patches, roster
+When Worlds ends the season goes into the career history and the clubs plan the next one:
+- AI clubs decide on the players whose contracts end with the season: they keep most of the
+  good ones and few of the weak ones; the rest leave on free agency day. The manager has until
+  free agency day to extend their own.
+- Staff sign for two seasons. When a contract ends the manager's staff renew automatically and
+  AI clubs keep theirs about two times in three.
+- Players develop. Each player heads for a target: their hidden ceiling, moved up or down by how
+  well they trained over the season (see training.growth_target). Players with fewer than 600
+  career games close about a third of the gap to it each off-season; long careers may start to
+  decline.
+- Reputations drift back towards what each organisation is, the board sets next season's budgets
+  and meets the manager about next season's objectives.
+
+When the window closes every club fills its empty roles and staff seats, team areas lose some of
+what they had built for every new face in the lineup, and the new season is scheduled."""
+
+from collections import Counter
+
+from app.game import board, patches, reputation, roster, training, transfers
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
 from app.game.rng import Rng
-from app.game.state import Career, Contract, DraftState, InboxMessage, PlayerSeason, SeasonSummary, StaffState
+from app.game.state import Career, Contract, InboxMessage, PlayerSeason, SeasonSummary, StaffState
 
-PROSPECT_GROWTH = 0.35  # share of the gap to potential a young player closes in an off-season
+PROSPECT_GROWTH = 0.35  # share of the gap to the growth target a young player closes in an off-season
 VETERAN_GAMES = 1100  # career games after which a player may start to decline
+NEW_FACE_COST = 0.06  # share of a team area above 5 lost for every new starter
 
 
 def _message(career: Career, kind: str, subject: str, body: str) -> None:
@@ -45,44 +58,55 @@ def expiring(career: Career, team_id: str) -> list[str]:
             if career.players[pid].contract and career.players[pid].contract.until <= career.season]
 
 
-def _last_split_order(cat: Catalog, career: Career, league: str) -> list[str]:
-    """Teams worst first by their finish in the last split, for the draft order."""
-    comp = career.competitions.get(f"{career.season}-{league}-3")
-    teams = [t.id for t in cat.league_teams(league)]
-    if comp and comp.placements:
-        return list(reversed([t for t in comp.placements if t in teams]))
-    return list(reversed(teams))
+# ---------- the end of a season ----------
 
 
-def start_next_season(cat: Catalog, career: Career, rng: Rng) -> None:
-    summary = summarise(cat, career)
-    career.history.append(summary)
-    orders = {r.league: _last_split_order(cat, career, r.league) for r in cat.regions.values()}
+def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
+    career.history.append(summarise(cat, career))
+    career.phase = "offseason"
     new_season = career.season + 1
-    leaving: list[str] = []
 
-    # Contracts
     for team in career.teams.values():
-        for pid in list(team.roster):
+        for pid in expiring(career, team.id):
             state = career.players[pid]
-            if not state.contract or state.contract.until >= new_season:
-                continue
             if pid == team.franchise:
-                state.contract = Contract(salary=state.contract.salary, until=new_season + 2)
-                continue
-            if team.id != career.team and _ai_keeps(cat, career, team.id, pid, rng):
-                salary = asking_salary(roster.overall(cat, career, pid), cat.players[pid].reputation, cat.teams[team.id].region)
+                state.contract = Contract(salary=state.contract.salary, until=new_season + 2)  # type: ignore[union-attr]
+            elif team.id != career.team and _ai_keeps(cat, career, team.id, pid, rng):
+                salary = asking_salary(roster.overall(cat, career, pid), cat.players[pid].reputation,
+                                       cat.teams[team.id].region)
                 state.contract = Contract(salary=salary, until=new_season + 1)
-                continue
-            team.roster.remove(pid)
-            state.team = None
-            state.contract = None
-            if team.id == career.team:
-                leaving.append(cat.players[pid].name)
-        team.lineup = _best_lineup(cat, career, team.roster)
 
-    # Staff
-    renewed, staff_left = [], []
+    renewed, staff_left = _staff_contracts(cat, career, rng, new_season)
+    grew, declined = develop(cat, career, rng)
+    reputation.drift(cat, career)
+    grant = 0
+    for team in career.teams.values():
+        team.budget = board.season_budget(cat, career, team.id)
+        amount = board.transfer_grant(cat, career, team.id)
+        team.cash += amount
+        if team.id == career.team:
+            grant = amount
+    if not career.board.sacked:
+        board.new_season(cat, career, new_season)
+
+    body = []
+    if renewed:
+        body.append(f"Staff renewed for {staffing.STAFF_YEARS} more seasons: {', '.join(renewed)}.")
+    if staff_left:
+        body.append(f"Staff who left: {', '.join(staff_left)}.")
+    if grew:
+        body.append(f"Improved: {', '.join(grew)}.")
+    if declined:
+        body.append(f"Declined: {', '.join(declined)}.")
+    body.append(f"The board sets your salary budget for {new_season} at {career.teams[career.team].budget}k "
+                f"and puts {grant}k in the bank for transfers.")
+    _message(career, "board", f"Off-season {career.season}", "\n".join(body))
+    contract_warning(cat, career)
+    transfers.open_window(cat, career)
+
+
+def _staff_contracts(cat: Catalog, career: Career, rng: Rng, new_season: int) -> tuple[list[str], list[str]]:
+    renewed, left = [], []
     for sid in cat.staff:
         career.staff.setdefault(sid, StaffState(id=sid))
     for team in career.teams.values():
@@ -104,17 +128,20 @@ def start_next_season(cat: Catalog, career: Career, rng: Rng) -> None:
             state.team = None
             state.contract = None
             if team.id == career.team:
-                staff_left.append(name)
+                left.append(name)
+    return renewed, left
 
-    # Development
+
+def develop(cat: Catalog, career: Career, rng: Rng) -> tuple[list[str], list[str]]:
     grew, declined = [], []
     for pid, state in career.players.items():
         player = cat.players[pid]
         games = player.experience + state.season.games
         now = roster.overall(cat, career, pid)
+        target = training.growth_target(cat, career, pid)
         change = 0.0
-        if player.potential > now and games < 600:
-            change = (player.potential - now) * PROSPECT_GROWTH * (0.5 + rng.next() * 0.7)
+        if target > now and games < 600:
+            change = (target - now) * PROSPECT_GROWTH * (0.5 + rng.next() * 0.7)
         elif games > VETERAN_GAMES:
             change = -rng.next() * 2.2
         if abs(change) >= 0.3:
@@ -122,37 +149,7 @@ def start_next_season(cat: Catalog, career: Career, rng: Rng) -> None:
                 state.growth[attr] = round(state.growth.get(attr, 0.0) + change / 3.3, 2)
             if state.team == career.team and abs(change) >= 0.5:
                 (grew if change > 0 else declined).append(f"{player.name} {round(change):+d}")
-        state.season = PlayerSeason()
-        state.form = 0.0
-        state.fatigue = 0
-        state.morale = 70
-
-    # A clean slate for the calendar
-    career.competitions = {}
-    career.matches = {}
-    career.live = None
-    career.negotiations = {}
-    career.season = new_season
-    career.day = calendar.season_start(new_season)
-    career.phase = "draft"
-    career.meta.next_patch = patches.first_patch_day(new_season)
-
-    body = []
-    if summary.titles:
-        body.append(f"Titles: {', '.join(summary.titles)}.")
-    if leaving:
-        body.append(f"Contracts ended: {', '.join(leaving)}.")
-    if renewed:
-        body.append(f"Staff renewed for {staffing.STAFF_YEARS} more seasons: {', '.join(renewed)}.")
-    if staff_left:
-        body.append(f"Staff who left: {', '.join(staff_left)}.")
-    if grew:
-        body.append(f"Improved: {', '.join(grew)}.")
-    if declined:
-        body.append(f"Declined: {', '.join(declined)}.")
-    _message(career, "board", f"Welcome to the {new_season} pre-season", "\n".join(body) or "A quiet summer.")
-
-    _setup_drafts(cat, career, orders, rng)
+    return grew, declined
 
 
 def _ai_keeps(cat: Catalog, career: Career, team_id: str, pid: str, rng: Rng) -> bool:
@@ -164,47 +161,46 @@ def _ai_keeps(cat: Catalog, career: Career, team_id: str, pid: str, rng: Rng) ->
     return rng.chance(max(0.05, min(0.9, chance)))
 
 
-def _best_lineup(cat: Catalog, career: Career, members: list[str]) -> dict[str, str]:
-    lineup = {}
-    for role in ROLES:
-        options = [p for p in members if cat.players[p].role == role]
-        if options:
-            lineup[role] = max(options, key=lambda p: roster.overall(cat, career, p))
-    return lineup
-
-
-def _setup_drafts(cat: Catalog, career: Career, orders: dict[str, list[str]], rng: Rng) -> None:
-    career.drafts = {}
-    for region in cat.regions.values():
-        league = region.league
-        teams = [career.teams[t.id] for t in cat.league_teams(league)]
-        pool = sorted(draft.available(cat, career, league), key=lambda p: -p.overall)
-        need = max((len(draft.open_roles(t)) for t in teams), default=0)
-        top = pool[: max(1, need) * len(teams)]
-        typical = sum(p.salary for p in top) / max(1, len(top))
-        kinds = [k for k in ("coach", "analyst") if any(getattr(t, k) is None for t in teams)]
-        for team in teams:
-            prestige = cat.teams[team.id].prestige
-            scale = max(0.82, min(1.18, 0.85 + 0.3 * (prestige - 60) / 40))
-            open_count = len(draft.open_roles(team))
-            staff_cost = draft.typical_staff_cost(cat, career, league, [k for k in kinds if getattr(team, k) is None])
-            team.budget = int(round((roster.payroll(career, team) + (open_count * typical + staff_cost) * scale
-                                     + typical * 0.3) / 10) * 10)
-        order = orders[league]
-        rounds = max(1, need) + 1 + len(kinds)
-        d = DraftState(league=league, sequence=draft.snake(order, rounds), required_rounds=max(1, need),
-                       optional_rounds=1, staff_rounds=kinds)
-        career.drafts[league] = d
-        if league != career.league:
-            draft.run_until(cat, career, d, None, rng)
-            draft.finish(cat, career, d)
-
-
 def contract_warning(cat: Catalog, career: Career) -> None:
-    """At the end of the season: tell the manager whose contracts run out."""
+    """Tell the manager whose contracts run out on free agency day."""
     names = [cat.players[p].name for p in expiring(career, career.team) if p != career.teams[career.team].franchise]
     if names:
         _message(career, "contract", "Contracts ending",
-                 f"These contracts end with the season: {', '.join(names)}. Extend them from the player page "
-                 "before you start the next season, or they leave as free agents.")
+                 f"These contracts end on {transfers.free_agency_day(career):%d %B}: {', '.join(names)}. Extend "
+                 "them from the player page before then, or they leave as free agents.")
 
+
+# ---------- the start of the next one ----------
+
+
+def start_new_season(cat: Catalog, career: Career, rng: Rng) -> None:
+    """The window closes: fill every lineup, reset the season and move the calendar on. The
+    caller schedules the season (engine.start_season)."""
+    transfers.close_window(cat, career)
+    arrivals = Counter(m["to"] for m in career.transfers
+                       if m["to"] in career.teams and m["player"] in career.teams[m["to"]].lineup.values())
+    for team in career.teams.values():
+        keep = max(0.0, 1 - NEW_FACE_COST * arrivals[team.id])
+        team.skills = {a: round(5 + (v - 5) * keep, 2) if v > 5 else v for a, v in team.skills.items()}
+        for role in ROLES:
+            if role not in team.lineup:
+                options = [p for p in team.roster if cat.players[p].role == role]
+                if options:
+                    team.lineup[role] = max(options, key=lambda p: roster.overall(cat, career, p))
+    for state in career.players.values():
+        state.season = PlayerSeason()
+        state.form = 0.0
+        state.development = []
+        if state.unsettled and rng.chance(0.5):
+            state.unsettled = False
+        state.morale = 55 if state.unsettled else 70
+        if state.promise is not None and state.promise <= career.season:
+            state.promise = None
+    career.competitions = {}
+    career.matches = {}
+    career.live = None
+    career.negotiations = {}
+    career.transfers = []
+    career.reviewed_games = 0
+    career.season += 1
+    career.meta.next_patch = patches.first_patch_day(career.season)

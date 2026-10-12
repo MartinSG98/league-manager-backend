@@ -17,7 +17,7 @@ from app.game import champ_select as cs
 from app.game import engine, match_engine, matchday
 from app.game.catalog import get_catalog
 from app.game.rng import Rng
-from app.game.state import AdvanceAction, ChampSelect, DraftSimAction, Match, SimSeriesAction
+from app.game.state import AdvanceAction, BoardMeetingAction, ChampSelect, DraftSimAction, Match, SimSeriesAction
 
 TARGET = {2: 0.58, 4: 0.65, 6: 0.72, 8: 0.78, 10: 0.84, 14: 0.9}
 
@@ -25,6 +25,7 @@ TARGET = {2: 0.58, 4: 0.65, 6: 0.72, 8: 0.78, 10: 0.84, 14: 0.9}
 def win_curve(games: int, seed: int) -> None:
     cat = get_catalog()
     career = engine.new_career(cat, "bot", "G2", seed)
+    engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
     engine.apply(cat, career, DraftSimAction(type="draft_sim"))
     rng = Rng(career)
     teams = list(career.teams)
@@ -62,6 +63,7 @@ def seasons(count: int, seed: int) -> None:
     titles: dict[str, Counter] = defaultdict(Counter)
     for s in range(count):
         career = engine.new_career(cat, "bot", "G2", seed + s)
+        engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
         engine.apply(cat, career, DraftSimAction(type="draft_sim"))
         while career.phase == "season":
             if career.live:

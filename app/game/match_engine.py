@@ -11,15 +11,23 @@ objective and towers. Gold, dragons, Soul, Baron and Elder all feed back into th
 so a lead snowballs, but every fight is a dice roll and a weaker team can always throw one. The
 game ends when a side wins a fight with an inhibitor already down and a buff or a big margin.
 
+Team areas from training (see training.py) shift all of this a little: the early game adds power
+in lanes and ganks, objective control wins contested objectives, teamfighting wins fights, macro
+turns power into gold and towers after laning, and closing decides how often a team well ahead
+gets greedy and throws a fight away. Each side may also run one set play (see plays.py) at its
+minute of the game.
+
 The result is a GameRecord with a stat line per player, and a timeline with the gold
 difference every minute for the match-day playback."""
 
 import math
 from dataclasses import dataclass, field
 
-from app.game import roster
+from app.game import roster, training
 from app.game.catalog import ROLES, Catalog
 from app.game.champ_select import champion_power, composition_modifier, focus_bias, lane_edge
+from app.game.plays import PLAYS
+from app.game.plays import chance as play_chance
 from app.game.rng import Rng
 from app.game.state import Career, GameRecord, PlayerLine, Side, Tactics
 
@@ -36,6 +44,15 @@ DRIFT_GOLD = 6.0  # gold per minute per point of power after laning, farm and ma
 BUFFS = {"baron": 5.0, "elder": 7.0, "soul": 3.0}
 KILL_GOLD = 300
 TOWER_GOLD = 550  # shared by the team, plates included
+# Team areas: power for a team at 20 against one at 10 (half that at 15, and minus below 10).
+EARLY_POWER = 1.5  # strength in the first 14 minutes
+LANE_POWER = 1.2  # lane power, so lane gold and ganks
+OBJECTIVE_EDGE = 0.5  # logistic edge in a contested objective
+FIGHT_POWER = 2.0
+MACRO_POWER = 1.5  # in the gold drift after laning
+THROW_LEAD = 3000  # gold lead from which a team may throw
+THROW_BASE = 0.085  # chance a team that far ahead throws a fight it would have won, at closing 0
+THROW_PER_POINT = 0.0045  # less per point of closing
 
 ROLE_GOLD = {"TOP": 0.21, "JNG": 0.19, "MID": 0.23, "BOT": 0.25, "SUP": 0.12}
 ROLE_CS = {"TOP": 8.1, "JNG": 6.2, "MID": 8.6, "BOT": 9.2, "SUP": 1.3}
@@ -49,6 +66,11 @@ CLASS_KILLS = {"Assassin": 1.3, "Marksman": 1.15, "Fighter": 1.05, "Mage": 1.0, 
 
 def logistic(x: float) -> float:
     return 1 / (1 + math.exp(-x))
+
+
+def throw_odds(closing: float) -> float:
+    """Chance a team well ahead throws a fight it would have won, by its closing (1-20)."""
+    return max(0.005, THROW_BASE - THROW_PER_POINT * closing)
 
 
 @dataclass
@@ -73,6 +95,20 @@ class GameSide:
     baron_until: int = -1
     elder_until: int = -1
     stats: dict[str, dict[str, float]] = field(default_factory=dict)
+    skills: dict[str, float] = field(default_factory=dict)  # team areas, 1..20
+    play: str | None = None  # the set play called for this game
+    play_chance: float = 0.0
+    play_ok: bool | None = None  # None until it runs
+    sure: dict[str, int] = field(default_factory=dict)  # objective -> contests a set play has decided
+    next_fight: float = 0.0  # power for the next fight only
+    swap_lane: str | None = None
+    splitting: bool = False
+    fights_won: int = 0
+    throws: int = 0
+
+    def skill(self, area: str) -> float:
+        """-0.9..+1.0: how far the team area is from an average 10."""
+        return (self.skills.get(area, 10.0) - 10) / 10
 
 
 @dataclass
@@ -93,14 +129,15 @@ class GameResult:
 
 
 def prepare(cat: Catalog, career: Career, side: Side, team: str, lineup: dict[str, str], picks: dict[str, str],
-            tactics: Tactics) -> GameSide:
-    gs = GameSide(side=side, team=team, lineup=lineup, picks=picks, tactics=tactics)
+            tactics: Tactics, play: str | None = None) -> GameSide:
+    gs = GameSide(side=side, team=team, lineup=lineup, picks=picks, tactics=tactics, play=play)
+    if team in career.teams:
+        gs.skills = dict(career.teams[team].skills)
     for role in ROLES:
         pid = lineup[role]
         state = career.players[pid]
         rating = roster.overall(cat, career, pid)
-        condition = state.form * 0.8 + (state.morale - 70) / 20 - state.fatigue / 30
-        gs.power[role] = rating + champion_power(cat, career, pid, picks[role], role) + condition
+        gs.power[role] = rating + champion_power(cat, career, pid, picks[role], role) + training.condition(state)
         gs.aggression[role] = cat.players[pid].aggression
         gs.stats[role] = {"k": 0, "d": 0, "a": 0, "cs": 0.0, "dmg": 0.0}
     chem, _ = roster.chemistry(cat, career, career.teams[team], lineup) if team in career.teams else (0.0, [])
@@ -130,6 +167,16 @@ class Game:
         self.herald_done = False
         self.winner: GameSide | None = None
         self.second = 0
+        self.gold15 = 0
+        for gs in (blue, red):
+            if gs.play in PLAYS:
+                enemy = self.other(gs)
+                learned = career.teams[gs.team].plays.get(gs.play, 0.0) if gs.team in career.teams else 100.0
+                area = PLAYS[gs.play].area
+                gs.play_chance = play_chance(PLAYS[gs.play], learned, gs.skills.get(area, 10.0),
+                                             enemy.skills.get(area, 10.0), gs.early)
+            else:
+                gs.play = None
 
     # ---------- helpers ----------
 
@@ -140,6 +187,8 @@ class Game:
         m = self.minute
         phase = 1.0 if m <= 14 else (-1.0 if m >= 32 else 1 - 2 * (m - 14) / 18)
         value = gs.base + gs.early * phase
+        if m <= 14:
+            value += EARLY_POWER * gs.skill("early_game")
         if m < 25:
             value += min(6, gs.grubs) * 0.12
         value += len(gs.dragons) * 0.35 + (BUFFS["soul"] if gs.soul else 0)
@@ -196,14 +245,22 @@ class Game:
 
     def lane_power(self, gs: GameSide, lane: str) -> float:
         roles = self.LANES[lane]
+        early = LANE_POWER * gs.skill("early_game") if self.minute <= 14 else 0.0
         if lane == "bot":
-            return (gs.power["BOT"] + 0.6 * gs.power["SUP"]) / 1.6
-        return gs.power[roles[0]]
+            return (gs.power["BOT"] + 0.6 * gs.power["SUP"]) / 1.6 + early
+        return gs.power[roles[0]] + early
 
     def lane_diff(self, lane: str) -> float:
         main = self.LANES[lane][0]
         edge = lane_edge(self.cat, self.cat.champions[self.blue.picks[main]], self.cat.champions[self.red.picks[main]])
-        return self.lane_power(self.blue, lane) - self.lane_power(self.red, lane) + edge
+        diff = self.lane_power(self.blue, lane) - self.lane_power(self.red, lane) + edge
+        if self.minute <= 10:
+            # A lane swap that worked takes the worst matchup out of the game for ten minutes.
+            if self.blue.swap_lane == lane:
+                diff = max(diff, 0.0)
+            if self.red.swap_lane == lane:
+                diff = min(diff, 0.0)
+        return diff
 
     def laning_minute(self) -> None:
         for lane in ("top", "mid", "bot"):
@@ -244,10 +301,16 @@ class Game:
 
     # ---------- objectives ----------
 
-    def contest(self, roles: tuple[str, ...], bonus_blue: float = 0.0) -> GameSide:
+    def contest(self, roles: tuple[str, ...], bonus_blue: float = 0.0, objective: str | None = None) -> GameSide:
+        if objective is not None:
+            for gs in (self.blue, self.red):
+                if gs.sure.get(objective, 0) > 0:
+                    gs.sure[objective] -= 1
+                    return gs
         b = sum(self.blue.power[r] for r in roles) / len(roles)
         r = sum(self.red.power[x] for x in roles) / len(roles)
         edge = (b - r) / 3.5 + (self.blue.gold - self.red.gold) / 2500 + bonus_blue
+        edge += OBJECTIVE_EDGE * (self.blue.skill("objectives") - self.red.skill("objectives"))
         return self.blue if self.rng.chance(logistic(edge)) else self.red
 
     def tactic_bonus(self, kind: str) -> float:
@@ -276,7 +339,7 @@ class Game:
     def early_objectives(self) -> None:
         m = self.minute
         if m in (6, 10):
-            gs = self.contest(("JNG", "TOP"), self.tactic_bonus("baron"))
+            gs = self.contest(("JNG", "TOP"), self.tactic_bonus("baron"), objective="grubs")
             gs.grubs += 3
             gs.gold += 150
             self.log("grubs", gs, f"{self.tag(gs)} take the Voidgrubs")
@@ -284,7 +347,7 @@ class Game:
             if self.rng.chance(0.3):
                 self.fight(reason="dragon")
             else:
-                self.take_dragon(self.contest(("JNG", "BOT", "SUP", "MID"), self.tactic_bonus("dragon")))
+                self.take_dragon(self.contest(("JNG", "BOT", "SUP", "MID"), self.tactic_bonus("dragon"), "dragon"))
         if m == 14 and not self.herald_done:
             self.herald_done = True
             gs = self.contest(("JNG", "TOP", "MID"), self.tactic_bonus("baron"))
@@ -311,16 +374,32 @@ class Game:
         if gs.inhibs < 1:
             return False
         buffed = gs.baron_until >= self.minute or gs.elder_until >= self.minute
-        return buffed or margin >= 4 or (self.minute >= 38 and self.rng.chance(0.4))
+        # A team good at closing ends with a smaller margin; a poor one needs a bigger one.
+        needed = 4 - round(gs.skill("closing") * 1.5)
+        return buffed or margin >= needed or (self.minute >= 38 and self.rng.chance(0.4))
+
+    def throw_chance(self, gs: GameSide) -> float:
+        return throw_odds(gs.skills.get("closing", 10.0))
 
     # ---------- fights ----------
 
     def fight(self, reason: str) -> GameSide:
-        sb, sr = self.strength(self.blue), self.strength(self.red)
+        sb = self.strength(self.blue) + FIGHT_POWER * self.blue.skill("teamfighting") + self.blue.next_fight
+        sr = self.strength(self.red) + FIGHT_POWER * self.red.skill("teamfighting") + self.red.next_fight
+        self.blue.next_fight = self.red.next_fight = 0.0
         late = 1.0 if self.minute < 35 else 1.25  # late fights are decided harder
         p_blue = logistic((sb - sr) * late / FIGHT_SCALE)
         winner = self.blue if self.rng.chance(p_blue) else self.red
+        lead = self.blue.gold - self.red.gold
+        if self.minute >= 18 and abs(lead) >= THROW_LEAD:
+            leader = self.blue if lead > 0 else self.red
+            if winner is leader and self.rng.chance(self.throw_chance(leader)):
+                winner = self.other(leader)
+                leader.throws += 1
+                where = {"baron": "at Baron", "elder": "at the Elder Dragon", "dragon": "at the dragon"}.get(reason, "")
+                self.log("throw", leader, f"{self.tag(leader)} get greedy {where or 'with a big lead'} and throw the fight away")
         loser = self.other(winner)
+        winner.fights_won += 1
         edge = abs(sb - sr) / FIGHT_SCALE
         won = min(5, 1 + self.rng.int(3) + (1 if edge > 0.6 else 0) + (1 if self.rng.chance(0.25) else 0))
         lost = min(won - 1, self.rng.int(3)) if won > 1 else 0
@@ -369,7 +448,7 @@ class Game:
             self.fight(objective or "skirmish")
             return
         if objective in ("dragon", "elder") and self.rng.chance(0.35):
-            self.take_dragon(self.contest(("JNG", "BOT", "SUP", "MID"), self.tactic_bonus("dragon")))
+            self.take_dragon(self.contest(("JNG", "BOT", "SUP", "MID"), self.tactic_bonus("dragon"), "dragon"))
         elif objective == "baron" and self.rng.chance(0.15):
             gs = self.contest(("JNG", "MID", "TOP"), self.tactic_bonus("baron"))
             gs.barons += 1
@@ -380,6 +459,10 @@ class Game:
         ahead = self.blue if lead > 0 else self.red
         if self.rng.chance(0.06 + min(0.2, abs(lead) / 30000)):
             self.destroy_towers(ahead, 1)
+        for gs in (self.blue, self.red):
+            if gs.splitting and self.rng.chance(0.12):
+                self.log("note", gs, f"{self.tag(gs)}'s split push takes another tower")
+                self.destroy_towers(gs, 1)
 
     # ---------- the game ----------
 
@@ -388,20 +471,117 @@ class Game:
         self.blue.gold += base
         self.red.gold += base
         if self.minute > 14:
-            drift = (self.strength(self.blue) - self.strength(self.red)) * DRIFT_GOLD
+            macro = MACRO_POWER * (self.blue.skill("macro") - self.red.skill("macro"))
+            drift = (self.strength(self.blue) - self.strength(self.red) + macro) * DRIFT_GOLD
             self.blue.gold += drift / 2
             self.red.gold -= drift / 2
+
+    # ---------- set plays ----------
+
+    def run_plays(self) -> None:
+        for gs in (self.blue, self.red):
+            if gs.play and gs.play_ok is None and self.minute >= PLAYS[gs.play].minute and self.winner is None:
+                self.run_play(gs)
+
+    def run_play(self, gs: GameSide) -> None:
+        play = PLAYS[gs.play or ""]
+        enemy = self.other(gs)
+        ok = self.rng.chance(gs.play_chance)
+        gs.play_ok = ok
+        us, them = self.tag(gs), self.tag(enemy)
+        head = f"Set play, {play.name}:"
+        if play.id == "invade":
+            if ok:
+                victim = self.rng.pick(ROLES) or "JNG"
+                self.log("play", gs, f"{head} {us} walk into the enemy jungle at level 1 and catch {self.name(enemy, victim)}")
+                self.kill(gs, self.rng.pick(("JNG", "MID", "TOP")) or "JNG", victim, ["JNG", "SUP", "MID"])
+                gs.gold += 300
+            else:
+                self.log("play", gs, f"{head} {them} were waiting for the invade and it backfires")
+                self.kill(enemy, self.rng.pick(("JNG", "MID", "SUP")) or "JNG", self.rng.pick(("SUP", "JNG")) or "SUP", ["JNG", "SUP"])
+        elif play.id == "fnatic_bush":
+            if ok:
+                victim = "SUP" if self.rng.chance(0.5) else "BOT"
+                self.log("play", gs, f"{head} {us} hide in the lane brush and {self.name(enemy, victim)} walks right into it")
+                self.kill(gs, self.rng.pick(("JNG", "MID", "SUP")) or "JNG", victim, ["JNG", "SUP", "MID", "BOT"])
+                gs.gold += 200
+            else:
+                gs.gold -= 250
+                self.log("play", gs, f"{head} {them} spot the ambush, and {us} reach their lanes late")
+        elif play.id == "lane_swap":
+            if ok:
+                worst = min(("top", "mid", "bot"), key=lambda ln: self.lane_diff(ln) * (1 if gs is self.blue else -1))
+                gs.swap_lane = worst
+                gs.gold += 300
+                self.log("play", gs, f"{head} {us} swap lanes to dodge the {worst} lane matchup and take early plates")
+            else:
+                gs.gold -= 300
+                self.log("play", gs, f"{head} {them} mirror the lane swap and {us} lose their plates")
+        elif play.id == "grubs":
+            winner = gs if ok else enemy
+            winner.sure["grubs"] = 2
+            text = f"{us} own the jungle and set up both Voidgrub spawns" if ok else f"{them} read the setup and take the grubs pit"
+            self.log("play", gs, f"{head} {text}")
+        elif play.id == "dive":
+            if ok:
+                self.log("play", gs, f"{head} {us} dive the bot lane under tower")
+                self.kill(gs, "JNG", "BOT", ["JNG", "MID", "SUP"])
+                self.kill(gs, "MID", "SUP", ["JNG", "MID", "SUP"])
+                self.destroy_towers(gs, 1)
+            else:
+                self.log("play", gs, f"{head} the tower dive goes wrong for {us}")
+                self.kill(enemy, "BOT", "JNG", ["BOT", "SUP"])
+                self.kill(enemy, "SUP", "SUP", ["BOT", "SUP"])
+        elif play.id == "drakes":
+            if ok:
+                gs.sure["dragon"] = 2
+                self.log("play", gs, f"{head} {us} clear the vision around the pit and set up the next two dragons")
+            else:
+                enemy.sure["dragon"] = 1
+                self.log("play", gs, f"{head} {them} catch the warding party and take the next dragon")
+        elif play.id == "pick":
+            if ok:
+                victim = "MID" if self.rng.chance(0.5) else "BOT"
+                self.log("play", gs, f"{head} {us} catch {self.name(enemy, victim)} in a hidden flank")
+                self.kill(gs, self.rng.pick(("JNG", "SUP", "MID")) or "JNG", victim, ["JNG", "SUP"])
+                gs.next_fight += 5.0
+            else:
+                self.log("play", gs, f"{head} {them} sweep the trap and pick off {self.name(gs, 'SUP')}")
+                self.kill(enemy, "JNG", "SUP", ["JNG", "MID"])
+                enemy.next_fight += 3.0
+        elif play.id == "baron_bait":
+            if ok:
+                gs.next_fight += 8.0
+                self.log("play", gs, f"{head} {us} start Baron and {them} walk into the choke")
+            else:
+                enemy.next_fight += 4.0
+                self.log("play", gs, f"{head} {them} do not take the bait and collapse on Baron")
+            self.fight("baron" if self.minute >= self.baron_at else "skirmish")
+        elif play.id == "split_push":
+            if ok:
+                gs.splitting = True
+                self.log("play", gs, f"{head} {us} split the map 1-3-1 and towers start to fall")
+                self.destroy_towers(gs, 2)
+            else:
+                self.log("play", gs, f"{head} {them} collapse on the side lane and catch {self.name(gs, 'TOP')}")
+                self.kill(enemy, "JNG", "TOP", ["JNG", "MID"])
+                self.destroy_towers(enemy, 1)
 
     def play(self) -> GameSide:
         while self.winner is None:
             self.minute += 1
             self.income()
+            self.run_plays()
+            if self.winner is not None:
+                break
             if self.minute <= 14:
                 self.laning_minute()
                 self.early_objectives()
             else:
                 self.midgame_minute()
             self.gold_diff.append(int(self.blue.gold - self.red.gold))
+            if self.minute == 15:
+                self.gold15 = self.gold_diff[-1]
             if self.minute >= 55 and self.winner is None:
                 self.blue.inhibs = max(self.blue.inhibs, 1)
                 self.red.inhibs = max(self.red.inhibs, 1)
@@ -455,6 +635,10 @@ def simulate(cat: Catalog, career: Career, blue: GameSide, red: GameSide, rng: R
         kills=[blue.kills, red.kills], gold=[int(blue.gold), int(red.gold)], towers=[blue.towers, red.towers],
         dragons=[len(blue.dragons), len(red.dragons)], barons=[blue.barons, red.barons],
         blue_picks=dict(blue.picks), red_picks=dict(red.picks), blue_bans=list(bans[0]), red_bans=list(bans[1]),
-        players=lines, mvp=mvp,
+        players=lines, mvp=mvp, gold15=game.gold15 if game.minute >= 15 else game.gold_diff[-1],
+        leads=[max(0, max(game.gold_diff)), max(0, -min(game.gold_diff))],
+        fights=[blue.fights_won, red.fights_won], throws=[blue.throws, red.throws],
+        plays={gs.team: gs.play for gs in (blue, red) if gs.play},
+        play_results={gs.team: bool(gs.play_ok) for gs in (blue, red) if gs.play and gs.play_ok is not None},
     )
     return GameResult(record=record, events=game.events, gold_diff=game.gold_diff)

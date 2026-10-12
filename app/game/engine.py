@@ -1,24 +1,31 @@
 """Career flow and the one entry point for actions.
 
-A career starts on December 1st in the pre-season draft. Every other region drafts at once; in
-the manager's league the AI teams pick one at a time as the client asks for them (draft_next), so
-the manager watches the board fill up and can skip ahead to their own pick. Once that draft is done the
-season is scheduled and `advance` moves the calendar a day at a time, playing every AI series
-on the way, until the manager's team has a match (or something they should read happens)."""
+A career starts on December 1st with a board meeting about the season's objectives, then the
+pre-season draft. Every other region drafts at once; in the manager's league the AI teams pick
+one at a time as the client asks for them (draft_next), so the manager watches the board fill up
+and can skip ahead to their own pick. Once that draft is done the season is scheduled and
+`advance` moves the calendar a day at a time, playing every AI series on the way, until the
+manager's team has a match (or something they should read happens).
 
-from datetime import date, timedelta
+After Worlds comes the off-season: a transfer window that `advance` also moves through, stopping
+when a club bids for one of the manager's players or a player wants to talk. When it closes the
+next season is scheduled. There is no draft after the first one."""
 
-from app.game import calendar, contracts, draft, matchday, offseason, patches, roster, scouting
-from app.game import staff as staffing
-from app.game.catalog import ROLES, Catalog
+from datetime import timedelta
+
+from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
+from app.game import training, transfers
+from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, Action, AdvanceAction, AutoSelectAction, BanAction, Career, DraftAutoAction, DraftNextAction,
-    DraftPassAction, DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction,
-    OfferAction, OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction,
-    SetLineupAction, SetTacticsAction, SimSeriesAction, StaffState, StartDraftAction,
+    AcceptCounterAction, AcceptJobAction, Action, AdvanceAction, AutoSelectAction, BanAction, BoardMeetingAction,
+    Career, DraftAutoAction, DraftNextAction, DraftPassAction, DraftPickAction, DraftSimAction, DraftStaffAction,
+    InboxMessage, NextGameAction, NextSeasonAction, OfferAction, OpponentTurnAction, PickAction, PlayerState,
+    PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction, SetLineupAction, SetPlayAction,
+    SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction, SimSeriesAction, StaffState, StartDraftAction,
+    TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
 
 FIRST_SEASON = 2027
@@ -41,6 +48,7 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
     season = FIRST_SEASON
     career = Career(
         rs=seed & 0xFFFFFFFF,
+        seed=(seed & 0xFFFFFFFF) or 1,
         manager=manager.strip() or "Manager",
         team=team_id,
         region=team.region,
@@ -54,6 +62,8 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
     )
     rng = Rng(career)
     draft.setup(cat, career)
+    reputation.ensure(cat, career)
+    training.ensure(cat, career)
     for league, d in career.drafts.items():
         if league != career.league:
             draft.run_until(cat, career, d, None, rng)
@@ -68,7 +78,9 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
             + (f"{franchise.name} stays as the face of the franchise; everyone else is in the draft pool.\n"
                if franchise else "")
             + f"You pick {_ordinal(position)} in the first round of the {league.name} draft, "
-              f"with a budget of {career.teams[team_id].budget}k for the season.")
+              f"with a budget of {career.teams[team_id].budget}k for the season.\n"
+              "Before the draft starts the board wants to agree this season's objectives with you.")
+    board.start_job(cat, career, season)
     return career
 
 
@@ -107,53 +119,44 @@ def _daily(cat: Catalog, career: Career, rng: Rng) -> None:
     for state in career.players.values():
         if state.fatigue:
             state.fatigue = max(0, state.fatigue - 4)
+    if career.phase == "offseason":
+        transfers.daily(cat, career, rng)
     if career.day.weekday() == 0:
         _weekly(cat, career, rng)
 
 
 def _weekly(cat: Catalog, career: Career, rng: Rng) -> None:
     for team in career.teams.values():
-        wages = roster.payroll(career, team) / 52
-        sponsors = cat.teams[team.id].prestige * 22 / 52
-        team.cash = int(team.cash - wages + sponsors)
-    for pid, state in career.players.items():
-        if state.team is None:
-            continue
-        motivation = staffing.attribute(cat, career, state.team, "motivation")
-        state.morale += (70 - state.morale) // staffing.morale_recovery_divisor(motivation)
-        player = cat.players[pid]
-        gap = player.potential - roster.overall(cat, career, pid)
-        development = staffing.development_factor(staffing.attribute(cat, career, state.team, "development"))
-        if gap > 0 and rng.chance(min(0.6, 0.08 * gap) * development):
-            attr = rng.pick(list(player.attributes)) or "mechanics"
-            state.growth[attr] = round(state.growth.get(attr, 0.0) + 0.35, 2)
-    _practice(cat, career, rng)
-
-
-PRACTICE_GAIN = 2  # mastery a week of practice on one champion adds
-PRACTICE_CAP = 55  # practice alone takes a champion no further than a pocket pick
-
-
-def _practice(cat: Catalog, career: Career, rng: Rng) -> None:
-    """Weekly scrims: a starter may work on one of the patch's best champions for their role.
-    How often depends on the coach's teaching."""
-    best: dict[str, list[str]] = {}
-    for role in ROLES:
-        fits = [c.id for c in cat.champions.values() if role in c.roles]
-        best[role] = sorted(fits, key=lambda cid: -career.meta.power.get(cid, 0.0))[:5]
-    for team in career.teams.values():
-        chance = staffing.practice_chance(staffing.attribute(cat, career, team.id, "teaching"))
-        for role, pid in team.lineup.items():
-            if not rng.chance(chance):
-                continue
-            target = next((c for c in best[role] if roster.mastery(cat, career, pid, c) < PRACTICE_CAP), None)
-            if target:
-                learned = career.players[pid].learned
-                learned[target] = learned.get(target, 0) + PRACTICE_GAIN
+        # The owners fund the salary budget; what the payroll leaves of it, and the sponsors, go to the bank.
+        team.cash = int(team.cash + (team.budget - roster.payroll(career, team)) / 52
+                        + reputation.sponsor_income(cat, career, team.id))
+    training.weekly(cat, career, rng)
+    if career.phase == "season" and not career.board.sacked:
+        training.review(cat, career)
 
 
 def _todays_matches(career: Career) -> list:
     return sorted((m for m in career.matches.values() if m.day == career.day and m.winner is None), key=lambda m: m.id)
+
+
+def _update_competitions(cat: Catalog, career: Career, rng: Rng) -> None:
+    """Move the competitions on, then let reputations and the board react to what finished and
+    to the international events that were just set."""
+    before = set(career.competitions)
+    for comp_id in calendar.update(cat, career, rng):
+        comp = career.competitions[comp_id]
+        reputation.after_competition(cat, career, comp)
+        board.after_competition(cat, career, comp, rng)
+    for comp_id in set(career.competitions) - before:
+        if career.competitions[comp_id].kind == "international":
+            board.event_created(cat, career, career.competitions[comp_id])
+
+
+def _check_free(career: Career) -> None:
+    if career.board.sacked:
+        raise IllegalAction("You have no club: choose one of the job offers first")
+    if career.board.meeting:
+        raise IllegalAction("The board is waiting to meet you about the objectives")
 
 
 def advance(cat: Catalog, career: Career, rng: Rng) -> None:
@@ -161,6 +164,10 @@ def advance(cat: Catalog, career: Career, rng: Rng) -> None:
         raise IllegalAction("Finish the draft first")
     if career.live is not None:
         raise IllegalAction("Your match is waiting")
+    _check_free(career)
+    if career.phase == "offseason":
+        _advance_offseason(cat, career, rng)
+        return
     if calendar.season_over(career):
         raise IllegalAction("The season is over")
     inbox_before = len(career.inbox)
@@ -175,22 +182,49 @@ def advance(cat: Catalog, career: Career, rng: Rng) -> None:
                 mine = match
                 continue
             matchday.play_ai_match(cat, career, match, rng)
-        calendar.update(cat, career, rng)
+        _update_competitions(cat, career, rng)
+        if career.board.sacked:
+            # The board acted before the match: the old team plays it without the manager.
+            if mine is not None:
+                matchday.play_ai_match(cat, career, mine, rng)
+                _update_competitions(cat, career, rng)
+            if calendar.season_over(career):
+                _end_season(cat, career, rng)
+            return
         if mine is not None:
             matchday.start_live(career, mine)
             scouting.scouting_report(cat, career, mine)
             return
         if calendar.season_over(career):
-            _end_season(cat, career)
+            _end_season(cat, career, rng)
             return
         if _worth_stopping(career, inbox_before):
             return
 
 
+def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True) -> None:
+    inbox_before = len(career.inbox)
+    for _ in range(MAX_DAYS_PER_ADVANCE):
+        career.day += timedelta(days=1)
+        _daily(cat, career, rng)
+        if career.day >= transfers.closing_day(career):
+            offseason.start_new_season(cat, career, rng)
+            start_season(cat, career)
+            return
+        if career.board.sacked or career.board.meeting:
+            return
+        if stop and any(m.kind in ("transfer", "player", "board", "contract", "staff")
+                        for m in career.inbox[inbox_before:]):
+            return
+
+
 def _worth_stopping(career: Career, inbox_before: int) -> bool:
-    """Stop when a competition the manager cares about finished or a new one was announced."""
+    """Stop when a competition the manager cares about finished or a new one was announced, or
+    the board has something to say."""
     for msg in career.inbox[inbox_before:]:
         if msg.kind in ("news", "board") and (" is set" in msg.subject or " win the " in msg.subject):
+            return True
+        if msg.kind == "board" and ("losing patience" in msg.subject or "sacked" in msg.subject):
             return True
     return False
 
@@ -208,28 +242,67 @@ def after_series(cat: Catalog, career: Career, rng: Rng) -> None:
     for match in _todays_matches(career):
         if match.home and match.away and career.team not in (match.home, match.away):
             matchday.play_ai_match(cat, career, match, rng)
-    calendar.update(cat, career, rng)
+    _update_competitions(cat, career, rng)
     if calendar.season_over(career):
-        _end_season(cat, career)
+        _end_season(cat, career, rng)
 
 
-def _end_season(cat: Catalog, career: Career) -> None:
+def _end_season(cat: Catalog, career: Career, rng: Rng) -> None:
     message(career, "board", f"The {career.season} season is over", _season_review(cat, career))
-    offseason.contract_warning(cat, career)
-    career.phase = "offseason"
+    offseason.start_offseason(cat, career, rng)
+
+
+def skip_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
+    """Straight to the next season: unanswered bids lapse and players who wanted a word get none."""
+    if career.phase != "offseason":
+        raise IllegalAction("The season is not over yet")
+    _check_free(career)
+    while career.phase == "offseason":
+        _advance_offseason(cat, career, rng, stop=False)
+        if career.board.sacked or career.board.meeting:
+            return
 
 
 # ---------- actions ----------
 
 
-def _migrate(cat: Catalog, career: Career) -> None:
-    """Careers saved before staff existed get the staff pool, and once their draft is over every
-    team hires an assistant coach and an analyst straight away (see _hire_staff)."""
+def migrate(cat: Catalog, career: Career) -> bool:
+    """Bring a career saved by an older version up to date. Returns True when anything changed.
+
+    Staff: every team gets the staff pool, and once the draft is over every team hires an
+    assistant coach and an analyst straight away (see _hire_staff). Training, reputation and the
+    board: every team gets its team areas and set plays, reputations start at prestige and the
+    board meets the manager about the season's objectives."""
+    changed = False
     if len(career.staff) < len(cat.staff):
         for sid in cat.staff:
             career.staff.setdefault(sid, StaffState(id=sid))
+        changed = True
     if career.phase != "draft" and not any(t.coach or t.analyst for t in career.teams.values()):
         _hire_staff(cat, career)
+        changed = True
+    if not career.seed:
+        career.seed = career.rs or 1
+        changed = True
+    if not career.manager_reputation or any(not t.reputation for t in career.teams.values()):
+        reputation.ensure(cat, career)
+        changed = True
+    if any(not t.skills or not t.plays for t in career.teams.values()):
+        training.ensure(cat, career)
+        changed = True
+    if not career.board.season:
+        board.start_job(cat, career, career.season + 1 if career.phase == "offseason" else career.season)
+        changed = True
+    elif not career.board.bonuses:
+        bonuses = board.bonuses_for(career, career.board.season)
+        if bonuses:
+            career.board.bonuses = bonuses
+            changed = True
+    if career.phase == "offseason" and not any(h.season == career.season for h in career.history):
+        # Saved at the end of a season under the old rules, before the transfer window existed.
+        offseason.start_offseason(cat, career, Rng(career))
+        changed = True
+    return changed
 
 
 def _hire_staff(cat: Catalog, career: Career) -> None:
@@ -249,13 +322,24 @@ def _hire_staff(cat: Catalog, career: Career) -> None:
     if names:
         message(career, "staff", "The board has hired your staff",
                 f"New this season: {' and '.join(names)}. Their salaries come on top of your budget. "
-                "When their contracts end, new staff are drafted after the players.")
+                "When their contracts end, the board renews them.")
+
+
+_ALWAYS = (AcceptJobAction, ReadMessageAction)
+_NEED_THE_BOARD = (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAutoAction, DraftSimAction, AdvanceAction,
+                   NextSeasonAction, TransferBidAction, OfferAction)
 
 
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     rng = Rng(career)
     outcome = Outcome()
-    _migrate(cat, career)
+    migrate(cat, career)
+    if career.board.sacked and not isinstance(action, _ALWAYS):
+        raise IllegalAction("You have no club: choose one of the job offers first")
+    if career.board.meeting and isinstance(action, DraftNextAction):
+        return outcome  # the draft waits for the meeting; a client on a timer just gets nothing
+    if career.board.meeting and isinstance(action, _NEED_THE_BOARD):
+        raise IllegalAction("The board is waiting to meet you about the objectives")
     if isinstance(action, (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAutoAction, DraftSimAction,
                            DraftNextAction)):
         _draft_action(cat, career, action, rng)
@@ -275,6 +359,8 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         matchday.auto_select(cat, career, rng)
     elif isinstance(action, OpponentTurnAction):
         matchday.opponent_turn(cat, career, rng, action.until_mine)
+    elif isinstance(action, SetPlayAction):
+        matchday.set_play(cat, career, action.play)
     elif isinstance(action, PlayGameAction):
         outcome.details.append(matchday.play_live_game(cat, career, rng))
     elif isinstance(action, NextGameAction):
@@ -292,10 +378,25 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     elif isinstance(action, ReleaseAction):
         contracts.release(cat, career, action.player)
     elif isinstance(action, NextSeasonAction):
-        if career.phase != "offseason":
-            raise IllegalAction("The season is not over yet")
-        offseason.start_next_season(cat, career, rng)
-        _maybe_finish_draft(cat, career, rng)
+        skip_offseason(cat, career, rng)
+    elif isinstance(action, BoardMeetingAction):
+        board.hold_meeting(cat, career, action.stances)
+    elif isinstance(action, AcceptJobAction):
+        board.accept_job(cat, career, action.team)
+    elif isinstance(action, SetTrainingAction):
+        training.set_team(career, action.load, action.focus, action.play, action.clear_play)
+    elif isinstance(action, SetPlayerTrainingAction):
+        training.set_player(cat, career, action.player, action.attribute, action.champion)
+    elif isinstance(action, TransferBidAction):
+        transfers.bid(cat, career, action.player, action.fee)
+    elif isinstance(action, WithdrawBidAction):
+        transfers.withdraw(career, action.offer)
+    elif isinstance(action, RespondOfferAction):
+        transfers.respond(cat, career, action.offer, action.response, rng)
+    elif isinstance(action, TransferListAction):
+        transfers.set_listed(cat, career, action.player, action.listed)
+    elif isinstance(action, TalkAction):
+        transfers.talk(cat, career, action.conversation, action.choice, rng)
     elif isinstance(action, ReadMessageAction):
         for msg in career.inbox:
             if action.id is None or msg.id == action.id:
@@ -332,3 +433,4 @@ def _draft_action(cat: Catalog, career: Career, action: Action, rng: Rng) -> Non
             draft.auto_pick(cat, career, d, rng)
     draft.pass_idle(d, career, career.team)
     _maybe_finish_draft(cat, career, rng)
+

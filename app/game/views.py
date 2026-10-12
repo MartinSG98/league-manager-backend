@@ -3,12 +3,15 @@
 Every function returns plain JSON-ready dicts with snake_case keys; the client keeps a
 hand-written copy of these shapes in src/api/types.ts."""
 
+from app.game import board as boardroom
 from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
-from app.game import matchday, patches, roster
+from app.game import matchday, patches, reputation, roster, training, transfers
+from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog, Player
+from app.game.ratings import ATTRIBUTES
 from app.game.state import Career, Competition, Match, Stage
 
 # ---------- small pieces ----------
@@ -44,7 +47,8 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "team": state.team,
         "franchise": bool(state.team and career.teams.get(state.team) and career.teams[state.team].franchise == pid),
         "overall": roster.overall(cat, career, pid),
-        "potential": p.potential,
+        # The scouts' estimate, never below what the player already is.
+        "potential": max(p.potential, roster.overall(cat, career, pid)),
         "salary": state.contract.salary if state.contract else p.salary,
         "contract_until": state.contract.until if state.contract else None,
         "reputation": p.reputation,
@@ -53,6 +57,8 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "form": round(state.form, 1),
         "morale": state.morale,
         "fatigue": state.fatigue,
+        "sharpness": state.sharpness,
+        "status": training.condition_labels(state),
     }
 
 
@@ -89,6 +95,9 @@ def player_detail(cat: Catalog, career: Career, pid: str) -> dict:
         pool.append({"champion": cid, "games": 0, "winrate": None, "mastery": roster.mastery(cat, career, pid, cid),
                      "meta": round(career.meta.power.get(cid, 0.0), 1)})
     return player_row(cat, career, pid) | {
+        "training": state.training.model_dump(),
+        "development": training.development_trend(state),
+        "market": transfers.player_market(cat, career, pid),
         "attributes": roster.attributes(cat, career, pid),
         "aggression": p.aggression,
         "leadership": p.leadership,
@@ -123,6 +132,8 @@ def match_summary(cat: Catalog, career: Career, match: Match) -> dict:
         "score": list(match.score),
         "winner": match.winner,
         "games": len(match.games),
+        "bracket": match.bracket,
+        "round": match.round,
     }
 
 
@@ -148,6 +159,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
     if career.live:
         live = {"match": career.live.match, "game": career.live.game, "phase": career.live.phase,
                 "our_side": career.live.our_side}
+    b = career.board
     return {
         "id": save_id,
         "manager": career.manager,
@@ -169,7 +181,42 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
         "unread": sum(1 for m in career.inbox if not m.read),
         "inbox": [m.model_dump(mode="json") for m in reversed(career.inbox[-40:])],
         "season_over": calendar.season_over(career),
+        "board": {
+            "confidence": b.confidence, "security": boardroom.job_security(career), "warned": b.warned,
+            "meeting": b.meeting, "sacked": b.sacked, "season": b.season,
+            "objectives": [{"id": o.id, "text": boardroom.describe(cat, career, o), "status": o.status,
+                            "result": o.result} for o in b.objectives],
+            "bonuses": _bonuses(career),
+        },
+        "reputation": _reputation(cat, career),
+        "job_offers": [_job_offer(cat, career, t) for t in career.job_offers],
+        "window": {"open": transfers.window_open(career),
+                   "closes": transfers.closing_day(career).isoformat(),
+                   "free_agency": transfers.free_agency_day(career).isoformat()} if transfers.window_open(career) else None,
+        "pending": {
+            "offers": sum(1 for o in career.offers if o.seller == career.team and o.status == "open"),
+            "talks": sum(1 for c in career.conversations if not c.resolved),
+        },
     }
+
+
+def _bonuses(career: Career) -> list[dict]:
+    return [{"id": x.id, "text": boardroom.describe_bonus(x), "status": x.status, "confidence": x.confidence,
+             "payment": boardroom.bonus_payment(career, x)} for x in career.board.bonuses]
+
+
+def _reputation(cat: Catalog, career: Career) -> dict:
+    team = reputation.team_reputation(cat, career, career.team)
+    return {"team": round(team, 1), "team_stars": reputation.stars(team),
+            "manager": career.manager_reputation, "manager_stars": reputation.stars(career.manager_reputation)}
+
+
+def _job_offer(cat: Catalog, career: Career, team_id: str) -> dict:
+    team = career.teams[team_id]
+    rep = reputation.team_reputation(cat, career, team_id)
+    return {"team": team_ref(cat, team_id), "stars": reputation.stars(rep), "budget": team.budget,
+            "strength": round(roster.lineup_strength(cat, career, team), 1),
+            "league_name": cat.leagues[cat.teams[team_id].league].name}
 
 
 def save_row(save, cat: Catalog) -> dict:
@@ -261,6 +308,9 @@ def squad_view(cat: Catalog, career: Career, team_id: str | None = None) -> dict
         "payroll": roster.payroll(career, team),
         "cash": team.cash,
         "prestige": cat.teams[team_id].prestige,
+        "stars": reputation.stars(reputation.team_reputation(cat, career, team_id)),
+        "skills": {a: round(team.skills.get(a, 10.0), 1) for a in training.AREAS},
+        "listed": team.listed if team_id == career.team else [],
         "franchise": team.franchise,
         "staff": {"coach": staff_row(cat, career, team.coach), "analyst": staff_row(cat, career, team.analyst)},
     }
@@ -412,8 +462,148 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
         "bench": [player_row(cat, career, p) for p in career.teams[career.team].roster
                   if p not in career.teams[career.team].lineup.values()],
         "mastery": _mastery_table(cat, career, teams),
+        "plays": _plays_choice(cat, career, match) if live.phase == "ready" else None,
     }
     return view
+
+
+def _plays_choice(cat: Catalog, career: Career, match: Match) -> dict:
+    """The set plays the manager can call for the coming game, with how likely each is to work."""
+    live = career.live
+    picks = live.select.blue_picks if live.our_side == "blue" else live.select.red_picks
+    early = cs.focus_bias(cat, picks)
+    enemy = matchday.opponent(career, match)
+    team = career.teams[career.team]
+    options = []
+    for pid in set_plays.PLAYS:
+        play = set_plays.PLAYS[pid]
+        learned = team.plays.get(pid, 0.0)
+        if learned < set_plays.USABLE_FROM:
+            continue
+        used = pid in match.plays_used.get(career.team, [])
+        options.append({
+            "id": pid, "name": play.name, "phase": play.phase, "minute": play.minute, "effect": play.effect,
+            "text": play.text, "learned": round(learned), "used": used,
+            "chance": round(set_plays.team_chance(cat, career, career.team, enemy, pid, early), 2),
+            "fit": round(set_plays.fit(play, early), 2),
+        })
+    options.sort(key=lambda o: (o["used"], -o["chance"]))
+    return {"chosen": live.play, "options": options, "used": match.plays_used.get(career.team, []),
+            "opponent_used": match.plays_used.get(enemy, [])}
+
+
+# ---------- training ----------
+
+
+def training_view(cat: Catalog, career: Career) -> dict:
+    team = career.teams[career.team]
+    latest = next((m for m in reversed(career.inbox) if m.report and m.report.get("kind") == "review"
+                   and m.report.get("team") == career.team), None)
+    players = []
+    for pid in team.roster:
+        state = career.players[pid]
+        row = player_row(cat, career, pid)
+        row |= {
+            "starter": pid in team.lineup.values(),
+            "training": state.training.model_dump(),
+            "development": training.development_trend(state),
+            "quality": round(training.season_quality(state), 2) if state.development else None,
+            "burnout": state.burnout,
+            "attributes": roster.attributes(cat, career, pid),
+            "learning": ({"champion": state.training.champion,
+                          "mastery": roster.mastery(cat, career, pid, state.training.champion)}
+                         if state.training.champion else None),
+        }
+        players.append(row)
+    players.sort(key=lambda r: (not r["starter"], ROLES.index(r["role"])))
+    coach = cat.staff.get(team.coach or "")
+    return {
+        "load": team.training.load,
+        "recommended": training.recommended_load(career, career.team),
+        "advice": training.load_advice(career, career.team),
+        "loads": [{"id": k, "name": v.name, "text": v.text, "fatigue": v.fatigue, "sharpness": v.sharpness,
+                   "gain": v.gain} for k, v in training.LOADS.items()],
+        "focus": team.training.focus,
+        "areas": [{"id": a, "label": label, "effect": training.AREA_EFFECTS[a],
+                   "level": round(team.skills.get(a, 10.0), 1)} for a, label in training.AREAS.items()],
+        "drilling": team.training.play,
+        "plays": [{"id": p.id, "name": p.name, "phase": p.phase, "minute": p.minute, "weeks": p.weeks,
+                   "area": p.area, "area_label": training.AREAS[p.area], "style": p.style, "text": p.text,
+                   "effect": p.effect, "learned": round(team.plays.get(p.id, 0.0))}
+                  for p in set_plays.PLAYS.values()],
+        "usable_from": set_plays.USABLE_FROM,
+        "players": players,
+        "attributes": list(ATTRIBUTES),
+        "review": latest.report | {"day": latest.day.isoformat(), "subject": latest.subject} if latest else None,
+        "coach": {"name": coach.name, "attributes": coach.attributes} if coach else None,
+        "thresholds": {"burnout": training.BURNOUT_FROM, "complacent": training.COMPLACENT_BELOW,
+                       "champion_cap": training.CHAMPION_CAP},
+    }
+
+
+# ---------- the board ----------
+
+
+def board_view(cat: Catalog, career: Career) -> dict:
+    b = career.board
+    team = career.teams[career.team]
+    objectives = []
+    for o in b.objectives:
+        row = {"id": o.id, "kind": o.kind, "split": o.split, "text": boardroom.describe(cat, career, o),
+               "status": o.status, "result": o.result, "target": o.target, "proposed": o.proposed,
+               "progress": _objective_progress(cat, career, o)}
+        if b.meeting:
+            row["options"] = []
+            for stance in (-1, 0, 1):
+                target = boardroom.stance_target(cat, career, o, stance)
+                trial = o.model_copy(update={"target": target})
+                moved = (target - o.proposed) if o.kind == "worlds" else (o.proposed - target)
+                row["options"].append({"stance": stance, "text": boardroom.describe(cat, career, trial),
+                                       "budget": round(boardroom.BUDGET_STEP * moved, 2), "possible": moved == stance})
+        objectives.append(row)
+    return {
+        "season": b.season,
+        "confidence": b.confidence,
+        "security": boardroom.job_security(career),
+        "warned": b.warned,
+        "meeting": b.meeting,
+        "sacked": b.sacked,
+        "joined": b.joined.isoformat() if b.joined else None,
+        "objectives": objectives,
+        "bonuses": _bonuses(career),
+        "history": list(reversed(b.history[-12:])),
+        "reputation": _reputation(cat, career) | {"prestige": cat.teams[career.team].prestige},
+        "finances": {
+            "budget": team.budget, "payroll": roster.payroll(career, team), "cash": team.cash,
+            "sponsors_per_week": round(reputation.sponsor_income(cat, career, career.team)),
+            "budget_step": boardroom.BUDGET_STEP,
+        },
+        "league_reputation": sorted(
+            ({"team": team_ref(cat, t.id), "reputation": round(reputation.team_reputation(cat, career, t.id), 1),
+              "stars": reputation.stars(reputation.team_reputation(cat, career, t.id))}
+             for t in cat.league_teams(career.league)), key=lambda r: -r["reputation"]),
+        "job_offers": [_job_offer(cat, career, t) for t in career.job_offers],
+        "star_reach": reputation.STAR_REACH,
+        "thresholds": {"warning": boardroom.WARNING, "safe": boardroom.SAFE},
+    }
+
+
+def _objective_progress(cat: Catalog, career: Career, o) -> str | None:
+    """Where the team stands now in the competition an open objective is about."""
+    if o.status != "pending":
+        return None
+    if o.kind == "split":
+        comp = career.competitions.get(f"{career.board.season}-{cat.teams[career.team].league}-{o.split}")
+        if comp is None or comp.status == "upcoming":
+            return None
+        stage = comp.stages[0]
+        rows = comps.standings(career, stage)
+        place = next((i + 1 for i, r in enumerate(rows) if r["team"] == career.team), None)
+        return f"Currently {boardroom._ordinal(place)} in the regular season" if place else None
+    worlds = career.competitions.get(f"{career.board.season}-WORLDS")
+    if worlds is not None:
+        return "Qualified" if career.team in worlds.entrants else "Did not qualify"
+    return None
 
 
 def _composition(cat: Catalog, picks: dict[str, str]) -> dict | None:

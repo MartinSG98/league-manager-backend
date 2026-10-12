@@ -1,6 +1,6 @@
 # League Manager backend
 
-FastAPI backend for League Manager, Football Manager for League of Legends esports. You take over a tier-one team from any of the six major regions at the end of 2026. Your team keeps one franchise player, G2 keeps Caps and T1 keeps Faker. Everyone else in the region goes into a draft pool with the region's tier-two players. You draft a roster on a budget, then manage it through a whole season: three domestic splits, First Stand, MSI and Worlds, a new patch every two weeks, and champion select in every game you play.
+FastAPI backend for League Manager, Football Manager for League of Legends esports. You take over a tier-one team from any of the six major regions at the end of 2026. Your team keeps one franchise player, G2 keeps Caps and T1 keeps Faker. Everyone else in the region goes into a draft pool with the region's tier-two players. You draft a roster on a budget, then manage it season after season: three domestic splits, First Stand, MSI and Worlds, a new patch every two weeks, champion select in every game you play, a training plan every week, a board that judges you on the objectives you agreed, and a transfer window every off-season.
 
 This repo holds the API and the whole game engine. The browser client lives in [league-manager-ui](https://github.com/MartinSG98/league-manager-ui) and only draws what this service returns.
 
@@ -9,13 +9,16 @@ Architecture decisions are recorded in [docs/adr](docs/adr/README.md), one numbe
 ## How a season goes
 
 1. **Pick a team.** Any of the 56 tier-one teams in the LCK, LPL, LEC, LCS, CBLOL and LCP.
-2. **The draft.** On December 1st every tier-one team is stripped down to its franchise player. The rest of the region's 2026 tier-one players and every tier-two player form one pool, about 700 players for EMEA with the LEC and its 13 ERLs. Teams pick in snake order, the weakest 2026 team first. The first four rounds fill the starting five, so you can only draft a role you still need. Two optional bench rounds follow, then a round for an assistant coach and a round for an analyst. Salaries are fixed at each player's and staff member's asking price, and every pick has to leave enough budget to fill your remaining roles and staff seats. Every other region drafts at the same time with the AI.
-3. **Splits.** Three per region, under their real names: the LEC Versus, Spring and Summer, the LCK Cup, Rounds 1-2 and Rounds 3-4, and so on. Each is a round robin (Bo1 or Bo3 depending on the league and split) followed by best-of-five playoffs with byes for the top seeds.
-4. **International events.** First Stand after split 1 has 8 teams in groups and then knockouts. MSI after split 2 has 10 teams, with a play-in and then an 8-team bracket. Worlds after split 3 has 16 teams in a Swiss stage and then best-of-five knockouts. Teams qualify by their playoff finish.
-5. **Match day.** Your analyst's report on the opponent is in the inbox. Set your lineup and tactics, then draft champions in tournament order (or let the assistant do it), then watch the game play out minute by minute. Best-of series use fearless draft.
-6. **Continue.** `advance` moves the calendar a day at a time and plays every other match in the world on the way, until your team plays next.
-7. **Contracts.** Once the draft is over you can sign free agents and extend your own players whose contracts run out, by negotiating salary and length, or release players for half of what is left on their deal.
-8. **The off-season.** After Worlds, contracts that end are gone (AI teams re-sign the players they value), prospects grow, veterans may decline, and every league drafts again, only for the roles its teams still need.
+2. **Meet the board.** The board proposes a finish for each split and a target at Worlds, from where your club's reputation ranks it in the league. Accept each one, ask for less (4 percent less budget a step) or promise more (4 percent more).
+3. **The draft.** Only when the career starts. On December 1st every tier-one team is stripped down to its franchise player. The rest of the region's 2026 tier-one players and every tier-two player form one pool, about 700 players for EMEA with the LEC and its 13 ERLs. Teams pick in snake order, the weakest 2026 team first. The first four rounds fill the starting five, so you can only draft a role you still need. Two optional bench rounds follow, then a round for an assistant coach and a round for an analyst. Salaries are fixed at each player's and staff member's asking price, and every pick has to leave enough budget to fill your remaining roles and staff seats. Every other region drafts at the same time with the AI.
+4. **Splits.** Three per region, under their real names: the LEC Versus, Spring and Summer, the LCK Cup, Rounds 1-2 and Rounds 3-4, and so on. Each is a round robin (Bo1 or Bo3 depending on the league and split) followed by best-of-five double-elimination playoffs, as in 2026: eight teams in the LPL and the LEC Versus, six elsewhere. The LEC Spring and Summer and the LCS Spring start their top four in the upper bracket and 5th and 6th in the lower one; the other six-team playoffs send the top two straight to the upper semifinals. A team is out after two defeats, or one in the lower bracket, and there is no bracket reset in the grand final.
+5. **International events.** First Stand after split 1 has 8 teams in groups and then knockouts. MSI after split 2 has 10 teams, with a play-in and then an 8-team double-elimination bracket. Worlds after split 3 has 16 teams in a Swiss stage and then best-of-five knockouts. Teams qualify by their playoff finish.
+6. **Match day.** Your analyst's report on the opponent is in the inbox. Set your lineup and tactics, then draft champions in tournament order (or let the assistant do it), call one of your set plays, then watch the game play out minute by minute. Best-of series use fearless draft, and each set play can be run once a series.
+7. **Training.** Every week your team scrims at the load you set, works on up to two team areas and drills a set play, and each player can work on an attribute or learn a champion. Every few games the analyst says what costs you the most.
+8. **Continue.** `advance` moves the calendar a day at a time and plays every other match in the world on the way, until your team plays next.
+9. **Contracts.** Once the draft is over you can sign free agents and extend your own players whose contracts run out, by negotiating salary and length, or release players for half of what is left on their deal.
+10. **The board's reviews.** After every split and after Worlds the board judges the objective it settles. Two bad reviews in a row and you are sacked; clubs within reach of your reputation then make you offers.
+11. **The off-season.** After Worlds the transfer window opens until December 15th. Buy players under contract for a fee, sell yours, sign free agents. Contracts that end run out on November 19th. Players develop, the board sets new budgets and objectives, and the next season starts with no draft.
 
 ## Running locally
 
@@ -64,6 +67,9 @@ Copy `.env.example` to `.env` if you need to change anything.
 | GET | `/api/careers/{id}/live` | Your series in progress: lineups, champion select, suggestions |
 | GET | `/api/careers/{id}/meta` | Champion tiers on the current patch and recent patch notes |
 | GET | `/api/careers/{id}/negotiate/{pid}` | Contract talks with a player: the agent's ask, budget room, any counter-offer |
+| GET | `/api/careers/{id}/training` | Load, focus areas, set plays, each player's condition and own training, the analyst's latest review |
+| GET | `/api/careers/{id}/board` | Objectives (with the meeting's options), confidence, reputations, finances, job offers |
+| GET | `/api/careers/{id}/transfers` | The window: bids for your players, your bids, listed players, moves, players who want to talk |
 
 Actions are JSON objects tagged by `type`:
 
@@ -90,9 +96,19 @@ Actions are JSON objects tagged by `type`:
 | `offer` | `player`, `salary`, `years` | Offer a free agent a contract, or extend one of your players in their last season |
 | `accept_counter` | `player` | Sign at the salary the player countered with |
 | `release` | `player` | Let a player go, paying half the rest of the contract |
-| `next_season` | | After Worlds, start the next pre-season |
+| `next_season` | | In the off-season, skip to the new season; unanswered bids lapse |
+| `board_meeting` | `stances` (objective id to -1, 0 or 1) | When the board is waiting to meet you |
+| `accept_job` | `team` | After a sacking, take one of the offers |
+| `set_training` | `load`, `focus`, `play`, `clear_play` (all optional) | Any time |
+| `set_player_training` | `player`, `attribute`, `champion` | Any time, for one of your players |
+| `set_play` | `play` (or none) | After champion select, before the game |
+| `transfer_bid` | `player`, `fee` | Off-season, for a player under contract elsewhere |
+| `withdraw_bid` | `offer` | One of your open bids |
+| `respond_offer` | `offer`, `response` (`accept`, `reject`, `negotiate`) | A bid for one of your players |
+| `transfer_list` | `player`, `listed` | Tell other clubs a player is for sale |
+| `talk` | `conversation`, `choice` (`vital`, `promise`, `final`) | A player asked to talk |
 
-An action that does not fit the career's current state returns 409 with the reason, for example drafting a second mid laner while you still have no jungler.
+An action that does not fit the career's current state returns 409 with the reason, for example drafting a second mid laner while you still have no jungler. While the board is waiting to meet you, the draft, `advance` and new signings wait too; while you have no club, only `accept_job` works.
 
 The AI never moves on its own after one of your actions. In the draft and in champion select the client asks for each AI move with `draft_next` or `opponent_turn`, so it can give the other teams a few seconds per turn and offer a skip button.
 
@@ -113,7 +129,9 @@ The AI never moves on its own after one of your actions. In the draft and in cha
 
 An average player sits at a baseline set by league strength. That is 15.5 for the LCK, 13 for the LEC and about 6 for a mid-sized ERL. Small samples are pulled towards the average. The overall rating (30-99) weighs the attributes by role, so a support's vision counts most and a bot laner's mechanics and teamfighting count most. A long career adds up to 3 points of big-match experience. Potential is higher for players with fewer career games.
 
-**Salaries.** An asking salary doubles roughly every 7 overall points. It is scaled by region (Korea 1.0, China 1.15, EMEA 0.9, NA 1.1, Brazil 0.45, Pacific 0.55) and by reputation. A team's budget covers its franchise player, four players of the average quality a draft hands out, and a bench player. It is scaled by the organisation's prestige, from 0.82 to 1.18.
+**Salaries and money.** An asking salary doubles roughly every 7 overall points. It is scaled by region (Korea 1.0, China 1.15, EMEA 0.9, NA 1.1, Brazil 0.45, Pacific 0.55) and by reputation.
+- **The salary budget.** In the first season it covers the franchise player, four players of the average quality a draft hands out, and a bench player, scaled by prestige from 0.82 to 1.18. From then on the board sets it every off-season: five starters and a bench player at the region's going rate plus staff, scaled by reputation from 0.8 to 1.25, and never less than the contracts already signed.
+- **The bank.** The owners fund the salary budget, so every week what the payroll leaves of it goes to the bank, with sponsors (reputation x 6k a year) and prize money. Every off-season the owners add 15 percent of the budget for a one-star club, up to 35 percent for a five-star one, for transfers. Transfer fees come out of the bank.
 
 **Champions.** In a game a champion adds or subtracts from its player's rating:
 
@@ -146,7 +164,7 @@ A champion is never marked down just because the player has not played it; its m
 Chemistry runs from about -5 to +4 on top of the team's average.
 
 **Contracts.** The draft pays the asking price. After the draft, every deal is negotiated.
-- **The ask.** It is the market rate for the player's current rating. A player whose reputation is above your club's prestige asks up to 40 percent more. Your own players ask more when their morale is low, and a free agent without a team mid-season asks 10 percent less. Prospects want three seasons, players past 900 career games want one, everyone else two.
+- **The ask.** It is the market rate for the player's current rating. A player whose reputation is above your club's reputation asks up to 40 percent more, and a reluctant one (see the transfer window) 15 percent more on top. Your own players ask more when their morale is low, and a free agent without a team mid-season asks 10 percent less. Prospects want three seasons, players past 900 career games want one, everyone else two.
 - **The floor.** Each player has a hidden floor between 86 and 97 percent of the ask, and every year away from the preferred length counts as 5 percent off the offer.
 - **The answer.** At or above the floor, the player signs. Within reach, the player counters halfway between your offer and the ask. Under 60 percent, or after three failed rounds, the agent walks away for three weeks.
 - **Rosters and releases.** A roster holds 8 players. Releasing a player costs half of the remaining contract.
@@ -166,9 +184,40 @@ Chemistry runs from about -5 to +4 on top of the team's average.
 | Scouting | the report on the next opponent: 1 basic, 2 adds what they play and their game plan, 3 adds ban priorities and their key player, 4 adds weak spots | level 1 | level 2 | level 4 |
 | Meta reading | the patch preview: 2 or 4 days ahead, names the nerf targets, with odds from 15, and spots mid-season updates from 12 | 2 days, some names wrong | 2 days, top 4 | 4 days, odds |
 
-The coach's misjudgements are fixed for each person, so a coach always over- or underrates the same things. Staff sign for two seasons. Your own staff renew automatically, and AI teams keep theirs about two times in three. The next draft has staff rounds when any team in the league has an empty seat.
+The coach's misjudgements are fixed for each person, so a coach always over- or underrates the same things. Teaching also speeds up team areas, set plays and champions a player learns on their own, and the analyst's scouting decides how often the game review reads the team right. Staff sign for two seasons. Your own staff renew automatically, and AI teams keep theirs about two times in three. When the transfer window closes the board fills any empty seat.
 
-**Off-season.** Contracts that end leave the team. The franchise player renews automatically for three seasons. AI teams re-sign starters and anyone above their lineup's average more often than the rest. A player with fewer than 600 career games and room to grow closes 35 percent of the gap to potential, give or take. Past 1,100 career games a player can lose up to 2 overall a year. The next draft runs in reverse order of the last split's finish, with as many required rounds as the neediest team has open roles, plus one bench round.
+**Training.** Every Monday each team plays out a week of scrims. AI teams train at the load their coach would recommend, on their weakest area.
+
+| Load | Team areas, set plays and growth | Fatigue a week | Sharpness a week |
+|---|---|---|---|
+| Light | x0.5 | +0 | -8 |
+| Normal | x1 | +8 | +2 |
+| Heavy | x1.4 | +16 | +5 |
+| Intense | x1.8 | +26 | +7 |
+
+- **Condition.** Rest takes 28 fatigue off a week and every game on stage adds 4 fatigue and 1 sharpness. A player loses a point of power for every 30 fatigue and every 20 sharpness under 70, and gains one for every 20 over it. From 60 fatigue a player may burn out for three weeks: 4 points of power lost, 10 morale, no development. Under 40 sharpness a player is complacent.
+- **Team areas.** Five areas on the 1-20 scale: early game, objective control, teamfighting, macro and closing out games. One focus trains an area at 0.18 x load x teaching a week, two at 60 percent each, slower as it gets higher. Out of focus an area gains a little, and one above 9 slips back. Every new starter after a transfer window costs 6 percent of what each area holds above 5.
+- **Players.** A player can work on one attribute (most of their weekly growth goes there, and a little keeps coming past their target) or learn one champion (about 4 mastery a week, up to 75).
+- **Growth.** A week's quality is the load, the coach's development, morale, sharpness and whether the player starts; a normal week for a starter with an average coach is 1.0. The potential the scouts show is an estimate: the real ceiling is fixed per career, up to 6 points either side. A player heads for that ceiling plus 4 points for every point of average quality above 1, or minus below it, so good training takes a player past their potential over a season or two and poor training leaves them short.
+- **The analyst's review.** Every six games the analyst reads the last ten: gold at 15 minutes, leads of 3,500 or more thrown away, long wins, teamfights, dragons and Barons, towers. The two areas that cost most are recommended. A weak analyst gets it wrong more often.
+
+**Set plays.** Nine plays, from a level 1 invade or a Fnatic bush to a Baron bait or a 1-3-1 split push. A team knows two or three at the start and learns others by drilling one at a time: 3 to 6 weeks at a normal load. From 40 percent learned a play can be called, once a series, after champion select. It works 30 percent of the time, plus 45 for how well it is learned, plus 2.5 per point of the team's skill in the area behind it, minus 1.5 per point of the opponent's, plus up to 10 for a composition that suits it, between 10 and 90 percent. When it works it gives what it is built for (first blood, a lane, both Voidgrubs, two dragons, a won fight at Baron, towers); when it fails it backfires.
+
+**The board.** Objectives come from where the club's reputation ranks it in its league: the two biggest clubs are asked to finish at most one place below where their reputation ranks them (the favourite in the top two), the others at most two places below it, and the easiest target is avoiding last place. Worlds ranges from a bonus to the semi-finals for the favourite of Korea or China.
+- **Confidence.** It starts at 60. A split target met adds 6, more for a promise or a better finish; a miss costs 5 plus 3 a place, up to 14. Worlds is worth 8 either way, plus 3 or 4 a step. A title adds 5, an international one 8. Each new season starts two-fifths of the way back to 60.
+- **Bonuses.** First Stand and MSI are not objectives but bonuses: qualifying for First Stand is worth 4 confidence and reaching its final 3 more; qualifying for MSI 4, its semi-finals 3 and its final 3 more. Each also adds a point of manager reputation and a sponsor payment of 3 to 5 percent of the salary budget. Missing them costs nothing.
+- **Reviews.** Below 22 after a review, the board warns you; the next review still below 22 is the sack. Back above 35 lifts the warning. Nobody is warned in their first 75 days at a club.
+- **Reputation.** A team's reputation starts at the organisation's prestige and moves with results: +3 for a domestic title, +1.5 for a final, -1.5 for the bottom two, up to +12 for winning Worlds. Every off-season it drifts a tenth of the way back to prestige. Stars are (reputation - 50) / 10, in half stars. The manager starts at 0.6 x the club's reputation + 28 and gains with objectives and titles; a sacking costs 8. A sacked manager gets offers from three clubs at most one and a half stars above their own reputation.
+
+**The transfer window.** It runs from the day after the Worlds final to December 15th.
+- **Value.** A player's market value is the salary their rating and reputation command, times 0.5 plus 0.55 per season left on the contract, plus a share for room to grow. The selling club asks 1.3 times that for a starter, 0.85 for a bench player, 1.25 more for its only player in a role and 0.8 for a listed or unsettled one. A franchise player is not for sale.
+- **Bids.** A bid at the asking fee is agreed and the player's contract talks open. One within three quarters of it gets a counter. A lower one, or a third failed bid, is turned down. The fee is paid when the player signs.
+- **Interest.** A player's standing is their reputation, or their current club's reputation minus 12 if that is higher. They compare it with the buying club's reputation minus 10: more than 20 above it and they refuse to talk, more than 8 and they are reluctant and ask 15 percent more. An unsettled player is 8 points easier to tempt.
+- **AI clubs.** Each day every AI club has an 8 percent chance to act. It signs a free agent for an empty role, or one at least 2 better than its weakest starter, or bids for a player at least 4 better from a club no more than 5 reputation above its own. Another AI club answers at once; you get four days. Players who moved are not sold on in the same window.
+- **Players' feelings.** Turn down a club 3 reputation above yours, or one at least as big when the player's reputation is close to the club's, and the player loses 8 morale and asks to talk. You can tell them they are vital (works about half the time, more with a good reputation, for a starter), promise to let them go next off-season, or say the decision is final (18 morale, and they may ask to leave). Turning down the next big bid after a promise breaks it: 30 morale and a player who wants out. A talk ignored for a week counts as the decision being final. Unsettled players drift towards 45 morale and play a point worse.
+- **Free agency and the close.** Contracts that end with the season run out on November 19th; until then you can extend them. When the window closes every club fills its empty roles from the free agents and its empty staff seats, and open bids lapse.
+
+**Off-season.** When Worlds ends AI teams decide on the contracts that end: they re-sign starters and anyone above their lineup's average more often than the rest. The franchise player renews automatically for three seasons. A player with fewer than 600 career games closes about 35 percent of the gap to their growth target, give or take. Past 1,100 career games a player can lose up to 2 overall a year. There is no draft after the first season.
 
 **Patches.** A new patch every two weeks from January 6th. The balance team nerfs 3-5 of the champions that were picked or banned most on the outgoing patch and buffs 3-6 that nobody played. Every sixth patch is a mid-season update that also moves a whole class up or down by one. Every other champion drifts 3 percent towards the middle each patch. The first patch's meta comes from real 2026 pro presence.
 
@@ -177,6 +226,7 @@ The coach's misjudgements are fixed for each person, so a coach always over- or 
 - **Laning (1-14).** Lanes trade gold by matchup, with solo kills and jungle ganks. Junglers contest voidgrubs at 6 and 10, the first dragons, and the herald at 14.
 - **Fights (from 15).** Fights break out most often around a live dragon, Baron or Elder. A fight is a logistic roll on the power difference plus gold lead and buffs (Baron +5, Elder +7, Soul +3). The winner takes kills, the objective and towers.
 - **The end.** The game ends when a side wins a fight with an inhibitor down and a buff or a big margin.
+- **Team areas.** A team at 20 against one at 10 gets 1.5 power in the first 14 minutes and 1.2 in lane power for the early game, 0.5 of logistic edge in contested objectives, 2 power in fights for teamfighting and 1.5 in the gold drift after laning for macro. A team 3,000 gold or more ahead from minute 18 throws a fight it would have won 8.5 percent of the time, minus 0.45 per point of closing, and a good closer ends a game with a smaller margin.
 - **Form on the day.** Each side also gets a random form of up to ±6.5. With the current tuning, a 4-point edge in team power wins about 65 percent of games, a 10-point edge about 85 percent and a 14-point edge about 93 percent.
 
 ## Data
@@ -197,10 +247,13 @@ python -m scripts.simulate 2000 --season 3
 ```
 
 The tests cover:
-- the data, the draft rules and budgets, and round robin and bracket shapes
-- champion select with fearless, and determinism
-- a full season through Worlds
-- the API from draft to a played game
+- the data, the draft rules and budgets, and round robin, single and double elimination shapes
+- champion select with fearless, set plays, and determinism
+- a full season through Worlds, the transfer window and into the next season
+- the board's objectives, warnings, the sack and a new job
+- training loads, team areas, burnout, set plays, growth and the analyst's review
+- bids, counters, personal terms, players who ask to talk, and old saves
+- the API from the board meeting to a played game
 
 The simulation prints the game win rate per gap in team power and who won each title over a few whole seasons. The engine's constants at the top of `match_engine.py` were tuned against it.
 
@@ -219,11 +272,16 @@ app/
     ├── ratings.py    2026 stat lines to attributes, overall, potential, salary
     ├── roster.py     current ratings, mastery, languages and chemistry
     ├── state.py      the saved career and the actions
-    ├── draft.py      the pre-season draft and budgets
+    ├── draft.py      the first pre-season draft and budgets
     ├── contracts.py  negotiation, extensions and releases
-    ├── offseason.py  contracts ending, development, the next draft
+    ├── transfers.py  the transfer window, fees, AI clubs' market, players who want to talk
+    ├── offseason.py  the end of a season, development and the start of the next one
+    ├── board.py      objectives, the meeting, confidence, the sack and new jobs
+    ├── reputation.py team and manager reputation, stars, sponsors
+    ├── training.py   loads, team areas, players' own training, growth, the analyst's review
+    ├── plays.py      set plays and how likely they are to work
     ├── calendar.py   the season: splits, First Stand, MSI, Worlds
-    ├── competitions.py  round robins, brackets, Swiss, standings
+    ├── competitions.py  round robins, single and double elimination brackets, Swiss, standings
     ├── patches.py    the meta and the patches that move it
     ├── champ_select.py  tournament draft order, AI picks and bans
     ├── match_engine.py  one game, minute by minute

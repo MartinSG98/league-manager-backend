@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from app import repository
 from app.db import get_session
-from app.game import contracts, engine, views
+from app.game import contracts, engine, transfers, views
 from app.game.catalog import get_catalog
 from app.game.errors import IllegalAction
 from app.game.state import Action
@@ -24,7 +24,11 @@ def _load(session: Session, save_id: str):
     found = repository.load_save(session, save_id)
     if found is None:
         raise HTTPException(404, "No such career")
-    return found
+    save, career = found
+    # A save from an older version is brought up to date the first time it is opened.
+    if engine.migrate(get_catalog(), career):
+        repository.store(session, save, career)
+    return save, career
 
 
 @router.post("")
@@ -163,3 +167,21 @@ def negotiation(save_id: str, player_id: str, session: Session = Depends(get_ses
     if player_id not in cat.players:
         raise HTTPException(404, "No such player")
     return contracts.negotiation_view(cat, career, player_id)
+
+
+@router.get("/{save_id}/training")
+def training(save_id: str, session: Session = Depends(get_session)) -> dict:
+    _, career = _load(session, save_id)
+    return views.training_view(get_catalog(), career)
+
+
+@router.get("/{save_id}/board")
+def board(save_id: str, session: Session = Depends(get_session)) -> dict:
+    _, career = _load(session, save_id)
+    return views.board_view(get_catalog(), career)
+
+
+@router.get("/{save_id}/transfers")
+def transfer_window(save_id: str, session: Session = Depends(get_session)) -> dict:
+    _, career = _load(session, save_id)
+    return transfers.view(get_catalog(), career)
