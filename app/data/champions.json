@@ -21,7 +21,7 @@
   {"id": "Brand", "name": "Brand", "roles": ["JNG", "SUP"], "focus": "mid", "damage": "AP", "class": "Mage"},
   {"id": "Braum", "name": "Braum", "roles": ["SUP"], "focus": "mid", "damage": "AP", "class": "Tank"},
   {"id": "Briar", "name": "Briar", "roles": ["JNG"], "focus": "early", "damage": "AD", "class": "Fighter"},
-  {"id": "Caitlyn", "name": "Caitlyn", "roles": ["BOT"], "focus": "early", "damage": "AD", "class": "Marksman"},
+  {"id": "Caitlyn", "name": "Caitlyn", "roles": ["BOT"], "focus": "mid", "damage": "AD", "class": "Marksman"},
   {"id": "Camille", "name": "Camille", "roles": ["TOP", "SUP"], "focus": "mid", "damage": "AD", "class": "Fighter"},
   {"id": "Cassiopeia", "name": "Cassiopeia", "roles": ["MID", "TOP"], "focus": "late", "damage": "AP", "class": "Mage"},
   {"id": "Chogath", "name": "Cho'Gath", "roles": ["TOP"], "focus": "late", "damage": "AP", "class": "Tank"},

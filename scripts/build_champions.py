@@ -38,7 +38,7 @@ Blitzcrank|S|E|AP|Tank
 Brand|JS|M|AP|Mage
 Braum|S|M|AP|Tank
 Briar|J|E|AD|Fighter
-Caitlyn|B|E|AD|Marksman
+Caitlyn|B|M|AD|Marksman
 Camille|TS|M|AD|Fighter
 Cassiopeia|MT|L|AP|Mage
 Cho'Gath|T|L|AP|Tank
