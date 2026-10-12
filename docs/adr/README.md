@@ -20,3 +20,4 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0012](0012-the-board-and-reputation.md) | A board that sets objectives, and reputation in stars | Accepted |
 | [0013](0013-a-transfer-window-instead-of-a-yearly-draft.md) | A transfer window instead of a yearly draft | Accepted |
 | [0014](0014-ratings-blend-three-seasons-career-and-internationals.md) | Ratings blend three seasons, the career and the international stage | Accepted |
+| [0015](0015-rookie-classes-in-the-career.md) | Rookie classes, kept in the career | Accepted |

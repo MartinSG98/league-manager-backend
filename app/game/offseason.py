@@ -15,13 +15,15 @@ When Worlds ends the season goes into the career history and the clubs plan the 
   decline.
 - Reputations drift back towards what each organisation is, the board sets next season's budgets
   and meets the manager about next season's objectives.
+- A new class of rookies turns pro in every region (see rookies.py): free agents from academies,
+  ERL teams and solo queue, most of them ordinary and a few of them very good.
 
 When the window closes every club fills its empty roles and staff seats, team areas lose some of
 what they had built for every new face in the lineup, and the new season is scheduled."""
 
 from collections import Counter
 
-from app.game import board, patches, reputation, roster, training, transfers
+from app.game import board, patches, reputation, rookies, roster, training, transfers
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
@@ -103,6 +105,8 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     _message(career, "board", f"Off-season {career.season}", "\n".join(body))
     contract_warning(cat, career)
     transfers.open_window(cat, career)
+    # Last, so nothing else in this call looks the new players up in a catalog that predates them.
+    rookies.intake(cat, career, rng, new_season)
 
 
 def _staff_contracts(cat: Catalog, career: Career, rng: Rng, new_season: int) -> tuple[list[str], list[str]]:

@@ -385,6 +385,27 @@ class TransferOffer(BaseModel):
     note: str = ""
 
 
+class Rookie(BaseModel):
+    """A player the game made up: one of a season's rookie class (see rookies.py)."""
+    id: str
+    name: str
+    role: Role
+    country: str | None
+    league: str  # the league of the academy or ERL they came through, or of their region
+    team: str  # their team of origin, "" when they came straight from solo queue
+    season: int  # the season they turned pro for
+    experience: int
+    attributes: dict[str, int]
+    overall: int
+    potential: int  # the scouts' first estimate; the real ceiling is hidden like everyone's
+    aggression: int
+    leadership: int
+    reputation: int
+    salary: int
+    pool: list[tuple[str, int]]  # champion, games
+    signatures: list[str] = []
+
+
 class Shortlisted(BaseModel):
     """A player on the manager's shortlist."""
     player: str
@@ -440,6 +461,7 @@ class Career(BaseModel):
     next_offer: int = 1
     reviewed_games: int = 0  # the manager's games the analyst had seen at the last review
     shortlist: list[Shortlisted] = []
+    rookies: list[Rookie] = []  # every rookie class so far, oldest first
 
 
 # ---------- actions the client can post ----------

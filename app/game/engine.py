@@ -14,7 +14,7 @@ next season is scheduled. There is no draft after the first one."""
 from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
-from app.game import shortlist, training, transfers
+from app.game import rookies, shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
@@ -336,9 +336,10 @@ _NEED_THE_BOARD = (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAuto
 
 
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
+    migrate(rookies.catalog_for(cat, career), career)
+    cat = rookies.catalog_for(cat, career)  # the shared players plus this career's rookies, after migrate added any
     rng = Rng(career)
     outcome = Outcome()
-    migrate(cat, career)
     if career.board.sacked and not isinstance(action, _ALWAYS):
         raise IllegalAction("You have no club: choose one of the job offers first")
     if career.board.meeting and isinstance(action, DraftNextAction):
