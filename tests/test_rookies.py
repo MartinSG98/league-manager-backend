@@ -47,7 +47,7 @@ def test_rookies_show_up_in_searches_and_can_be_signed(window):
     found = views.players_search(mine, career, None, True, None, 2000, rookies_only=True)
     assert found and all(row["rookie"] for row in found)
     assert len(found) == len(career.rookies)
-    target = max(career.rookies, key=lambda r: r.overall)
+    target = min(career.rookies, key=lambda r: contracts.ask(mine, career, r.id).salary)  # one the budget fits
     ask = contracts.ask(mine, career, target.id)
     engine.apply(cat, career, OfferAction(type="offer", player=target.id, salary=ask.salary, years=ask.years))
     assert career.players[target.id].team == career.team

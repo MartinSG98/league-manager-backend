@@ -457,7 +457,8 @@ def _weakest_role(cat: Catalog, career: Career, team: TeamState) -> tuple[str, i
 def _free_agents(cat: Catalog, career: Career, role: str, region: str | None = None) -> list[str]:
     out = []
     for p in cat.players.values():
-        if p.role != role or career.players[p.id].team is not None:
+        state = career.players[p.id]
+        if p.role != role or state.team is not None or state.retired:
             continue
         if region is not None and cat.leagues[p.league].region != region:
             continue

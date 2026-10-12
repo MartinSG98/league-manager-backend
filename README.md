@@ -226,6 +226,8 @@ The coach's misjudgements are fixed for each person, so a coach always over- or 
 
 **Rookies.** From the first off-season on, every region gets a class of rookies for the next season, 1.2 per tier-one team: 30% busts (potential 40-58), 35% journeymen (55-68), 22% decent (65-76), 10% prospects (75-86) and 3% stars (84-90), plus a headline rookie per region who is a wonderkid (90-98) 55% of the time. They start 14 to 28 points below their potential. Most come through an academy or ERL team of their region, the rest straight from solo queue; all of them are free agents. The potential shown is the scouts' first guess, so send the analyst ([ADR 0015](docs/adr/0015-rookie-classes-in-the-career.md)).
 
+**Retirements.** At the start of every off-season some players say the next season will be their last, and retire when it ends. There are no ages in the data, so a career age stands in: 18 at debut, a year per 90 career games, a year per season played in the game. From 25 the chance a season is 3%, rising to 25% at 30 and 50% from 32; under 25 only players rated below 60 give up. Stars rated 85+ are half as likely to stop, and legends still rated 80+ after a thousand career games five times less likely ([ADR 0016](docs/adr/0016-retirements-announced-a-season-ahead.md)).
+
 **Off-season.** When Worlds ends AI teams decide on the contracts that end: they re-sign starters and anyone above their lineup's average more often than the rest. The franchise player renews automatically for three seasons. A player with fewer than 600 career games closes about 35 percent of the gap to their growth target, give or take. Past 1,100 career games a player can lose up to 2 overall a year. There is no draft after the first season.
 
 **Patches.** A new patch every two weeks from January 6th. The balance team nerfs 3-5 of the champions that were picked or banned most on the outgoing patch and buffs 3-6 that nobody played. Every sixth patch is a mid-season update that also moves a whole class up or down by one. Every other champion drifts 3 percent towards the middle each patch. The first patch's meta comes from real 2026 pro presence.
@@ -280,6 +282,7 @@ app/
     ├── catalog.py    static world: regions, leagues, teams, players, champions
     ├── ratings.py    stat lines, careers and internationals to attributes, overall, potential, salary
     ├── rookies.py    a rookie class every off-season, kept in the career
+    ├── retirement.py retirements, announced a season ahead
     ├── roster.py     current ratings, mastery, languages and chemistry
     ├── state.py      the saved career and the actions
     ├── draft.py      the first pre-season draft and budgets

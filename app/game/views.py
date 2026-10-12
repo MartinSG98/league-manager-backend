@@ -60,6 +60,8 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "sharpness": state.sharpness,
         "status": training.condition_labels(state),
         "rookie": rookies.is_rookie(pid),
+        "retiring": state.retiring,  # the season they said will be their last
+        "retired": state.retired,
     }
 
 
@@ -349,7 +351,7 @@ def players_search(cat: Catalog, career: Career, region: str | None, free_agents
         state = career.players[p.id]
         if region and cat.leagues[p.league].region != region:
             continue
-        if free_agents and state.team is not None:
+        if state.retired or (free_agents and state.team is not None):
             continue
         if rookies_only and not rookies.is_rookie(p.id):
             continue

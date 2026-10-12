@@ -57,6 +57,9 @@ class PlayerState(BaseModel):
     training: PlayerTraining = PlayerTraining()
     unsettled: bool = False  # wants to leave
     promise: int | None = None  # season in which the manager promised to let them go for a big offer
+    played: int = 0  # games in the seasons of this career before the current one
+    retiring: int | None = None  # the season they have said will be their last
+    retired: bool = False
 
 
 class Tactics(BaseModel):

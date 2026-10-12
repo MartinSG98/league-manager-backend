@@ -16,6 +16,12 @@ def attributes(cat: Catalog, career: Career, pid: str) -> dict[str, int]:
     return {a: int(max(1, min(20, round(base[a] + growth.get(a, 0.0))))) for a in ATTRIBUTES}
 
 
+def career_games(cat: Catalog, career: Career, pid: str) -> int:
+    """Career games: those before the game started, the seasons played in it and this one so far."""
+    state = career.players[pid]
+    return cat.players[pid].experience + state.played + state.season.games
+
+
 def overall(cat: Catalog, career: Career, pid: str) -> int:
     player = cat.players[pid]
     growth = career.players[pid].growth

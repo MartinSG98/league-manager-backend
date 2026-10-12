@@ -15,6 +15,8 @@ When Worlds ends the season goes into the career history and the clubs plan the 
   decline.
 - Reputations drift back towards what each organisation is, the board sets next season's budgets
   and meets the manager about next season's objectives.
+- Players who said the season just ended would be their last retire, and some others say the next
+  one will be theirs (see retirement.py).
 - A new class of rookies turns pro in every region (see rookies.py): free agents from academies,
   ERL teams and solo queue, most of them ordinary and a few of them very good.
 
@@ -23,7 +25,7 @@ what they had built for every new face in the lineup, and the new season is sche
 
 from collections import Counter
 
-from app.game import board, patches, reputation, rookies, roster, training, transfers
+from app.game import board, patches, reputation, retirement, rookies, roster, training, transfers
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
@@ -67,6 +69,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     career.history.append(summarise(cat, career))
     career.phase = "offseason"
     new_season = career.season + 1
+    retirement.retire(cat, career, career.season)
 
     for team in career.teams.values():
         for pid in expiring(career, team.id):
@@ -105,6 +108,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     _message(career, "board", f"Off-season {career.season}", "\n".join(body))
     contract_warning(cat, career)
     transfers.open_window(cat, career)
+    retirement.announce(cat, career, rng, new_season)
     # Last, so nothing else in this call looks the new players up in a catalog that predates them.
     rookies.intake(cat, career, rng, new_season)
 
@@ -139,8 +143,10 @@ def _staff_contracts(cat: Catalog, career: Career, rng: Rng, new_season: int) ->
 def develop(cat: Catalog, career: Career, rng: Rng) -> tuple[list[str], list[str]]:
     grew, declined = [], []
     for pid, state in career.players.items():
+        if state.retired:
+            continue
         player = cat.players[pid]
-        games = player.experience + state.season.games
+        games = roster.career_games(cat, career, pid)
         now = roster.overall(cat, career, pid)
         target = training.growth_target(cat, career, pid)
         change = 0.0
@@ -192,6 +198,7 @@ def start_new_season(cat: Catalog, career: Career, rng: Rng) -> None:
                 if options:
                     team.lineup[role] = max(options, key=lambda p: roster.overall(cat, career, p))
     for state in career.players.values():
+        state.played += state.season.games
         state.season = PlayerSeason()
         state.form = 0.0
         state.development = []
