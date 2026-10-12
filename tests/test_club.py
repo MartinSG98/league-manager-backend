@@ -4,15 +4,15 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.game import board, engine, match_engine, reputation, roster, training, transfers
+from app.game import board, engine, match_engine, reputation, roster, shortlist, training, transfers
 from app.game import plays as set_plays
 from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
 from app.game.state import (
     AcceptJobAction, AdvanceAction, AutoSelectAction, BoardMeetingAction, Competition, DraftNextAction, DraftSimAction,
-    OfferAction, PlayGameAction, RespondOfferAction, SetPlayAction, SetPlayerTrainingAction, SetTrainingAction,
-    TalkAction, TransferBidAction, TransferListAction,
+    OfferAction, PlayGameAction, RespondOfferAction, ScoutPlayerAction, SetPlayAction, SetPlayerTrainingAction,
+    SetTrainingAction, ShortlistAction, TalkAction, TransferBidAction, TransferListAction,
 )
 
 cat = get_catalog()
@@ -428,3 +428,56 @@ def test_an_old_save_gets_reputation_training_and_a_board(drafted):
     assert career.board.meeting and career.board.objectives
     assert all(t.reputation and t.skills and t.plays for t in career.teams.values())
     assert career.manager_reputation > 0
+
+
+# ---------- the shortlist ----------
+
+
+def _days(career, until):
+    while career.day < until:
+        career.day += timedelta(days=1)
+        shortlist.daily(cat, career)
+
+
+def test_a_shortlisted_player_gets_reports_that_hold_their_real_potential(drafted):
+    career = drafted.model_copy(deep=True)
+    far = next(t for t in career.teams.values() if cat.teams[t.id].region != career.region)
+    pid = far.lineup["MID"]
+    engine.apply(cat, career, ShortlistAction(type="shortlist", player=pid))
+    found = shortlist.entry(career, pid)
+    assert found and found.due == career.day + timedelta(days=shortlist.scout_days(cat, career, pid))
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, ScoutPlayerAction(type="scout_player", player=pid))  # already watching
+
+    _days(career, found.due)
+    first = found.report
+    assert first and first["kind"] == "player" and found.due is None
+    assert career.inbox[-1].subject == f"Scout report: {cat.players[pid].name}" and career.inbox[-1].report == first
+    real = training.ceiling(cat, career, pid)
+    low, high = first["potential"]
+    assert low - 0.5 <= real <= high + 0.5
+    assert first["grade"] in ("A+", "A", "B", "C", "D") and first["fit"]
+
+    engine.apply(cat, career, ScoutPlayerAction(type="scout_player", player=pid))
+    _days(career, found.due)
+    second = found.report
+    assert second["number"] == 2
+    assert second["potential"][1] - second["potential"][0] <= high - low, "a second look narrows the range"
+
+
+def test_the_shortlist_follows_moves_and_drops_your_own_players(drafted):
+    career = drafted.model_copy(deep=True)
+    mine = career.teams[career.team]
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, ShortlistAction(type="shortlist", player=mine.lineup["TOP"]))
+    other = next(t for t in career.teams.values() if t.id != career.team)
+    a, b = other.lineup["TOP"], other.lineup["JNG"]
+    for pid in (a, b):
+        engine.apply(cat, career, ShortlistAction(type="shortlist", player=pid))
+    career.players[a].team = None
+    career.players[b].team = career.team
+    shortlist.daily(cat, career)
+    assert career.inbox[-1].subject == f"Shortlist: {cat.players[a].name} is a free agent"
+    assert shortlist.entry(career, b) is None and shortlist.entry(career, a)
+    engine.apply(cat, career, ShortlistAction(type="shortlist", player=a, on=False))
+    assert career.shortlist == []

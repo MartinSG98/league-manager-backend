@@ -185,3 +185,9 @@ def board(save_id: str, session: Session = Depends(get_session)) -> dict:
 def transfer_window(save_id: str, session: Session = Depends(get_session)) -> dict:
     _, career = _load(session, save_id)
     return transfers.view(get_catalog(), career)
+
+
+@router.get("/{save_id}/shortlist")
+def shortlist(save_id: str, session: Session = Depends(get_session)) -> list[dict]:
+    _, career = _load(session, save_id)
+    return views.shortlist_view(get_catalog(), career)

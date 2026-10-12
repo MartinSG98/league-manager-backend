@@ -385,6 +385,16 @@ class TransferOffer(BaseModel):
     note: str = ""
 
 
+class Shortlisted(BaseModel):
+    """A player on the manager's shortlist."""
+    player: str
+    added: date
+    due: date | None = None  # when the analyst's next report lands
+    reports: int = 0
+    team: str | None = None  # the club the player was at when last seen
+    report: dict | None = None  # the latest report
+
+
 class Conversation(BaseModel):
     """A player asked to talk to the manager."""
 
@@ -429,6 +439,7 @@ class Career(BaseModel):
     transfers: list[dict] = []  # completed moves this window, newest last
     next_offer: int = 1
     reviewed_games: int = 0  # the manager's games the analyst had seen at the last review
+    shortlist: list[Shortlisted] = []
 
 
 # ---------- actions the client can post ----------
@@ -596,6 +607,17 @@ class TalkAction(BaseModel):
     choice: Literal["vital", "promise", "final"]
 
 
+class ShortlistAction(BaseModel):
+    type: Literal["shortlist"]
+    player: str
+    on: bool = True  # False takes the player off
+
+
+class ScoutPlayerAction(BaseModel):
+    type: Literal["scout_player"]  # ask the analyst for a new report on a shortlisted player
+    player: str
+
+
 Action = Annotated[
     DraftPickAction | DraftStaffAction | DraftPassAction | DraftAutoAction | DraftSimAction | DraftNextAction
     | AdvanceAction
@@ -603,6 +625,7 @@ Action = Annotated[
     | OpponentTurnAction | PlayGameAction
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction
     | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
-    | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction,
+    | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
+    | ShortlistAction | ScoutPlayerAction,
     Field(discriminator="type"),
 ]
