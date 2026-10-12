@@ -217,6 +217,8 @@ def get_catalog() -> Catalog:
             teams_raw[team_id] = {"league": league_id, "raw": team, "meta": meta_t}
 
     careers = raw.get("careers", {})
+    history = raw.get("history", {})
+    internationals = raw.get("international", {}).values()
     players: dict[str, Player] = {}
     rows = []
     for gol_id, (_, _, league_id, team, p) in sightings.items():
@@ -232,6 +234,9 @@ def get_catalog() -> Catalog:
             "stats": raw["players"].get(gol_id) or {},
             "season_pool": p["champions"],
             "career": careers.get(gol_id, []),
+            "history": {year: (history.get(year) or {}).get(gol_id) for year in ratings.HISTORY_YEARS},
+            "international": [{"year": event["year"], **event["players"][gol_id]}
+                              for event in internationals if gol_id in event["players"]],
         })
     for player in ratings.rate_players(rows, leagues, champion_by_key):
         extra = art["players"].get(player.id) or {}

@@ -6,7 +6,20 @@ Every stat is turned into a z-score inside its (league, role) group, a handful o
 up each attribute, and each attribute is standardised again inside the group so that all of
 them spread the same way. Small samples are pulled towards the league average. On the 1-20
 scale an average player sits at a baseline set by league strength (LCK about 15.5, LEC 13,
-an average ERL about 6); the overall rating uses the same baseline on a 30-99 scale."""
+an average ERL about 6); the overall rating uses the same baseline on a 30-99 scale.
+
+Form covers three seasons, not one: the 2024 and 2025 stat lines are judged the same way against
+the players who share the 2026 league and role, and weigh less the older they are (SEASON_WEIGHTS).
+A player with no earlier season is judged on 2026 alone. Attributes and the overall rating both
+use this three-year form.
+
+The overall rating then blends that form with the player's career (win rate over every game they
+have played, held back for short careers, KDA against their role and how long they have lasted),
+their record on the international stage (First Stand, MSI and Worlds since 2024, where being
+there counts and winning counts more) and how their team did this year.
+The blend keeps each league's average and spread, so it reorders players inside a league rather
+than moving leagues up or down: a decorated veteran with a quiet year stays near the top, a
+newcomer with one hot split on a weak team does not jump past them."""
 
 import math
 from collections import defaultdict
@@ -66,6 +79,20 @@ Z_CLIP = 2.3
 SHRINK_GAMES = 8  # a player with this many games keeps half of their distance from average
 MIN_GAMES = 4  # fewer than this and a stat line does not shape the league averages
 
+# The overall rating blends three reads of a player. One season of about twenty games is noisy, so
+# this year's stat line is only part of it; the career behind it and how the team did fill the rest.
+FORM_WEIGHT = 0.45  # the last three seasons' stat lines against the league and role
+CAREER_WEIGHT = 0.25  # the career: win rate, KDA and how long they have lasted
+INTERNATIONAL_WEIGHT = 0.15  # games and wins at First Stand, MSI and Worlds
+TEAM_WEIGHT = 0.15  # how this year's team did: stars sit on winning teams
+CAREER_SHRINK = 200  # career games at which a win rate keeps half of its distance from 50%
+CAREER_MIN = 60  # career games before a career shapes the averages it is measured against
+SEASON_WEIGHTS = {"2026": 1.0, "2025": 0.6, "2024": 0.3}  # how much each season's form counts
+HISTORY_YEARS = ("2025", "2024")
+INTERNATIONAL_YEARS = {"2026": 1.0, "2025": 0.8, "2024": 0.6}  # older events count a little less
+INTERNATIONAL_SHRINK = 15  # international games at which a win rate keeps half its distance from 50%
+INTERNATIONAL_FULL = 25  # international games that count as a full presence
+
 # What a season of salary costs in each region relative to Korea.
 REGION_ECONOMY = {"KR": 1.0, "CN": 1.15, "EMEA": 0.9, "NA": 1.1, "BR": 0.45, "APAC": 0.55}
 
@@ -116,17 +143,17 @@ def _metrics(stats: dict) -> dict[str, float | None]:
     }
 
 
-def _zscores(values: list[float | None], sample_games: list[int]) -> list[float]:
+def _zscores(values: list[float | None], sample_games: list[int], minimum: int = MIN_GAMES) -> list[float]:
     """z-scores against the players with enough games; missing values sit slightly below average."""
-    known = [v for v, g in zip(values, sample_games) if v is not None and g >= MIN_GAMES]
+    known = [v for v, g in zip(values, sample_games) if v is not None and g >= minimum]
     if len(known) < 3:
         return [0.0] * len(values)
     mu, sd = mean(known), pstdev(known) or 1.0
     return [((v - mu) / sd) if v is not None else -0.3 for v in values]
 
 
-def _standardise(values: list[float], weights: list[int]) -> list[float]:
-    known = [v for v, g in zip(values, weights) if g >= MIN_GAMES]
+def _standardise(values: list[float], weights: list[int], minimum: int = MIN_GAMES) -> list[float]:
+    known = [v for v, g in zip(values, weights) if g >= minimum]
     if len(known) < 3:
         return values
     mu, sd = mean(known), pstdev(known) or 1.0
@@ -155,6 +182,111 @@ def _pool(row: dict, champion_by_key: dict[str, str]) -> tuple[ChampionRecord, .
     return tuple(ChampionRecord(cid, n, winrates.get(cid)) for cid, n in ordered)
 
 
+def _career(row: dict) -> tuple[int, float | None, float | None]:
+    """Career games, win rate and KDA, from every champion the player has played."""
+    games = sum(e["games"] for e in row["career"])
+    if not games:
+        return 0, None, None
+    winrate = sum(e["games"] * e["winrate"] for e in row["career"]) / games
+    kda = sum(e["games"] * e["kda"] for e in row["career"]) / games
+    return games, winrate, kda
+
+
+def career_scores(rows: list[dict]) -> dict[str, float]:
+    """How good each career has been, as a z-score among players of the same role in every league:
+    a win rate that held up over many games (pulled towards 50% for short careers), a KDA above the
+    role's, and a long career. Win rates are zero-sum inside each league, so this does not favour
+    one league over another."""
+    by_role: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        by_role[row["role"]].append(row)
+    scores: dict[str, float] = {}
+    for members in by_role.values():
+        careers = [_career(m) for m in members]
+        games = [g for g, _, _ in careers]
+        winrate = [None if w is None else 50 + (w - 50) * g / (g + CAREER_SHRINK) for g, w, _ in careers]
+        z_win = _zscores(winrate, games, CAREER_MIN)
+        z_kda = _zscores([k for _, _, k in careers], games, CAREER_MIN)
+        z_long = _zscores([math.log1p(g) for g in games], games, CAREER_MIN)
+        raw = [0.6 * w + 0.2 * k + 0.2 * n for w, k, n in zip(z_win, z_kda, z_long)]
+        for m, value in zip(members, _standardise(raw, games, CAREER_MIN)):
+            scores[m["id"]] = value
+    return scores
+
+
+def international_scores(rows: list[dict]) -> dict[str, float]:
+    """The international record since 2024, as a z-score among players of the same role: being at
+    First Stand, MSI or Worlds counts (up to INTERNATIONAL_FULL games), and the win rate there counts
+    more, held back towards 50% until a player has a good number of games. Players who never made
+    it have no record; inside a league with no international teams that changes nothing."""
+    by_role: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        by_role[row["role"]].append(row)
+    scores: dict[str, float] = {}
+    for members in by_role.values():
+        raw = []
+        for m in members:
+            games = wins = 0.0
+            for event in m["international"]:
+                weight = INTERNATIONAL_YEARS.get(event["year"], 0.5)
+                played = event.get("games") or 0
+                games += weight * played
+                wins += weight * played * (event.get("winrate") or 0) / 100
+            if games == 0:
+                raw.append(0.0)
+                continue
+            shrunk = 50 + (100 * wins / games - 50) * games / (games + INTERNATIONAL_SHRINK)
+            raw.append(min(1.5, math.log1p(games) / math.log1p(INTERNATIONAL_FULL)) + (shrunk - 50) / 10)
+        for m, value in zip(members, _standardise(raw, [1] * len(members), 0)):
+            scores[m["id"]] = value
+    return scores
+
+
+def _blend(form: list[float], career: list[float], international: list[float], team: list[float],
+           sample: list[int], reference: list[float]) -> list[float]:
+    """Mix form, career, the international record and team into one z-score, then give it the mean
+    and spread of `reference` (this year's form on its own) inside the group, so the blend reorders
+    players but keeps the league's average and how far apart its players are."""
+    mixed = [FORM_WEIGHT * f + CAREER_WEIGHT * c + INTERNATIONAL_WEIGHT * i + TEAM_WEIGHT * t
+             for f, c, i, t in zip(form, career, international, team)]
+    known = [i for i, g in enumerate(sample) if g >= MIN_GAMES]
+    if len(known) < 3:
+        return mixed
+    ref_mu, ref_sd = mean(reference[i] for i in known), pstdev([reference[i] for i in known]) or 1.0
+    mix_mu, mix_sd = mean(mixed[i] for i in known), pstdev([mixed[i] for i in known]) or 1.0
+    return [ref_mu + (v - mix_mu) / mix_sd * ref_sd for v in mixed]
+
+
+def _season(role: str, lines: list[dict]) -> tuple[list[int], dict[str, list[float]], dict[str, list[float]], list[float]]:
+    """One season's read of a (league, role) group: games, stat z-scores, raw attributes and the
+    overall performance, each standardised inside the group."""
+    sample = [int(line.get("games") or 0) for line in lines]
+    metrics = [_metrics(line) for line in lines]
+    stat_names = metrics[0].keys()
+    z_by_stat = {st: _zscores([mt[st] for mt in metrics], sample) for st in stat_names}
+    raw_attr: dict[str, list[float]] = {}
+    for attr, recipe in (_RECIPES[role] | _SHARED).items():
+        combos = [_combine({st: z_by_stat[st][i] for st in stat_names}, recipe) for i in range(len(lines))]
+        raw_attr[attr] = _standardise(combos, sample)
+    weights = ROLE_WEIGHTS[role]
+    perf = [sum(raw_attr[a][i] * w for a, w in weights.items() if a in raw_attr) for i in range(len(lines))]
+    return sample, z_by_stat, raw_attr, _standardise(perf, sample)
+
+
+def _across(values: list[list[float]], samples: list[list[int]], weights: list[float], i: int) -> float:
+    """Player i's z-score over the seasons they played, each shrunk for a small sample and weighted
+    by how recent it is. Seasons they did not play do not count."""
+    total = weight_sum = 0.0
+    for season_values, sample, weight in zip(values, samples, weights):
+        games = sample[i]
+        if games == 0:
+            continue
+        z = max(-Z_CLIP, min(Z_CLIP, season_values[i]))
+        total += weight * z * games / (games + SHRINK_GAMES)
+        weight_sum += weight
+    return total / weight_sum if weight_sum else 0.0
+
+
 def _experience(row: dict) -> int:
     """Career games, or an estimate from this year's games when the career page is missing, so
     a veteran without career data is not mistaken for a rookie."""
@@ -171,28 +303,39 @@ def rate_players(rows: list[dict], leagues: dict[str, League], champion_by_key: 
         groups[(row["league"], row["role"])].append(row)
 
     experience = {r["id"]: _experience(r) for r in rows}
+    careers = career_scores(rows)
+    internationals = international_scores(rows)
     log_exp = {pid: math.log1p(n) for pid, n in experience.items()}
     exp_mu, exp_sd = mean(log_exp.values()), pstdev(log_exp.values()) or 1.0
 
     players: list[Player] = []
     for (league_id, role), members in groups.items():
         league = leagues[league_id]
-        sample = [int(m["stats"].get("games") or 0) for m in members]
-        metrics = [_metrics(m["stats"]) for m in members]
-        stat_names = metrics[0].keys()
-        z_by_stat = {s: _zscores([mt[s] for mt in metrics], sample) for s in stat_names}
+        # 2026 first, then the earlier seasons of the same players.
+        seasons = [_season(role, [m["stats"] for m in members])]
+        seasons += [_season(role, [m["history"].get(year) or {} for m in members]) for year in HISTORY_YEARS]
+        season_weights = [SEASON_WEIGHTS[year] for year in ("2026", *HISTORY_YEARS)]
+        samples = [season[0] for season in seasons]
+        sample, z_by_stat, raw_attr, _ = seasons[0]
+        played = [any(sm[i] for sm in samples) for i in range(len(members))]
+        composure = [(log_exp[m["id"]] - exp_mu) / exp_sd * 0.8 + 0.2 * z_by_stat["winrate"][i]
+                     for i, m in enumerate(members)]
 
-        recipes = _RECIPES[role] | _SHARED
-        raw_attr: dict[str, list[float]] = {}
-        for attr, recipe in recipes.items():
-            combos = [_combine({s: z_by_stat[s][i] for s in stat_names}, recipe) for i in range(len(members))]
-            raw_attr[attr] = _standardise(combos, sample)
-        raw_attr["composure"] = [(log_exp[m["id"]] - exp_mu) / exp_sd * 0.8 + 0.2 * z_by_stat["winrate"][i]
-                                 for i, m in enumerate(members)]
-
-        weights = ROLE_WEIGHTS[role]
-        perf = [sum(raw_attr[a][i] * w for a, w in weights.items() if a in raw_attr) for i in range(len(members))]
-        perf = _standardise(perf, sample)
+        # Form over three seasons; team is this year's; the career is shrunk on its own terms.
+        form = []
+        team = []
+        this_year = []
+        for i, games in enumerate(sample):
+            shrink = games / (games + SHRINK_GAMES)
+            if not played[i]:
+                form.append(-0.5)  # on a roster but never played: a sub for a reason
+            else:
+                form.append(_across([season[3] for season in seasons], samples, season_weights, i))
+            team.append(max(-Z_CLIP, min(Z_CLIP, z_by_stat["winrate"][i])) * shrink)
+            this_year.append(-0.5 if games == 0 else max(-Z_CLIP, min(Z_CLIP, seasons[0][3][i])) * shrink)
+        career = [max(-Z_CLIP, min(Z_CLIP, careers[m["id"]])) for m in members]
+        international = [max(-Z_CLIP, min(Z_CLIP, internationals[m["id"]])) for m in members]
+        blended = _blend(form, career, international, team, sample, this_year)
 
         base_attr = attribute_base(league.strength)
         base_ovr = overall_base(league.strength)
@@ -206,18 +349,15 @@ def rate_players(rows: list[dict], leagues: dict[str, League], champion_by_key: 
                     deep = sum(1 for rec in pool if rec.games >= 5)
                     value = 3 + deep * 0.9 + (league.strength - 75) * 0.08
                 elif attr == "composure":
-                    value = base_attr + ATTR_SPREAD * raw_attr["composure"][i]
+                    value = base_attr + ATTR_SPREAD * composure[i]
                 else:
-                    z = max(-Z_CLIP, min(Z_CLIP, raw_attr[attr][i])) * shrink
+                    z = _across([season[2][attr] for season in seasons], samples, season_weights, i)
                     value = base_attr + ATTR_SPREAD * z
                 attributes[attr] = int(max(1, min(20, round(value))))
 
-            z_perf = max(-Z_CLIP, min(Z_CLIP, perf[i])) * shrink
-            if games == 0:
-                z_perf = -0.5  # on a roster but never played: a sub for a reason
-            # Big-match experience: a long career is worth up to three points on top of this year's form.
+            # Big-match experience: a long career is worth up to three points on top.
             pedigree = min(3.0, max(0.0, (experience[m["id"]] - 300) / 300))
-            overall = int(max(30, min(99, round(base_ovr + OVERALL_SPREAD * z_perf + pedigree))))
+            overall = int(max(30, min(99, round(base_ovr + OVERALL_SPREAD * blended[i] + pedigree))))
 
             seed = m["id"]
             exp_games = experience[m["id"]]
