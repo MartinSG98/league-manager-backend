@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import date
 
 import pytest
@@ -291,6 +292,18 @@ def test_playoffs_and_msi_are_double_elimination(finished):
             assert comp.stages[-1].kind == "double_elim", comp.name
     worlds = finished.competitions[f"{finished.season}-WORLDS"]
     assert worlds.stages[-1].kind == "single_elim"
+
+
+def test_the_swiss_stage_is_drawn_round_by_round_from_pools(finished):
+    worlds = finished.competitions[f"{finished.season}-WORLDS"]
+    stage = worlds.stages[0]
+    pools = Counter(comps.swiss_pools(finished, stage).values())
+    # 16 teams: every pool splits in two until three wins or three defeats.
+    assert pools == {(0, 0): 8, (1, 0): 4, (0, 1): 4, (2, 0): 2, (1, 1): 4, (0, 2): 2,
+                     (2, 1): 3, (1, 2): 3, (2, 2): 3}
+    draws = [m for m in finished.inbox if m.kind == "draw" and m.competition == worlds.id]
+    assert [m.round for m in draws] == [1, 2, 3, 4, 5]
+    assert draws[1].body.count(" vs ") == 8
 
 
 def test_ai_champion_select_fills_both_sides_without_repeats(drafted):

@@ -307,6 +307,9 @@ def double_elim_ranking(career: Career, stage: Stage) -> list[str]:
 # ---------- swiss ----------
 
 
+SWISS_WINS = 3  # wins to go through; as many defeats and a team is out
+
+
 def swiss_records(career: Career, stage: Stage) -> dict[str, list[int]]:
     record = {t: [0, 0] for t in stage.teams}
     for mid in stage.matches:
@@ -317,10 +320,24 @@ def swiss_records(career: Career, stage: Stage) -> dict[str, list[int]]:
     return record
 
 
+def swiss_pools(career: Career, stage: Stage) -> dict[str, tuple[int, int]]:
+    """The record each Swiss match was drawn from. Rounds are drawn one after the other, so a
+    team's earlier matches are all from earlier rounds; the round is wins + losses + 1."""
+    record = {t: [0, 0] for t in stage.teams}
+    pools = {}
+    for mid in stage.matches:
+        m = career.matches[mid]
+        pools[mid] = (record[m.home][0], record[m.home][1])  # type: ignore[index]
+        if m.winner:
+            record[m.winner][0] += 1
+            record[m.loser][1] += 1  # type: ignore[index]
+    return pools
+
+
 def build_swiss_round(career: Career, comp: Competition, stage: Stage, rng: Rng, region_of: dict[str, str]) -> bool:
     """Pair the next Swiss round among teams still alive. Returns False when nobody is left."""
     record = swiss_records(career, stage)
-    target = 3
+    target = SWISS_WINS
     alive = [t for t in stage.teams if record[t][0] < target and record[t][1] < target]
     if not alive:
         return False

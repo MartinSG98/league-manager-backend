@@ -278,13 +278,15 @@ class InboxMessage(BaseModel):
     id: int
     day: date
     kind: Literal["news", "draft", "match", "patch", "board", "contract", "finance", "scouting", "staff", "transfer",
-                  "player", "training"]
+                  "player", "training", "draw"]
     subject: str
     body: str
     read: bool = False
     report: dict | None = None  # structured content for the client to draw: a scouting report, a review
     offer: int | None = None  # the transfer offer this message is about
     conversation: int | None = None  # the talk a player asked for
+    competition: str | None = None  # a Swiss draw: the competition
+    round: int | None = None  # and the round that was drawn
 
 
 # ---------- the series being played by the manager's team ----------

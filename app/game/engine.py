@@ -219,10 +219,12 @@ def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True
 
 
 def _worth_stopping(career: Career, inbox_before: int) -> bool:
-    """Stop when a competition the manager cares about finished or a new one was announced, or
-    the board has something to say."""
+    """Stop when a competition the manager cares about finished or a new one was announced, after
+    a Swiss draw, or when the board has something to say."""
     for msg in career.inbox[inbox_before:]:
         if msg.kind in ("news", "board") and (" is set" in msg.subject or " win the " in msg.subject):
+            return True
+        if msg.kind == "draw":
             return True
         if msg.kind == "board" and ("losing patience" in msg.subject or "sacked" in msg.subject):
             return True

@@ -181,6 +181,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
         "unread": sum(1 for m in career.inbox if not m.read),
         "inbox": [m.model_dump(mode="json") for m in reversed(career.inbox[-40:])],
         "season_over": calendar.season_over(career),
+        "draw": _pending_draw(career),
         "board": {
             "confidence": b.confidence, "security": boardroom.job_security(career), "warned": b.warned,
             "meeting": b.meeting, "sacked": b.sacked, "season": b.season,
@@ -349,6 +350,11 @@ def competitions_view(cat: Catalog, career: Career) -> list[dict]:
 
 def _stage_view(cat: Catalog, career: Career, stage: Stage) -> dict:
     tables = []
+    matches = [match_summary(cat, career, career.matches[m]) for m in stage.matches]
+    if stage.kind == "swiss":
+        pools = comps.swiss_pools(career, stage)
+        for row in matches:
+            row["pool"] = list(pools[row["id"]])
     if stage.kind == "round_robin":
         for i, group in enumerate(stage.groups or [stage.teams]):
             rows = comps.standings(career, stage, group)
@@ -362,9 +368,25 @@ def _stage_view(cat: Catalog, career: Career, stage: Stage) -> dict:
              "game_losses": 0, "played": sum(record[t])} for t in ranked]})
     return {
         "id": stage.id, "name": stage.name, "kind": stage.kind, "finished": stage.finished,
-        "best_of": stage.best_of, "advance": stage.advance, "tables": tables,
-        "matches": [match_summary(cat, career, career.matches[m]) for m in stage.matches],
+        "best_of": stage.best_of, "advance": stage.advance, "tables": tables, "matches": matches,
+        "swiss_wins": comps.SWISS_WINS if stage.kind == "swiss" else None,
     }
+
+
+def _pending_draw(career: Career) -> dict | None:
+    """The newest Swiss draw, while the manager has not seen it and its round is still to play."""
+    msg = next((m for m in reversed(career.inbox) if m.kind == "draw"), None)
+    if msg is None or msg.read or msg.competition not in career.competitions:
+        return None
+    comp = career.competitions[msg.competition]
+    stage = next((s for s in comp.stages if s.kind == "swiss"), None)
+    if stage is None:
+        return None
+    pools = comps.swiss_pools(career, stage)
+    drawn = [m for m in stage.matches if sum(pools[m]) + 1 == msg.round]
+    if not drawn or any(career.matches[m].winner for m in drawn):
+        return None
+    return {"message": msg.id, "competition": comp.id, "name": comp.name, "round": msg.round}
 
 
 def competition_view(cat: Catalog, career: Career, comp: Competition) -> dict:
