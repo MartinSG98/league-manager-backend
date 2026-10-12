@@ -11,8 +11,8 @@ Club money also had no use. Weekly wages were paid out of a bank that sponsors c
 
 ## Decision
 
-The off-season is a transfer window from the day after the Worlds final to December 15th, and the calendar moves through it day by day.
-- **Free agency.** Contracts that end with the season run out on November 19th, which leaves time to extend players first.
+The off-season is a transfer window from the day after the Worlds final to January 16th, the eve of the next season, and the calendar moves through it day by day. Continue stops at least every Monday. The manager asked for the window to be about twice as long as the first version's, which closed on December 15th.
+- **Free agency.** Contracts that end with the season run out on December 1st, which leaves time to extend players first.
 - **Fees.** A player under contract costs a fee: the market value, raised for a starter or a club's only player in a role, lowered for a bench or listed player. A franchise player is never for sale.
 - **Bids.** The manager's bid is agreed, countered or turned down at once. An agreed fee opens contract talks, and the fee is paid when the player signs.
 - **Interest.** Players compare their own reputation with the club's. A big gap means a refusal, a smaller one means a reluctant player who wants more money.

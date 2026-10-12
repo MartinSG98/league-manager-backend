@@ -2,8 +2,8 @@
 market, and what players think about all of it.
 
 The window is the off-season only: from the day after the Worlds final to WINDOW_CLOSES
-(December 15th), when the next season starts. Contracts that run out with the season end on
-FREE_AGENCY (November 19th); until then a club can still extend its own players, after that they
+(January 16th, the eve of the next season). Contracts that run out with the season end on
+FREE_AGENCY (December 1st); until then a club can still extend its own players, after that they
 are free agents anyone can sign without a fee.
 
 A player under contract costs a transfer fee. Their market value comes from the salary their
@@ -35,11 +35,11 @@ from app.game.ratings import asking_salary
 from app.game.rng import Rng
 from app.game.state import Career, Contract, Conversation, InboxMessage, TeamState, TransferOffer
 
-FREE_AGENCY = (11, 19)
-WINDOW_CLOSES = (12, 15)
+FREE_AGENCY = (12, 1)
+WINDOW_CLOSES = (1, 16)  # of the next year, the day before the first split starts
 OFFER_DAYS = 4  # how long an AI club waits for the manager's answer
 TALK_DAYS = 7  # how long a player waits to be heard
-AI_MOVE_CHANCE = 0.08  # a day, per AI club
+AI_MOVE_CHANCE = 0.045  # a day, per AI club
 COUNTER_FROM = 0.75  # a bid this close to the asking fee gets a counter
 MAX_BID_ROUNDS = 3
 AI_RAISE = 1.12  # how much an AI club adds when the manager asks for more
@@ -67,7 +67,7 @@ def free_agency_day(career: Career) -> date:
 
 
 def closing_day(career: Career) -> date:
-    return date(career.season, *WINDOW_CLOSES)
+    return date(career.season + 1, *WINDOW_CLOSES)
 
 
 # ---------- what a player is worth and what they think ----------

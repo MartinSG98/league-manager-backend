@@ -216,6 +216,8 @@ def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True
         if stop and any(m.kind in ("transfer", "player", "board", "contract", "staff")
                         for m in career.inbox[inbox_before:]):
             return
+        if stop and career.day.weekday() == 0:
+            return  # a week at a time, so the window never flies by
 
 
 def _worth_stopping(career: Career, inbox_before: int) -> bool:

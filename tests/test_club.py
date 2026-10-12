@@ -1,6 +1,6 @@
 """The board, reputation, training, set plays and the transfer window."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 
@@ -379,6 +379,8 @@ def test_selling_a_player_banks_the_fee(window):
 
 def test_the_window_closes_into_a_new_season_with_full_lineups(window):
     career = window
+    closes = transfers.closing_day(career)
+    assert closes == date(career.season + 1, 1, 16)
     for _ in range(80):
         if career.phase != "offseason":
             break
@@ -386,8 +388,11 @@ def test_the_window_closes_into_a_new_season_with_full_lineups(window):
             engine.apply(cat, career, RespondOfferAction(type="respond_offer", offer=offer.id, response="reject"))
         for talk in [c for c in career.conversations if not c.resolved]:
             engine.apply(cat, career, TalkAction(type="talk", conversation=talk.id, choice="final"))
+        before = career.day
         engine.apply(cat, career, AdvanceAction(type="advance"))
+        assert (career.day - before).days <= 7, "Continue moves through the window a week at a time"
     assert career.phase == "season" and career.matches
+    assert career.day == closes
     for team in career.teams.values():
         assert set(team.lineup) == set(ROLES), team.id
         for role, pid in team.lineup.items():
