@@ -38,7 +38,7 @@ Blitzcrank|S|E|AP|Tank
 Brand|JS|M|AP|Mage
 Braum|S|M|AP|Tank
 Briar|J|E|AD|Fighter
-Caitlyn|B|M|AD|Marksman
+Caitlyn|B|L|AD|Marksman
 Camille|TS|M|AD|Fighter
 Cassiopeia|MT|L|AP|Mage
 Cho'Gath|T|L|AP|Tank
@@ -156,7 +156,7 @@ Talon|MJ|E|AD|Assassin
 Taric|S|M|AP|Tank
 Teemo|T|M|AP|Mage
 Thresh|S|M|AP|Tank
-Tristana|BM|E|AD|Marksman
+Tristana|BM|M|AD|Marksman
 Trundle|JT|M|AD|Fighter
 Tryndamere|T|L|AD|Fighter
 Twisted Fate|M|M|AP|Mage
