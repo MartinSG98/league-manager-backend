@@ -1,7 +1,7 @@
 """From the Worlds final to the next season.
 
 There is only one draft, when a career starts. After that the off-season is a transfer window
-(see transfers.py) that runs from the day after the Worlds final to December 15th.
+(see transfers.py) that runs from the day after the Worlds final to January 16th.
 
 When Worlds ends the season goes into the career history and the clubs plan the next one:
 - AI clubs decide on the players whose contracts end with the season: they keep most of the

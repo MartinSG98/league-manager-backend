@@ -14,7 +14,7 @@ next season is scheduled. There is no draft after the first one."""
 from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
-from app.game import training, transfers
+from app.game import shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
@@ -24,8 +24,8 @@ from app.game.state import (
     Career, DraftAutoAction, DraftNextAction, DraftPassAction, DraftPickAction, DraftSimAction, DraftStaffAction,
     InboxMessage, NextGameAction, NextSeasonAction, OfferAction, OpponentTurnAction, PickAction, PlayerState,
     PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction, SetLineupAction, SetPlayAction,
-    SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction, SimSeriesAction, StaffState, StartDraftAction,
-    TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
+    ScoutPlayerAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction, ShortlistAction, SimSeriesAction,
+    StaffState, StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
 
 FIRST_SEASON = 2027
@@ -121,6 +121,7 @@ def _daily(cat: Catalog, career: Career, rng: Rng) -> None:
             state.fatigue = max(0, state.fatigue - 4)
     if career.phase == "offseason":
         transfers.daily(cat, career, rng)
+    shortlist.daily(cat, career)
     if career.day.weekday() == 0:
         _weekly(cat, career, rng)
 
@@ -216,13 +217,17 @@ def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True
         if stop and any(m.kind in ("transfer", "player", "board", "contract", "staff")
                         for m in career.inbox[inbox_before:]):
             return
+        if stop and career.day.weekday() == 0:
+            return  # a week at a time, so the window never flies by
 
 
 def _worth_stopping(career: Career, inbox_before: int) -> bool:
-    """Stop when a competition the manager cares about finished or a new one was announced, or
-    the board has something to say."""
+    """Stop when a competition the manager cares about finished or a new one was announced, after
+    a Swiss draw, or when the board has something to say."""
     for msg in career.inbox[inbox_before:]:
         if msg.kind in ("news", "board") and (" is set" in msg.subject or " win the " in msg.subject):
+            return True
+        if msg.kind == "draw":
             return True
         if msg.kind == "board" and ("losing patience" in msg.subject or "sacked" in msg.subject):
             return True
@@ -397,6 +402,13 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         transfers.set_listed(cat, career, action.player, action.listed)
     elif isinstance(action, TalkAction):
         transfers.talk(cat, career, action.conversation, action.choice, rng)
+    elif isinstance(action, ShortlistAction):
+        if action.on:
+            shortlist.add(cat, career, action.player)
+        else:
+            shortlist.remove(career, action.player)
+    elif isinstance(action, ScoutPlayerAction):
+        shortlist.request(cat, career, action.player)
     elif isinstance(action, ReadMessageAction):
         for msg in career.inbox:
             if action.id is None or msg.id == action.id:

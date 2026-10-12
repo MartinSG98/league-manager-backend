@@ -211,7 +211,26 @@ def create_international(cat: Catalog, career: Career, event: International, rng
 
     names = ", ".join(cat.teams[t].tag for t in teams)
     _news(career, f"{comp.name} is set", f"Qualified: {names}.")
+    if stage.kind == "swiss":
+        _swiss_draw(cat, career, comp, stage)
     return comp
+
+
+def _swiss_draw(cat: Catalog, career: Career, comp: Competition, stage: Stage) -> None:
+    """Tell the manager how the Swiss round just drawn pairs up, pool by pool."""
+    pools = comps.swiss_pools(career, stage)
+    rnd = max(sum(p) for p in pools.values()) + 1
+    lines = []
+    for mid in stage.matches:
+        w, l = pools[mid]
+        if w + l + 1 == rnd:
+            m = career.matches[mid]
+            lines.append(f"{w}-{l}: {cat.teams[m.home].tag} vs {cat.teams[m.away].tag}")  # type: ignore[index]
+    career.inbox.append(InboxMessage(
+        id=career.next_message, day=career.day, kind="draw", subject=f"{comp.name}: the Swiss round {rnd} draw",
+        body="\n".join(lines), competition=comp.id, round=rnd,
+    ))
+    career.next_message += 1
 
 
 def _build_international_knockout(career: Career, comp: Competition, seeds: list[str]) -> None:
@@ -251,6 +270,7 @@ def update(cat: Catalog, career: Career, rng: Rng) -> list[str]:
         if stage.kind == "swiss" and comps.stage_complete(career, stage):
             region_of = {t: cat.teams[t].region for t in stage.teams}
             if comps.build_swiss_round(career, comp, stage, rng, region_of):
+                _swiss_draw(cat, career, comp, stage)
                 continue
         if not comps.stage_complete(career, stage):
             continue
