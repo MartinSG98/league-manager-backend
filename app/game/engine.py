@@ -102,7 +102,8 @@ def start_season(cat: Catalog, career: Career) -> None:
     calendar.create_season(cat, career)
     career.meta.next_patch = patches.first_patch_day(career.season)
     for team in career.teams.values():
-        team.cash = max(team.cash, 0)
+        if team.id != career.team:
+            team.cash = max(team.cash, 0)  # the owners clear an AI club's debt; the manager has to pay theirs
     first = min((m for m in career.matches.values() if career.team in (m.home, m.away)), key=lambda m: m.day)
     message(career, "news", f"The {career.season} season is scheduled",
             f"Your first match is on {first.day:%A %d %B} against {cat.teams[first.away if first.home == career.team else first.home].name}.")
@@ -131,6 +132,7 @@ def _weekly(cat: Catalog, career: Career, rng: Rng) -> None:
         # The owners fund the salary budget; what the payroll leaves of it, and the sponsors, go to the bank.
         team.cash = int(team.cash + (team.budget - roster.payroll(career, team)) / 52
                         + reputation.sponsor_income(cat, career, team.id))
+    finances.weekly(cat, career, rng)
     training.weekly(cat, career, rng)
     if career.phase == "season" and not career.board.sacked:
         training.review(cat, career)

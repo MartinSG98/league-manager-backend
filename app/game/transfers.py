@@ -148,6 +148,16 @@ def moved(career: Career) -> set[str]:
     return {m["player"] for m in career.transfers}
 
 
+def reserved(career: Career) -> int:
+    """Fees the manager has agreed and not paid yet: they wait on personal terms."""
+    return sum(o.fee for o in career.offers if o.buyer == career.team and o.status == "agreed")
+
+
+def free_cash(career: Career) -> int:
+    """What the bank holds beyond the fees already agreed."""
+    return career.teams[career.team].cash - reserved(career)
+
+
 def agreed(career: Career, pid: str) -> TransferOffer | None:
     """A fee agreed for the manager to buy this player, waiting on personal terms."""
     return next((o for o in career.offers if o.player == pid and o.buyer == career.team and o.status == "agreed"), None)
@@ -186,8 +196,12 @@ def check_bid(cat: Catalog, career: Career, pid: str, fee: int | None = None) ->
     level, why = interest(cat, career, pid, career.team)
     if level == "refuses":
         return why
-    if fee is not None and fee > team.cash:
-        return f"You have {team.cash}k in the bank"
+    if team.cash < 0:
+        return f"The club is {-team.cash}k in debt: the board pays for no transfers until the bank is back above zero"
+    free = free_cash(career)
+    if fee is not None and fee > free:
+        held = reserved(career)
+        return f"You have {free}k free in the bank" + (f" ({held}k is set aside for fees you agreed)" if held else "")
     return None
 
 

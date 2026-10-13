@@ -84,14 +84,14 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     renewed, staff_left = _staff_contracts(cat, career, rng, new_season)
     grew, declined = develop(cat, career, rng)
     reputation.drift(cat, career)
-    grant = 0
+    grant = paid = 0
     for team in career.teams.values():
         team.budget = board.season_budget(cat, career, team.id)
         team.budget_moved = 0
         amount = board.transfer_grant(cat, career, team.id)
-        team.cash += amount
         if team.id == career.team:
-            grant = amount
+            grant, paid = amount, min(amount, max(0, -team.cash))
+        team.cash += amount
     if not career.board.sacked:
         board.new_season(cat, career, new_season)
 
@@ -105,7 +105,8 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     if declined:
         body.append(f"Declined: {', '.join(declined)}.")
     body.append(f"The board sets your salary budget for {new_season} at {career.teams[career.team].budget}k "
-                f"and puts {grant}k in the bank for transfers.")
+                f"and puts {grant}k in the bank for transfers"
+                + (f", {paid}k of which pays off the club's debt." if paid else "."))
     _message(career, "board", f"Off-season {career.season}", "\n".join(body))
     contract_warning(cat, career)
     transfers.open_window(cat, career)
