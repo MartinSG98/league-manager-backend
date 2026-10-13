@@ -585,3 +585,26 @@ def test_an_old_save_redraws_only_the_schedules_not_started(drafted):
     assert career.schedules_drawn
     assert all(career.matches[m] == played[m] for m in played), "a split under way keeps its schedule"
     assert second.stages[0].days == days and len(second.stages[0].matches) == count
+
+
+def test_fights_come_with_a_casters_call(drafted):
+    career = drafted.model_copy(deep=True)
+    select = ChampSelect()
+    sides = matchday.draft_sides(cat, career, "G2", "FNC")
+    cs.run_ai(cat, career, select, sides, Rng(career), human=None)
+    calls = []
+    for seed in range(8):
+        career.rs = seed
+        blue = match_engine.prepare(cat, career, "blue", "G2", sides["blue"].lineup, dict(select.blue_picks),
+                                    sides["blue"].tactics)
+        red = match_engine.prepare(cat, career, "red", "FNC", sides["red"].lineup, dict(select.red_picks),
+                                   sides["red"].tactics)
+        events = match_engine.simulate(cat, career, blue, red, Rng(career), 1, ([], [])).events
+        for i, e in enumerate(events):
+            if e.kind == "highlight":
+                calls.append(e.text)
+                assert events[i + 1].kind == "teamfight", "the call comes just before the fight's result"
+    assert len(calls) >= 8
+    names = {cat.players[p].name.upper() for p in list(sides["blue"].lineup.values()) + list(sides["red"].lineup.values())}
+    assert all(any(n in c for n in names) for c in calls), "every call names a player"
+    assert all("!!" not in c and " / " not in c for c in calls)

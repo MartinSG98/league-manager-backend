@@ -22,6 +22,7 @@ The result is a GameRecord with a stat line per player, and a timeline with the 
 difference every minute for the match-day playback."""
 
 import math
+from collections import Counter
 from dataclasses import dataclass, field
 
 from app.game import roster, training
@@ -54,6 +55,18 @@ MACRO_POWER = 1.5  # in the gold drift after laning
 THROW_LEAD = 3000  # gold lead from which a team may throw
 THROW_BASE = 0.085  # chance a team that far ahead throws a fight it would have won, at closing 0
 THROW_PER_POINT = 0.0045  # less per point of closing
+HYPE_CHANCE = 0.6  # a fight without a multi-kill still gets a caster's call this often
+MULTI_KILLS = {3: "TRIPLE KILL", 4: "QUADRA KILL", 5: "PENTAKILL"}
+# What a caster shouts when a champion of each class wins a fight: {p} the player, {ult} their
+# ultimate, {n} how many it caught, {victim} someone on the losing side.
+HYPE = {
+    "Tank": ("{p} with a {n}-man {ult}!", "{p} flashes in and catches {n} with {ult}!"),
+    "Mage": ("{p} with a {n}-man {ult}!", "{p} lands {ult} on {n} of them!"),
+    "Fighter": ("{p} flanks with {ult} and splits the fight in half!", "{p} dives the backline with {ult}!"),
+    "Assassin": ("{p} jumps on {victim} and deletes them!", "{p} resets through the whole fight!"),
+    "Marksman": ("{p} kites back and deals all the damage!", "{p} cleans it up with {ult}!"),
+    "Enchanter": ("{p}'s {ult} turns the fight around!", "{p} saves the carry with {ult}!"),
+}
 CLASH_EVEN = 0.35  # chance two equally prepared sides calling the same play cancel each other out
 CLASH_EDGE = 1.5  # how much a better chance to make the play work tilts a clash
 
@@ -406,8 +419,11 @@ class Game:
         edge = abs(sb - sr) / FIGHT_SCALE
         won = min(5, 1 + self.rng.int(3) + (1 if edge > 0.6 else 0) + (1 if self.rng.chance(0.25) else 0))
         lost = min(won - 1, self.rng.int(3)) if won > 1 else 0
-        self.teamfight_kills(winner, won)
+        killers = self.teamfight_kills(winner, won)
         self.teamfight_kills(loser, lost)
+        call = self.highlight(winner, loser, won, killers)
+        if call:
+            self.log("highlight", winner, call)
         ace = won >= 5
         where = {"dragon": "at the dragon pit", "baron": "around Baron", "elder": "at the Elder Dragon"}.get(reason, "in the river")
         text = f"Teamfight {where}: {self.tag(winner)} win it {won} for {lost}" + (" and ACE" if ace else "")
@@ -428,14 +444,41 @@ class Game:
                 self.winner = winner
         return winner
 
-    def teamfight_kills(self, gs: GameSide, count: int) -> None:
-        enemy = self.other(gs)
+    def teamfight_kills(self, gs: GameSide, count: int) -> Counter:
+        """The kills one side takes in a fight. Returns how many each role got."""
+        killers: Counter = Counter()
         for _ in range(count):
             kw = {r: ROLE_KILLS[r] * CLASS_KILLS.get(self.cat.champions[gs.picks[r]].cls, 1.0) for r in ROLES}
             killer = self.weighted(kw)
             victim = self.weighted(dict(ROLE_DEATHS))
             helpers = [r for r in ROLES if r != killer and self.rng.chance(ROLE_ASSIST[r])]
             self.kill(gs, killer, victim, helpers, quiet=True)
+            killers[killer] += 1
+        return killers
+
+    def highlight(self, win: GameSide, lose: GameSide, won: int, killers: Counter) -> str | None:
+        """A caster's call for the fight that was just won: a multi-kill, or the play that won it."""
+        if killers:
+            role, count = killers.most_common(1)[0]
+            if count >= 3:
+                champ = self.cat.champions[win.picks[role]]
+                return f"{MULTI_KILLS[min(count, 5)]} for {self.star(win, role)} on {champ.name}!"
+        if won == 0 or not self.rng.chance(HYPE_CHANCE):
+            return None
+        engage = [r for r in ROLES if self.cat.champions[win.picks[r]].cls in ("Tank", "Mage")]
+        if engage and self.rng.chance(0.6):
+            role = self.rng.pick(engage) or engage[0]
+        else:
+            role = killers.most_common(1)[0][0] if killers else (self.rng.pick(ROLES) or "MID")
+        champ = self.cat.champions[win.picks[role]]
+        line = self.rng.pick(HYPE.get(champ.cls, HYPE["Fighter"])) or HYPE["Fighter"][0]
+        victim = self.cat.players[lose.lineup[self.rng.pick(ROLES) or "MID"]].name
+        return line.format(p=self.star(win, role), ult=champ.ult or "their ultimate",
+                           n=min(5, max(2, won + self.rng.int(2))), victim=victim)
+
+    def star(self, gs: GameSide, role: str) -> str:
+        """A player's name the way a caster shouts it."""
+        return self.cat.players[gs.lineup[role]].name.upper()
 
     def midgame_minute(self) -> None:
         m = self.minute

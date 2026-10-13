@@ -4,7 +4,8 @@
 
 Data Dragon gives every champion's id (used for images and to match gol.gg) and display name.
 The table adds what the simulation needs and Riot does not publish: which roles a champion is
-played in, when it is strongest and what damage it deals. Tags started from riftlike's list."""
+played in, when it is strongest and what damage it deals. Tags started from riftlike's list.
+Data Dragon's full data adds the name of each champion's ultimate, for the match commentary."""
 
 import json
 from pathlib import Path
@@ -197,6 +198,7 @@ Zyra|S|M|AP|Mage
 def main() -> None:
     url = f"https://ddragon.leagueoflegends.com/cdn/{PATCH}/data/en_US/champion.json"
     dragon = httpx.get(url, timeout=60).json()["data"]
+    full = httpx.get(url.replace("champion.json", "championFull.json"), timeout=120).json()["data"]
     by_name = {c["name"]: c for c in dragon.values()}
     champions = []
     for line in TABLE.strip().splitlines():
@@ -209,6 +211,7 @@ def main() -> None:
             "focus": FOCUS[focus],
             "damage": damage,
             "class": cls,
+            "ult": full[info["id"]]["spells"][3]["name"],
         })
     if by_name:
         raise SystemExit(f"untagged champions in Data Dragon {PATCH}: {sorted(by_name)}")
