@@ -7,7 +7,7 @@ from app.game import board as boardroom
 from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
-from app.game import matchday, patches, reputation, rookies, roster, shortlist, training, transfers
+from app.game import finances, matchday, patches, reputation, rookies, roster, shortlist, training, transfers
 from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog, Player
@@ -200,6 +200,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
         "budget": team.budget,
         "payroll": roster.payroll(career, team),
         "cash": team.cash,
+        "budget_adjust": finances.view(career),
         "next_match": match_summary(cat, career, nxt) if nxt else None,
         "live": live,
         "draft": draft_info,

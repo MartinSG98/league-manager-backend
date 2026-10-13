@@ -14,16 +14,16 @@ next season is scheduled. There is no draft after the first one."""
 from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
-from app.game import rookies, shortlist, training, transfers
+from app.game import finances, rookies, shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, AcceptJobAction, Action, AdvanceAction, AutoSelectAction, BanAction, BoardMeetingAction,
-    Career, DraftAutoAction, DraftNextAction, DraftPassAction, DraftPickAction, DraftSimAction, DraftStaffAction,
-    InboxMessage, NextGameAction, NextSeasonAction, OfferAction, OpponentTurnAction, PickAction, PlayerState,
-    PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction, SetLineupAction, SetPlayAction,
+    AcceptCounterAction, AcceptJobAction, Action, AdjustBudgetAction, AdvanceAction, AutoSelectAction, BanAction,
+    BoardMeetingAction, Career, DraftAutoAction, DraftNextAction, DraftPassAction, DraftPickAction, DraftSimAction,
+    DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction, OpponentTurnAction, PickAction,
+    PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction, SetLineupAction, SetPlayAction,
     ScoutPlayerAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction, ShortlistAction, SimSeriesAction,
     StaffState, StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
@@ -332,7 +332,7 @@ def _hire_staff(cat: Catalog, career: Career) -> None:
 
 _ALWAYS = (AcceptJobAction, ReadMessageAction)
 _NEED_THE_BOARD = (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAutoAction, DraftSimAction, AdvanceAction,
-                   NextSeasonAction, TransferBidAction, OfferAction)
+                   NextSeasonAction, TransferBidAction, OfferAction, AdjustBudgetAction)
 
 
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
@@ -410,6 +410,8 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
             shortlist.remove(career, action.player)
     elif isinstance(action, ScoutPlayerAction):
         shortlist.request(cat, career, action.player)
+    elif isinstance(action, AdjustBudgetAction):
+        finances.adjust(career, action.budget)
     elif isinstance(action, ReadMessageAction):
         for msg in career.inbox:
             if action.id is None or msg.id == action.id:

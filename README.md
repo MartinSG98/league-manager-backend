@@ -107,6 +107,7 @@ Actions are JSON objects tagged by `type`:
 | `respond_offer` | `offer`, `response` (`accept`, `reject`, `negotiate`) | A bid for one of your players |
 | `transfer_list` | `player`, `listed` | Tell other clubs a player is for sale |
 | `talk` | `conversation`, `choice` (`vital`, `promise`, `final`) | A player asked to talk |
+| `adjust_budget` | `budget` | After the draft, to move money between the salary budget and the bank |
 
 An action that does not fit the career's current state returns 409 with the reason, for example drafting a second mid laner while you still have no jungler. While the board is waiting to meet you, the draft, `advance` and new signings wait too; while you have no club, only `accept_job` works.
 
@@ -134,6 +135,7 @@ The overall rating (30-99) weighs the attributes by role, so a support's vision 
 **Salaries and money.** An asking salary doubles roughly every 7 overall points. It is scaled by region (Korea 1.0, China 1.15, EMEA 0.9, NA 1.1, Brazil 0.45, Pacific 0.55) and by reputation.
 - **The salary budget.** In the first season it covers the franchise player, four players of the average quality a draft hands out, and a bench player, scaled by prestige from 0.82 to 1.18. From then on the board sets it every off-season: five starters and a bench player at the region's going rate plus staff, scaled by reputation from 0.8 to 1.25, and never less than the contracts already signed.
 - **The bank.** The owners fund the salary budget, so every week what the payroll leaves of it goes to the bank, with sponsors (reputation x 6k a year) and prize money. Every off-season the owners add 15 percent of the budget for a one-star club, up to 35 percent for a five-star one, for transfers. Transfer fees come out of the bank.
+- **Adjusting budgets.** As in Football Manager, the manager can move money between the salary budget and the bank at any time after the draft. A thousand of the budget is worth a thousand for every week left until the board sets the next one after Worlds: with 26 weeks to go, cutting the budget by 100k puts 50k in the bank, and raising it costs as much. The budget never drops below the contracts it pays, and the bank never below zero. Bonuses paid as a share of the budget go by the budget the board set ([ADR 0017](docs/adr/0017-moving-money-between-the-salary-budget-and-the-bank.md)).
 
 **Champions.** In a game a champion adds or subtracts from its player's rating:
 
@@ -290,6 +292,7 @@ app/
     ├── transfers.py  the transfer window, fees, AI clubs' market, players who want to talk
     ├── offseason.py  the end of a season, development and the start of the next one
     ├── board.py      objectives, the meeting, confidence, the sack and new jobs
+    ├── finances.py   moving money between the salary budget and the bank
     ├── reputation.py team and manager reputation, stars, sponsors
     ├── training.py   loads, team areas, players' own training, growth, the analyst's review
     ├── plays.py      set plays and how likely they are to work

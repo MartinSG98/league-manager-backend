@@ -92,6 +92,7 @@ class TeamState(BaseModel):
     coach: str | None = None  # assistant coach, staff id
     analyst: str | None = None  # staff id
     budget: int = 0  # salary cap for the season, thousands of USD
+    budget_moved: int = 0  # how much of the budget the board set the manager moved into the bank (negative: out of it)
     cash: int = 0  # bank balance, thousands of USD
     tactics: Tactics = Tactics()
     together: dict[str, float] = {}  # "a|b" -> games two players have started together, a good coach counts more
@@ -644,6 +645,11 @@ class ScoutPlayerAction(BaseModel):
     player: str
 
 
+class AdjustBudgetAction(BaseModel):
+    type: Literal["adjust_budget"]  # set the salary budget; the difference goes to or comes from the bank
+    budget: int
+
+
 Action = Annotated[
     DraftPickAction | DraftStaffAction | DraftPassAction | DraftAutoAction | DraftSimAction | DraftNextAction
     | AdvanceAction
@@ -652,6 +658,6 @@ Action = Annotated[
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction
     | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
     | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
-    | ShortlistAction | ScoutPlayerAction,
+    | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction,
     Field(discriminator="type"),
 ]

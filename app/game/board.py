@@ -170,7 +170,9 @@ def describe_bonus(bonus: Bonus) -> str:
 
 
 def bonus_payment(career: Career, bonus: Bonus) -> int:
-    return int(round(career.teams[career.team].budget * bonus.sponsors / 10) * 10)
+    team = career.teams[career.team]
+    # A share of the budget the board set, whatever the manager moved to or from the bank.
+    return int(round((team.budget + team.budget_moved) * bonus.sponsors / 10) * 10)
 
 
 def _settle(career: Career, bonus: Bonus, earned: bool) -> None:
