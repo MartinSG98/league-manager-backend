@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.game import contracts, engine, retirement, rookies, shortlist, views
+from app.game import contracts, engine, retirement, rookies, roster, shortlist, views
 from app.game.catalog import get_catalog
 from app.game.state import BoardMeetingAction
 
@@ -21,10 +21,24 @@ def test_career_age_puts_veterans_far_above_rookies(finished):
     mine = rookies.catalog_for(cat, finished)
     faker = next(p.id for p in cat.players.values() if p.name == "Faker")
     rookie = finished.rookies[0].id
-    assert 28 <= retirement.career_age(mine, finished, faker) <= 33
+    assert 24 <= retirement.career_age(mine, finished, faker) <= 29, "past eight years, games add no age"
     assert retirement.career_age(mine, finished, rookie) < 21
-    assert retirement.chance(mine, finished, faker) > retirement.chance(mine, finished, rookie)
     assert retirement.chance(mine, finished, faker) < 0.1, "a legend still at the top keeps going"
+
+
+def test_players_still_among_the_best_do_not_stop_before_thirty(finished):
+    mine = rookies.catalog_for(cat, finished)
+    career = finished.model_copy(deep=True)
+    stars = [pid for pid in career.players if roster.overall(mine, career, pid) >= retirement.STAR]
+    assert stars
+    for season in range(career.season, career.season + 6):
+        career.season = season
+        for pid in stars:
+            if retirement.career_age(mine, career, pid) < retirement.STAR_AGE:
+                assert retirement.chance(mine, career, pid) == 0, cat.players[pid].name
+    veteran = max((pid for pid in career.players if 70 <= roster.overall(mine, career, pid) < retirement.GOOD),
+                  key=lambda pid: retirement.career_age(mine, career, pid))
+    assert retirement.chance(mine, career, veteran) > 0, "an older player past their best can still stop"
 
 
 def test_some_players_announce_their_last_season_at_the_first_off_season(finished):

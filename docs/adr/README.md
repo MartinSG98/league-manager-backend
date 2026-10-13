@@ -21,5 +21,5 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0013](0013-a-transfer-window-instead-of-a-yearly-draft.md) | A transfer window instead of a yearly draft | Accepted |
 | [0014](0014-ratings-blend-three-seasons-career-and-internationals.md) | Ratings blend three seasons, the career and the international stage | Accepted |
 | [0015](0015-rookie-classes-in-the-career.md) | Rookie classes, kept in the career | Accepted |
-| [0016](0016-retirements-announced-a-season-ahead.md) | Retirements, announced a season ahead | Accepted |
+| [0016](0016-retirements-announced-a-season-ahead.md) | Retirements, announced a season ahead | Accepted, amended |
 | [0017](0017-moving-money-between-the-salary-budget-and-the-bank.md) | Moving money between the salary budget and the bank | Accepted |
