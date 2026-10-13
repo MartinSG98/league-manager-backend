@@ -4,6 +4,7 @@ Each stage owns its matches; when the last one is played the stage ranks its tea
 competition moves on to the next stage or finishes."""
 
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, timedelta
 
 from app.game.rng import Rng
@@ -334,8 +335,37 @@ def swiss_pools(career: Career, stage: Stage) -> dict[str, tuple[int, int]]:
     return pools
 
 
+def _pair_across(left: list[str], right: list[str], ok: Callable[[str, str], bool]) -> list[tuple[str, str]] | None:
+    """Draw every team on the left, in order, against the first team on the right that keeps the
+    rest of the draw possible, the way a draw skips a ball that would leave someone without an opponent."""
+    if not left:
+        return []
+    for b in right:
+        if ok(left[0], b):
+            rest = _pair_across(left[1:], [x for x in right if x != b], ok)
+            if rest is not None:
+                return [(left[0], b)] + rest
+    return None
+
+
+def _pair_within(pool: list[str], ok: Callable[[str, str], bool]) -> list[tuple[str, str]] | None:
+    """The same inside one pool: the first team left meets the first allowed team after it."""
+    if len(pool) < 2:
+        return []
+    for b in pool[1:]:
+        if ok(pool[0], b):
+            rest = _pair_within([x for x in pool[1:] if x != b], ok)
+            if rest is not None:
+                return [(pool[0], b)] + rest
+    return None
+
+
 def build_swiss_round(career: Career, comp: Competition, stage: Stage, rng: Rng, region_of: dict[str, str]) -> bool:
-    """Pair the next Swiss round among teams still alive. Returns False when nobody is left."""
+    """Pair the next Swiss round among teams still alive. Returns False when nobody is left.
+
+    The first round draws pot 1 against the last pot, pot 2 against the one before it and so on,
+    keeping teams from the same region apart. Later rounds draw teams with the same record against
+    each other, and nobody meets the same team twice."""
     record = swiss_records(career, stage)
     target = SWISS_WINS
     alive = [t for t in stage.teams if record[t][0] < target and record[t][1] < target]
@@ -345,23 +375,31 @@ def build_swiss_round(career: Career, comp: Competition, stage: Stage, rng: Rng,
     if rnd >= len(stage.days):
         return False
     met = {frozenset((career.matches[m].home, career.matches[m].away)) for m in stage.matches}
+    day = stage.days[rnd]
+
+    def apart(a: str, b: str) -> bool:
+        return region_of[a] != region_of[b]
+
+    def fresh(a: str, b: str) -> bool:
+        # Without pots the first round only keeps regions apart; later rounds avoid rematches.
+        return frozenset((a, b)) not in met and (rnd > 0 or apart(a, b))
+
+    if rnd == 0 and stage.pots:
+        for i in range(len(stage.pots) // 2):
+            top, bottom = rng.shuffle(stage.pots[i]), rng.shuffle(stage.pots[-1 - i])
+            for a, b in _pair_across(top, bottom, apart) or list(zip(top, bottom)):
+                new_match(career, comp, stage, "Swiss round 1 (0-0)", day, stage.best_of, home=a, away=b)
+        return True
+
     buckets: dict[tuple[int, int], list[str]] = defaultdict(list)
     for t in alive:
-        buckets[tuple(record[t])].append(t)  # type: ignore[index]
-    day = stage.days[rnd]
-    for rec, teams in sorted(buckets.items(), key=lambda kv: (-kv[0][0], kv[0][1])):
+        buckets[(record[t][0], record[t][1])].append(t)
+    for (wins, losses), teams in sorted(buckets.items(), key=lambda kv: (-kv[0][0], kv[0][1])):
         pool = rng.shuffle(teams)
-        decisive = rec[0] == target - 1 or rec[1] == target - 1
+        decisive = wins == target - 1 or losses == target - 1
         best_of = 3 if decisive else stage.best_of
-        while len(pool) >= 2:
-            a = pool.pop(0)
-            # First round avoids teams from the same region, later rounds avoid rematches.
-            b = next(
-                (x for x in pool if frozenset((a, x)) not in met and (rnd > 0 or region_of[x] != region_of[a])),
-                pool[0],
-            )
-            pool.remove(b)
-            new_match(career, comp, stage, f"Swiss round {rnd + 1} ({rec[0]}-{rec[1]})", day, best_of, home=a, away=b)
+        for a, b in _pair_within(pool, fresh) or list(zip(pool[::2], pool[1::2])):
+            new_match(career, comp, stage, f"Swiss round {rnd + 1} ({wins}-{losses})", day, best_of, home=a, away=b)
     return True
 
 

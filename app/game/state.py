@@ -230,6 +230,7 @@ class Stage(BaseModel):
     final_best_of: int | None = None
     rounds: int = 1  # round robins: how many times everyone meets
     groups: list[list[str]] = []
+    pots: list[list[str]] = []  # Swiss: the seeding pots the first round is drawn from, best first
     advance: int = 0  # teams that move on, 0 for a final stage
     days: list[date] = []
     matches: list[str] = []
