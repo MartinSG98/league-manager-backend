@@ -1,7 +1,7 @@
 # 0005. Ratings from 2026 stat lines
 
 Date: 2026-10-11
-Status: Accepted
+Status: Accepted, amended by [0014](0014-ratings-blend-three-seasons-career-and-internationals.md)
 
 ## Context
 

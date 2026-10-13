@@ -114,7 +114,7 @@ The AI never moves on its own after one of your actions. In the draft and in cha
 
 ## The rules in numbers
 
-**Ratings.** Every rated stat comes from the player's 2026 games on gol.gg. Each stat is turned into a z-score among the players of the same role in the same league. Recipes of those make eight attributes on a 1-20 scale:
+**Ratings.** Every rated stat comes from the player's games on gol.gg. Each stat is turned into a z-score among the players of the same role in the same league. Recipes of those make eight attributes on a 1-20 scale:
 
 | Attribute | Made from |
 |---|---|
@@ -127,7 +127,9 @@ The AI never moves on its own after one of your actions. In the draft and in cha
 | Composure | career games and win rate |
 | Champion pool | champions with five or more career games |
 
-An average player sits at a baseline set by league strength. That is 15.5 for the LCK, 13 for the LEC and about 6 for a mid-sized ERL. Small samples are pulled towards the average. The overall rating (30-99) weighs the attributes by role, so a support's vision counts most and a bot laner's mechanics and teamfighting count most. A long career adds up to 3 points of big-match experience. Potential is higher for players with fewer career games.
+An average player sits at a baseline set by league strength. That is 15.5 for the LCK, 13 for the LEC and about 6 for a mid-sized ERL. Small samples are pulled towards the average. Form covers three seasons: 2026 counts fully, 2025 at 0.6 and 2024 at 0.3, each judged against the players who share the 2026 league and role. A player with no earlier season is judged on 2026 alone.
+
+The overall rating (30-99) weighs the attributes by role, so a support's vision counts most and a bot laner's mechanics and teamfighting count most. It blends that form (0.45) with the career (0.25: career win rate held back for short careers, KDA, longevity), the international record (0.15: games and win rate at First Stand, MSI and Worlds since 2024) and how the 2026 team did (0.15). The blend keeps each league's average and spread, so it only reorders players inside a league ([ADR 0014](docs/adr/0014-ratings-blend-three-seasons-career-and-internationals.md)). A long career adds up to 3 points of big-match experience. Potential is higher for players with fewer career games.
 
 **Salaries and money.** An asking salary doubles roughly every 7 overall points. It is scaled by region (Korea 1.0, China 1.15, EMEA 0.9, NA 1.1, Brazil 0.45, Pacific 0.55) and by reputation.
 - **The salary budget.** In the first season it covers the franchise player, four players of the average quality a draft hands out, and a bench player, scaled by prestige from 0.82 to 1.18. From then on the board sets it every off-season: five starters and a bench player at the region's going rate plus staff, scaled by reputation from 0.8 to 1.25, and never less than the contracts already signed.
@@ -236,7 +238,7 @@ The coach's misjudgements are fixed for each person, so a coach always over- or 
 
 ## Data
 
-- **Rosters and stats.** Rosters, roles, nationalities and 2026 stat lines for 27 leagues come from [gol.gg](https://gol.gg), and so do career champion pools and 2026 champion presence. The scripts that fetch them are `scripts/fetch_golgg.py` and `scripts/fetch_meta.py`. Pages are cached in `.cache/`, so re-runs only fetch what is missing.
+- **Rosters and stats.** Rosters, roles, nationalities and 2026 stat lines for 27 leagues come from [gol.gg](https://gol.gg), and so do career champion pools, the 2024 and 2025 stat lines, the stat lines from every international event since 2024 and 2026 champion presence. The scripts that fetch them are `scripts/fetch_golgg.py` and `scripts/fetch_meta.py`. Pages are cached in `.cache/`, so re-runs only fetch what is missing.
 - **Logos and photos.** Team logos, league and event logos, player photos and real names come from the lolesports.com API through `scripts/fetch_lolesports.py`, which writes `app/data/lolesports.json`. Only URLs are stored, and the images stay on Riot's CDN. Every tier-one team, 195 teams in all, every league and about 1,320 of 1,368 players have one.
 - **Staff.** Coaches and analysts of every tier-one team come from [Liquipedia](https://liquipedia.net/leagueoflegends) (CC BY-SA 3.0) through `scripts/fetch_staff.py`, which writes `app/data/staff.json`. The script makes one request every 31 seconds, as Liquipedia asks, and caches pages in `.cache/liquipedia`. Only names, positions and countries are kept. All 56 tier-one teams have staff there, 188 people in all. Ratings are this game's own, see [ADR 0010](docs/adr/0010-staff-from-liquipedia-with-own-ratings.md).
 - **Champions.** The champion list is Data Dragon 16.20.1, with roles, power curve, damage type and class tagged by hand in `scripts/build_champions.py`.
@@ -274,7 +276,7 @@ app/
 ├── data/             leagues, teams, champions, gol.gg rosters, stats and meta
 └── game/
     ├── catalog.py    static world: regions, leagues, teams, players, champions
-    ├── ratings.py    2026 stat lines to attributes, overall, potential, salary
+    ├── ratings.py    stat lines, careers and internationals to attributes, overall, potential, salary
     ├── roster.py     current ratings, mastery, languages and chemistry
     ├── state.py      the saved career and the actions
     ├── draft.py      the first pre-season draft and budgets

@@ -4,11 +4,15 @@ write them to app/data/golgg_2026.json.
     python -m scripts.fetch_golgg             # rosters and season stats, about 10 minutes
     python -m scripts.fetch_golgg --careers   # plus career champion pools, about an hour more
     python -m scripts.fetch_golgg --careers --cached-only   # rebuild the file from the cache, no requests
+    python -m scripts.fetch_golgg --history   # only add earlier seasons and international events, ten pages
 
 For every league in app/data/leagues.json the script reads the standings of its roster
 tournament, then each team's page for who played which role, their nationality and the
 champions they played. Season stats come from one page that covers every 2026 game. Career
-pools need one page per player, so they are optional.
+pools need one page per player, so they are optional. The two seasons before 2026 come from one
+page each too and go under "history"; the ratings use them to judge form over three years. Each
+international event since 2024 is one more page, under "international": games and wins on the
+biggest stages count extra in the ratings.
 
 Pages are cached under .cache/golgg, so a second run only fetches what is missing and an
 interrupted run picks up where it stopped. Uncached requests wait a few seconds each, gol.gg
@@ -33,6 +37,18 @@ CACHE = ROOT / ".cache" / "golgg"
 
 BASE = "https://gol.gg"
 SEASON = "S16"  # 2026
+HISTORY = {"2025": "S15", "2024": "S14"}  # earlier seasons' stat lines, for the ratings
+# International events as gol.gg names them, with their season and year. MSI 2025 is not on gol.gg
+# under any name we found, and Worlds 2026 had no stats when this was fetched.
+INTERNATIONAL = {
+    "MSI 2024": ("S14", "2024"),
+    "Worlds Play-In 2024": ("S14", "2024"),
+    "Worlds Main Event 2024": ("S14", "2024"),
+    "First Stand 2025": ("S15", "2025"),
+    "Worlds 2025 Play-In": ("S15", "2025"),
+    "Worlds 2025 Main Event": ("S15", "2025"),
+    "MSI 2026": ("S16", "2026"),
+}
 HEADERS = {"User-Agent": "Mozilla/5.0 (league-manager data fetch, personal fan project)"}
 PAUSE = 2.5  # seconds after every uncached request
 CAREER_KEEP = 15
@@ -154,8 +170,8 @@ def roster(fetcher: Fetcher, team_id: str, tournament: str) -> list[dict]:
     return players
 
 
-def season_stats(fetcher: Fetcher) -> dict[str, dict]:
-    page = fetcher.get(f"/players/list/season-{SEASON}/split-ALL/tournament-ALL/")
+def season_stats(fetcher: Fetcher, season: str = SEASON, tournament: str = "ALL") -> dict[str, dict]:
+    page = fetcher.get(f"/players/list/season-{season}/split-ALL/tournament-{_tournament(tournament) if tournament != 'ALL' else 'ALL'}/")
     stats: dict[str, dict] = {}
     for player_id, name, rest in STAT_ROW.findall(page):
         cells = STAT_CELL.findall(rest)
@@ -195,10 +211,22 @@ def main() -> None:
     parser.add_argument("--only", nargs="*", help="league ids to fetch, all by default")
     parser.add_argument("--cached-only", action="store_true", help="only use pages already in .cache/golgg")
     parser.add_argument("--pause", type=float, default=PAUSE, help="seconds to wait after each request")
+    parser.add_argument("--history", action="store_true", help="only fetch the earlier seasons' stat lines")
     args = parser.parse_args()
 
     config = json.loads(LEAGUES.read_text(encoding="utf-8"))
     existing = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    if args.history:
+        fetcher = Fetcher(cached_only=args.cached_only, pause=args.pause)
+        existing["history"] = {year: season_stats(fetcher, season) for year, season in HISTORY.items()}
+        existing["international"] = {
+            name: {"year": year, "players": season_stats(fetcher, season, name)}
+            for name, (season, year) in INTERNATIONAL.items()
+        }
+        save(existing)
+        print(", ".join(f"{year}: {len(rows)} players" for year, rows in existing["history"].items()), flush=True)
+        print(", ".join(f"{name}: {len(e['players'])}" for name, e in existing["international"].items()), flush=True)
+        return
     payload = {
         "source": "gol.gg",
         "fetched": str(date.today()),
@@ -206,6 +234,8 @@ def main() -> None:
         "leagues": existing.get("leagues", {}),
         "players": existing.get("players", {}),
         "careers": existing.get("careers", {}),
+        "history": existing.get("history", {}),
+        "international": existing.get("international", {}),
     }
     fetcher = Fetcher(cached_only=args.cached_only, pause=args.pause)
 
