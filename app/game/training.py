@@ -70,6 +70,8 @@ MATCH_FATIGUE = 4  # fatigue a game on stage adds
 MATCH_SHARPNESS = 1
 BURNOUT_FROM = 60
 BURNOUT_WEEKS = 3
+SETTLE_MORALE = 60  # an unsettled player still this happy after the weekly drift ...
+SETTLE_CHANCE = 0.2  # ... settles with this chance a week; only winning keeps them that happy
 COMPLACENT_BELOW = 40
 CHAMPION_CAP = 75  # mastery individual practice can take a champion to
 PRACTICE_GAIN = 2  # the coach's own pick of meta champions, see practice
@@ -224,6 +226,11 @@ def _player_week(cat: Catalog, career: Career, pid: str, state: PlayerState, rng
 
     calm = 45 if state.unsettled else 70
     state.morale = max(0, min(100, state.morale + (calm - state.morale) // staffing.morale_recovery_divisor(motivation)))
+    if state.unsettled and state.morale >= SETTLE_MORALE and rng.chance(SETTLE_CHANCE):
+        state.unsettled = False
+        if mine:
+            _message(career, "player", f"{name} has settled",
+                     f"Winning has changed {name}'s mind: they are happy here again and no longer want to leave.")
 
     q = quality(cat, career, pid, state, team)
     state.development = (state.development + [round(q, 2)])[-52:]
