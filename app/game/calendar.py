@@ -342,6 +342,9 @@ def _after_competition(cat: Catalog, career: Career, comp: Competition, rng: Rng
         body += f"\nYour team finished {_ordinal(place)}."
     _news(career, f"{winner.tag} win the {comp.short}", body)
     if comp.kind == "league":
+        from app.game import jobs
+
+        jobs.split_review(cat, career, comp, rng)
         split = comp.split or 0
         event = next((e for e in INTERNATIONALS if e.after_split == split), None)
         done = all(

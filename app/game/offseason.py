@@ -25,7 +25,7 @@ what they had built for every new face in the lineup, and the new season is sche
 
 from collections import Counter
 
-from app.game import board, patches, reputation, retirement, rookies, roster, training, transfers
+from app.game import board, jobs, patches, reputation, retirement, rookies, roster, training, transfers
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
@@ -82,6 +82,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
                 state.contract = Contract(salary=salary, until=new_season + 1)
 
     renewed, staff_left = _staff_contracts(cat, career, rng, new_season)
+    jobs.season_review(cat, career, rng, career.season)
     grew, declined = develop(cat, career, rng)
     reputation.drift(cat, career)
     grant = paid = 0

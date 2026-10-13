@@ -650,6 +650,8 @@ def _hire_staff(cat: Catalog, career: Career, team: TeamState, kind: str) -> Non
     room = max(1, _room(career, team))
     person = max(pool, key=lambda s: s.overall - 60 * s.salary / max(room, 50))
     draft.hire(career, team, person)
+    if kind == "coach":
+        team.coach_since = career.day
     if team.id == career.team:
         _message(career, "staff", f"New {draft.STAFF_NAMES[kind]}: {person.name}",
                  f"The board hired {person.name} for {staffing.STAFF_YEARS} seasons at {person.salary}k a season.")
