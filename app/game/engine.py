@@ -168,6 +168,8 @@ def _check_free(career: Career) -> None:
 
 
 def advance(cat: Catalog, career: Career, rng: Rng) -> None:
+    """Continue: one day, as in Football Manager. The rest of the world plays its matches that day;
+    the manager's own match goes live."""
     if career.phase == "draft":
         raise IllegalAction("Finish the draft first")
     if career.live is not None:
@@ -178,41 +180,36 @@ def advance(cat: Catalog, career: Career, rng: Rng) -> None:
         return
     if calendar.season_over(career):
         raise IllegalAction("The season is over")
-    inbox_before = len(career.inbox)
-    for _ in range(MAX_DAYS_PER_ADVANCE):
-        career.day += timedelta(days=1)
-        _daily(cat, career, rng)
-        mine = None
-        for match in _todays_matches(career):
-            if match.home is None or match.away is None:
-                continue
-            if career.team in (match.home, match.away):
-                mine = match
-                continue
-            matchday.play_ai_match(cat, career, match, rng)
-        _update_competitions(cat, career, rng)
-        if career.board.sacked:
-            # The board acted before the match: the old team plays it without the manager.
-            if mine is not None:
-                matchday.play_ai_match(cat, career, mine, rng)
-                _update_competitions(cat, career, rng)
-            if calendar.season_over(career):
-                _end_season(cat, career, rng)
-            return
+    career.day += timedelta(days=1)
+    _daily(cat, career, rng)
+    mine = None
+    for match in _todays_matches(career):
+        if match.home is None or match.away is None:
+            continue
+        if career.team in (match.home, match.away):
+            mine = match
+            continue
+        matchday.play_ai_match(cat, career, match, rng)
+    _update_competitions(cat, career, rng)
+    if career.board.sacked:
+        # The board acted before the match: the old team plays it without the manager.
         if mine is not None:
-            matchday.start_live(career, mine)
-            scouting.scouting_report(cat, career, mine)
-            return
+            matchday.play_ai_match(cat, career, mine, rng)
+            _update_competitions(cat, career, rng)
         if calendar.season_over(career):
             _end_season(cat, career, rng)
-            return
-        if _worth_stopping(career, inbox_before):
-            return
+        return
+    if mine is not None:
+        matchday.start_live(career, mine)
+        scouting.scouting_report(cat, career, mine)
+        return
+    if calendar.season_over(career):
+        _end_season(cat, career, rng)
 
 
 def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True) -> None:
-    inbox_before = len(career.inbox)
-    for _ in range(MAX_DAYS_PER_ADVANCE):
+    """A day of the transfer window, like Continue in the season; without stop, on to the new season."""
+    for _ in range(1 if stop else MAX_DAYS_PER_ADVANCE):
         career.day += timedelta(days=1)
         _daily(cat, career, rng)
         if career.day >= transfers.closing_day(career):
@@ -221,26 +218,6 @@ def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True
             return
         if career.board.sacked or career.board.meeting:
             return
-        if stop and any(m.kind in ("transfer", "player", "board", "contract", "staff")
-                        for m in career.inbox[inbox_before:]):
-            return
-        if stop and career.day.weekday() == 0:
-            return  # a week at a time, so the window never flies by
-
-
-def _worth_stopping(career: Career, inbox_before: int) -> bool:
-    """Stop when a competition the manager cares about finished or a new one was announced, after
-    a Swiss draw, or when the board has something to say."""
-    for msg in career.inbox[inbox_before:]:
-        if msg.kind in ("news", "board") and (" is set" in msg.subject or " win the " in msg.subject):
-            return True
-        if msg.kind == "draw":
-            return True
-        if msg.kind == "board" and msg.subject.startswith("Job offer"):
-            return True
-        if msg.kind == "board" and ("losing patience" in msg.subject or "sacked" in msg.subject):
-            return True
-    return False
 
 
 def _season_review(cat: Catalog, career: Career) -> str:
