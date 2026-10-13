@@ -15,7 +15,8 @@ Team areas from training (see training.py) shift all of this a little: the early
 in lanes and ganks, objective control wins contested objectives, teamfighting wins fights, macro
 turns power into gold and towers after laning, and closing decides how often a team well ahead
 gets greedy and throws a fight away. Each side may also run one set play (see plays.py) at its
-minute of the game.
+minute of the game. When both call the same play they run into each other: one clash, which the
+better prepared side wins big, or which cancels out when neither is.
 
 The result is a GameRecord with a stat line per player, and a timeline with the gold
 difference every minute for the match-day playback."""
@@ -26,7 +27,7 @@ from dataclasses import dataclass, field
 from app.game import roster, training
 from app.game.catalog import ROLES, Catalog
 from app.game.champ_select import champion_power, composition_modifier, focus_bias, lane_edge
-from app.game.plays import PLAYS
+from app.game.plays import PLAYS, SetPlay
 from app.game.plays import chance as play_chance
 from app.game.rng import Rng
 from app.game.state import Career, GameRecord, PlayerLine, Side, Tactics
@@ -53,6 +54,8 @@ MACRO_POWER = 1.5  # in the gold drift after laning
 THROW_LEAD = 3000  # gold lead from which a team may throw
 THROW_BASE = 0.085  # chance a team that far ahead throws a fight it would have won, at closing 0
 THROW_PER_POINT = 0.0045  # less per point of closing
+CLASH_EVEN = 0.35  # chance two equally prepared sides calling the same play cancel each other out
+CLASH_EDGE = 1.5  # how much a better chance to make the play work tilts a clash
 
 ROLE_GOLD = {"TOP": 0.21, "JNG": 0.19, "MID": 0.23, "BOT": 0.25, "SUP": 0.12}
 ROLE_CS = {"TOP": 8.1, "JNG": 6.2, "MID": 8.6, "BOT": 9.2, "SUP": 1.3}
@@ -479,9 +482,114 @@ class Game:
     # ---------- set plays ----------
 
     def run_plays(self) -> None:
-        for gs in (self.blue, self.red):
-            if gs.play and gs.play_ok is None and self.minute >= PLAYS[gs.play].minute and self.winner is None:
-                self.run_play(gs)
+        due = [gs for gs in (self.blue, self.red)
+               if gs.play and gs.play_ok is None and self.minute >= PLAYS[gs.play].minute and self.winner is None]
+        if len(due) == 2 and self.blue.play == self.red.play:
+            self.clash()
+            return
+        for gs in due:
+            self.run_play(gs)
+
+    def clash(self) -> None:
+        """Both sides run the same play at the same moment: one fight instead of two plays a second
+        apart. The side likelier to make the play work is likelier to win it, and the winner takes
+        a big swing; two sides about as well prepared may cancel each other out."""
+        play = PLAYS[self.blue.play or ""]
+        margin = self.blue.play_chance - self.red.play_chance
+        if self.rng.chance(CLASH_EVEN * max(0.0, 1 - abs(margin) / 0.3)):
+            self.blue.play_ok = self.red.play_ok = False
+            self.clash_even(play)
+            return
+        win = self.blue if self.rng.chance(max(0.1, min(0.9, 0.5 + CLASH_EDGE * margin))) else self.red
+        lose = self.other(win)
+        win.play_ok, lose.play_ok = True, False
+        self.clash_won(play, win, lose)
+
+    def rout(self, win: GameSide, killers: tuple[str, ...], victims: tuple[str, ...]) -> bool:
+        """Several kills in one fight, for one line of the log. True when they include first blood."""
+        fresh = not self.first_blood
+        self.first_blood = True  # the clash line says so, rather than a line of its own
+        for killer, victim in zip(killers, victims):
+            self.kill(win, killer, victim, list(killers), quiet=True)
+        return fresh
+
+    def clash_won(self, play: SetPlay, win: GameSide, lose: GameSide) -> None:
+        w, lo = self.tag(win), self.tag(lose)
+        first, towers = False, 0
+        if play.id == "invade":
+            first = self.rout(win, ("JNG", "MID", "TOP"), tuple(self.rng.shuffle(("JNG", "SUP", "MID", "TOP"))[:3]))
+            win.gold += 300
+            text = f"the two teams meet in the jungle at level 1 and {w} win it 3 for 0"
+        elif play.id == "fnatic_bush":
+            first = self.rout(win, ("SUP", "JNG"), ("SUP", "BOT"))
+            win.gold += 200
+            text = f"{w} spot the other ambush first and collapse on {lo}'s bot lane"
+        elif play.id == "lane_swap":
+            win.gold += 600
+            lose.gold -= 300
+            text = f"{w} read the swap, swap back first and take {lo}'s plates"
+        elif play.id == "grubs":
+            win.sure["grubs"] = 2
+            first = self.rout(win, ("JNG", "MID"), ("JNG", "SUP"))
+            text = f"{w} win the fight at the pit and own both Voidgrub spawns"
+        elif play.id == "dive":
+            first = self.rout(win, ("BOT", "JNG", "MID", "SUP"), ("JNG", "MID", "SUP", "BOT"))
+            towers = 1
+            text = f"both dives crash into the bot lane at once and {w} turn it into a 4 for 0"
+        elif play.id == "drakes":
+            win.sure["dragon"] = 2
+            first = self.rout(win, ("JNG",), ("SUP",))
+            text = f"{w} catch {lo}'s warding party and own the next two dragons"
+        elif play.id == "pick":
+            first = self.rout(win, ("JNG", "SUP"), ("SUP", "MID"))
+            win.next_fight += 5.0
+            text = f"{w} sweep {lo}'s trap and catch two on the way out"
+        elif play.id == "baron_bait":
+            win.next_fight += 10.0
+            text = f"both teams posture around Baron and {lo} walk into {w}'s choke"
+        else:  # split_push
+            win.splitting = True
+            first = self.rout(win, ("JNG", "MID"), ("TOP", "BOT"))
+            towers = 3
+            text = f"{w} win the base race: {lo}'s side laners are caught and three towers fall"
+        self.log("play", win, f"Set play clash, {play.name}: both teams call it, and {text}"
+                              f"{', with first blood' if first else ''}")
+        if towers:
+            self.destroy_towers(win, towers)
+        if play.id == "baron_bait":
+            self.fight("baron" if self.minute >= self.baron_at else "skirmish")
+
+    def clash_even(self, play: SetPlay) -> None:
+        first = False
+        if play.id == "invade":
+            text = "they meet in the river at level 1 and back off"
+        elif play.id == "fnatic_bush":
+            self.blue.gold -= 250
+            self.red.gold -= 250
+            text = "both sit in a lane brush, nobody walks past, and both reach their lanes late"
+        elif play.id == "lane_swap":
+            text = "both duos swap and the lanes meet as they would have anyway"
+        elif play.id == "grubs":
+            text = "both set up the pit and the Voidgrubs are up for grabs"
+        elif play.id == "dive":
+            first = self.rout(self.blue, ("JNG", "MID"), ("BOT", "SUP"))
+            self.rout(self.red, ("JNG", "MID"), ("BOT", "SUP"))
+            text = "both dives hit the bot lane at once and it ends 2 for 2"
+        elif play.id == "drakes":
+            text = "both clear the vision around the pit and the next dragon is a straight fight"
+        elif play.id == "pick":
+            text = "the deep wards find each other and nobody is caught"
+        elif play.id == "baron_bait":
+            text = "both posture around Baron and it comes down to a straight fight"
+        else:  # split_push
+            text = "both split the map and trade a tower each"
+        self.log("play", None, f"Set play clash, {play.name}: both teams call it and cancel each other out: "
+                               f"{text}{', with first blood' if first else ''}")
+        if play.id == "split_push":
+            self.destroy_towers(self.blue, 1)
+            self.destroy_towers(self.red, 1)
+        if play.id == "baron_bait":
+            self.fight("baron" if self.minute >= self.baron_at else "skirmish")
 
     def run_play(self, gs: GameSide) -> None:
         play = PLAYS[gs.play or ""]
