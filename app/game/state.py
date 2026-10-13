@@ -405,6 +405,22 @@ class TransferOffer(BaseModel):
     note: str = ""
 
 
+class CareerStaff(BaseModel):
+    """A coach or analyst the game made up after the first season: a retired player or a newcomer
+    (see hiring.new_faces)."""
+    id: str
+    name: str
+    kind: Literal["coach", "analyst"]
+    position: str
+    region: str
+    country: str | None
+    attributes: dict[str, int]
+    overall: int
+    salary: int
+    season: int  # the off-season they joined the market in
+    former_player: str | None = None  # the player id, for a retired player
+
+
 class Rookie(BaseModel):
     """A player the game made up: one of a season's rookie class (see rookies.py)."""
     id: str
@@ -483,6 +499,8 @@ class Career(BaseModel):
     reviewed_games: int = 0  # the manager's games the analyst had seen at the last review
     shortlist: list[Shortlisted] = []
     rookies: list[Rookie] = []  # every rookie class so far, oldest first
+    new_staff: list[CareerStaff] = []  # coaches and analysts who joined the market in this career
+    staff_talks: dict[str, Negotiation] = {}  # staff id -> contract talks
 
 
 # ---------- actions the client can post ----------
@@ -601,6 +619,23 @@ class AcceptJobAction(BaseModel):
     team: str
 
 
+class StaffOfferAction(BaseModel):
+    type: Literal["staff_offer"]  # hire a coach or analyst, or extend your own
+    staff: str
+    salary: int
+    years: int
+
+
+class StaffAcceptCounterAction(BaseModel):
+    type: Literal["staff_accept_counter"]
+    staff: str
+
+
+class StaffReleaseAction(BaseModel):
+    type: Literal["staff_release"]
+    staff: str
+
+
 class ApplyJobAction(BaseModel):
     type: Literal["apply_job"]
     team: str
@@ -684,6 +719,7 @@ Action = Annotated[
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction
     | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
     | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
-    | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction | ApplyJobAction | DeclineJobAction,
+    | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction | ApplyJobAction | DeclineJobAction
+    | StaffOfferAction | StaffAcceptCounterAction | StaffReleaseAction,
     Field(discriminator="type"),
 ]

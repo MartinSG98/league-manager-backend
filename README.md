@@ -59,6 +59,8 @@ Copy `.env.example` to `.env` if you need to change anything.
 | GET | `/api/careers/{id}/squad` | Your roster with attributes, form, contracts and chemistry, `?team=` for another team |
 | GET | `/api/careers/{id}/players` | Player search, `?region=`, `?free_agents=true`, `?role=` |
 | GET | `/api/careers/{id}/players/{pid}` | One player: attributes, 2026 stats, champion pool and mastery, season stats |
+| GET | `/api/careers/{id}/staff` | Coaches and analysts, filtered by `kind`, `region` and `free_only` |
+| GET | `/api/careers/{id}/staff/{sid}` | One staff member: attributes, contract, the ask, compensation and talks |
 | GET | `/api/careers/{id}/competitions` | Every competition of the season |
 | GET | `/api/careers/{id}/competitions/{cid}` | Standings, brackets and results |
 | GET | `/api/careers/{id}/schedule` | Your team's matches, `?team=` for another team |
@@ -101,6 +103,9 @@ Actions are JSON objects tagged by `type`:
 | `accept_job` | `team` | After a sacking, take one of the offers; or take a club's offer while you have a club |
 | `apply_job` | `team` | Apply to a club looking for a head coach |
 | `decline_job` | `team` | Turn a club's offer down |
+| `staff_offer` | `staff`, `salary`, `years` | Hire a coach or analyst, or extend one of yours in their last season |
+| `staff_accept_counter` | `staff` | Accept a staff member's counter-offer |
+| `staff_release` | `staff` | Release one of your staff |
 | `set_training` | `load`, `focus`, `play`, `clear_play` (all optional) | Any time |
 | `set_player_training` | `player`, `attribute`, `champion` | Any time, for one of your players |
 | `set_play` | `play` (or none) | After champion select, before the game |
@@ -191,7 +196,9 @@ Chemistry runs from about -5 to +4 on top of the team's average.
 | Scouting | the report on the next opponent: 1 basic, 2 adds what they play and their game plan, 3 adds ban priorities and their key player, 4 adds weak spots | level 1 | level 2 | level 4 |
 | Meta reading | the patch preview: 2 or 4 days ahead, names the nerf targets, with odds from 15, and spots mid-season updates from 12 | 2 days, some names wrong | 2 days, top 4 | 4 days, odds |
 
-The coach's misjudgements are fixed for each person, so a coach always over- or underrates the same things. Teaching also speeds up team areas, set plays and champions a player learns on their own, and the analyst's scouting decides how often the game review reads the team right. Staff sign for two seasons. Your own staff renew automatically, and AI teams keep theirs about two times in three. When the transfer window closes the board fills any empty seat.
+The coach's misjudgements are fixed for each person, so a coach always over- or underrates the same things. Teaching also speeds up team areas, set plays and champions a player learns on their own, and the analyst's scouting decides how often the game review reads the team right. Staff sign for two seasons. AI teams keep theirs about two times in three. When the transfer window closes the board fills any empty seat.
+
+**The staff market.** Every coach and analyst has a page, and Scouting lists them next to the players ([ADR 0020](docs/adr/0020-the-staff-market.md)). Talks work like a player's: they ask their salary (a sixth more to leave a club they work for), settle for 85 to 95 percent of it over two seasons, and walk away for 30 days after three offers too low. Someone rated 55 joins any club; every 8 points more wants another star of club reputation, give or take one. Staff of another club cost compensation, half of what is left on their contract, and their club appoints someone else at once. Your own staff no longer renew themselves: extend them in their last season or they leave on free agency day. Releasing costs half of what is left on the contract. Their salaries count against the salary budget. Every off-season some of the players who retire join the market (the better and longer the career, the likelier; supports and junglers often as analysts), and every region gets a coach and an analyst nobody has heard of, mostly ordinary, a few very good.
 
 **Training.** Every Monday each team plays out a week of scrims. AI teams train at the load their coach would recommend, on their weakest area.
 
@@ -297,6 +304,7 @@ app/
     ├── offseason.py  the end of a season, development and the start of the next one
     ├── board.py      objectives, the meeting, confidence, the sack and new jobs
     ├── jobs.py       AI clubs sacking coaches, vacancies, offers and applications
+    ├── hiring.py     the staff market: talks, compensation, releases, new faces
     ├── finances.py   moving money between the salary budget and the bank
     ├── reputation.py team and manager reputation, stars, sponsors
     ├── training.py   loads, team areas, players' own training, growth, the analyst's review

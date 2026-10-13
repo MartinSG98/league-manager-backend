@@ -7,7 +7,8 @@ from app.game import board as boardroom
 from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
-from app.game import finances, jobs, matchday, patches, reputation, rookies, roster, shortlist, training, transfers
+from app.game import finances, hiring, jobs, matchday, patches, reputation, rookies, roster, shortlist, training
+from app.game import transfers
 from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog, Player
@@ -78,6 +79,47 @@ def staff_row(cat: Catalog, career: Career, sid: str | None) -> dict | None:
         "origin": {"id": origin.id, "name": origin.name, "tag": origin.tag, "logo": origin.logo} if origin else None,
         "team": state.team if state else None, "attributes": s.attributes, "overall": s.overall,
         "salary": contract.salary if contract else s.salary, "contract_until": contract.until if contract else None,
+        "club": team_ref(cat, state.team) if state and state.team else None,
+        "mine": bool(state and state.team == career.team),
+    }
+
+
+def staff_search(cat: Catalog, career: Career, kind: str | None, region: str | None, free_only: bool,
+                 limit: int) -> list[dict]:
+    """Coaches and analysts for the Scouting screen, best first."""
+    rows = []
+    for s in sorted(cat.staff.values(), key=lambda s: -s.overall):
+        state = career.staff.get(s.id)
+        if (kind and s.kind != kind) or (region and s.region != region) or (free_only and state and state.team):
+            continue
+        rows.append(staff_row(cat, career, s.id))
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+def staff_detail(cat: Catalog, career: Career, sid: str) -> dict:
+    """A staff member's page: who they are, their contract, and what talks with them would cost."""
+    s = cat.staff[sid]
+    state = career.staff.get(sid)
+    team = career.teams[career.team]
+    seat = getattr(team, s.kind)
+    talks = career.staff_talks.get(sid)
+    made = next((c for c in career.new_staff if c.id == sid), None)
+    return staff_row(cat, career, sid) | {  # type: ignore[operator]
+        "ask": hiring.asking_salary(cat, career, sid),
+        "wanted_years": hiring.WANTED_YEARS, "max_years": hiring.MAX_YEARS,
+        "compensation": hiring.compensation(cat, career, sid),
+        "release_cost": hiring.release_cost(career, sid) if hiring.mine(career, sid) else None,
+        "stars_wanted": round(hiring.stars_wanted(cat, sid), 1),
+        "problem": hiring.check_can_talk(cat, career, sid),
+        "talks": talks.model_dump(mode="json") if talks else None,
+        "rounds_left": hiring.MAX_ROUNDS - (talks.rounds if talks else 0),
+        "budget_room": hiring.budget_room(cat, career, sid),
+        "seat": staff_row(cat, career, seat) if seat and seat != sid else None,
+        "seat_name": hiring.SEAT_NAMES[s.kind],
+        "joined_market": made.season if made else None,
+        "former_player": player_row(cat, career, made.former_player) if made and made.former_player else None,
     }
 
 
