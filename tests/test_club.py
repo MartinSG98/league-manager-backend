@@ -565,3 +565,20 @@ def test_debt_costs_confidence_and_deep_debt_cuts_wages(window):
     team.cash = 5
     finances.weekly(cat, career, Rng(career))
     assert not career.board.in_debt and career.inbox[-1].subject == "The club is out of debt"
+
+
+def test_winning_settles_an_unsettled_player_and_losing_does_not(drafted):
+    career = drafted.model_copy(deep=True)
+    team = career.teams[career.team]
+    happy, sad = list(team.lineup.values())[:2]
+    for pid in (happy, sad):
+        career.players[pid].unsettled = True
+    rng = Rng(career)
+    for _ in range(40):
+        career.players[happy].morale = 90  # a team that keeps winning
+        career.players[sad].morale = 45
+        for pid in (happy, sad):
+            training._player_week(cat, career, pid, career.players[pid], rng)
+    assert not career.players[happy].unsettled
+    assert any(m.subject == f"{cat.players[happy].name} has settled" for m in career.inbox)
+    assert career.players[sad].unsettled, "an unhappy player stays unsettled"
