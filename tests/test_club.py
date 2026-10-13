@@ -520,3 +520,48 @@ def test_the_budget_is_moved_after_the_draft_and_a_new_one_runs_a_full_year(wind
         engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=career.teams["T1"].budget - 10))
     assert finances.limits(window).weeks == 52
     assert all(t.budget_moved == 0 for t in window.teams.values())
+
+
+def test_agreed_fees_are_set_aside_and_have_to_be_in_the_bank(window):
+    from app.game import contracts
+
+    career = window
+    team = career.teams[career.team]
+    team.budget += 3000
+    pid = _target(career)
+    ask = transfers.asking_fee(cat, career, pid)
+    team.cash = ask + 50
+    engine.apply(cat, career, TransferBidAction(type="transfer_bid", player=pid, fee=ask))
+    assert transfers.reserved(career) == ask and transfers.free_cash(career) == 50
+    assert "50k free in the bank" in transfers.check_bid(cat, career, _target(career), 100)
+    lim = finances.limits(career)
+    assert lim.high == team.budget + 50 * 52 // lim.weeks, "the slider only spends what is free"
+    team.cash = ask - 1
+    assert "cannot pay" in contracts.check_can_talk(rookies.catalog_for(cat, career), career, pid)
+
+
+def test_debt_costs_confidence_and_deep_debt_cuts_wages(window):
+    career = window
+    team = career.teams[career.team]
+    confidence = career.board.confidence
+    target = _target(career)
+    team.cash = -10
+    finances.weekly(cat, career, Rng(career))
+    assert career.board.in_debt and career.board.confidence == confidence - 1
+    assert career.inbox[-1].subject == "The club is in debt"
+    assert transfers.check_bid(cat, career, target, 10).startswith("The club is 10k in debt")
+    salaries = {pid: career.players[pid].contract.salary for pid in team.roster if career.players[pid].contract}
+    morale = {pid: career.players[pid].morale for pid in team.roster}
+    team.cash = -finances.deep_debt(career) - 10
+    finances.weekly(cat, career, Rng(career))
+    assert career.board.confidence == confidence - 3, "deep debt costs two a week"
+    assert career.inbox[-1].subject == "The board cuts wages"
+    for pid, salary in salaries.items():
+        assert career.players[pid].contract.salary <= salary * 0.9 + 5
+        assert career.players[pid].morale == max(0, morale[pid] - finances.CUT_MORALE)
+    cut = dict((pid, career.players[pid].contract.salary) for pid in salaries)
+    finances.weekly(cat, career, Rng(career))
+    assert all(career.players[pid].contract.salary == cut[pid] for pid in cut), "no second cut within eight weeks"
+    team.cash = 5
+    finances.weekly(cat, career, Rng(career))
+    assert not career.board.in_debt and career.inbox[-1].subject == "The club is out of debt"

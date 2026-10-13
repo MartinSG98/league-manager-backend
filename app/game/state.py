@@ -371,6 +371,8 @@ class BoardState(BaseModel):
     sacked: bool = False
     joined: date | None = None  # when the manager took this job
     history: list[str] = []  # the board's reviews, newest last
+    in_debt: bool = False  # the bank is below zero and the board has said so
+    wage_cut: date | None = None  # when the board last cut wages over the debt
 
 
 class TransferOffer(BaseModel):

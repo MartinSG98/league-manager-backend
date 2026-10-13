@@ -103,6 +103,10 @@ def check_can_talk(cat: Catalog, career: Career, pid: str) -> str | None:
         return "You have no club right now"
     if state.team not in (None, career.team) and transfers.agreed(career, pid) is None:
         return f"{cat.players[pid].name} is under contract with another team"
+    deal = transfers.agreed(career, pid)
+    if deal is not None and deal.fee > career.teams[career.team].cash:
+        return (f"The bank cannot pay the {deal.fee}k fee to {cat.teams[deal.seller].name}: it holds "
+                f"{career.teams[career.team].cash}k")
     if state.team != career.team:
         level, why = transfers.interest(cat, career, pid, career.team)
         if level == "refuses":
