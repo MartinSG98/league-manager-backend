@@ -40,6 +40,7 @@ class Champion:
     cls: str
     presence: float  # share of 2026 pro drafts it was picked or banned in, 0-100
     winrate: float
+    ult: str = ""  # the ultimate's name, for the match commentary
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,7 @@ def get_catalog() -> Catalog:
         champions[c["id"]] = Champion(
             id=c["id"], name=c["name"], roles=tuple(c["roles"]), focus=c["focus"], damage=c["damage"],
             cls=c["class"], presence=float(m.get("presence") or 0.0), winrate=float(m.get("winrate") or 50.0),
+            ult=c.get("ult", "").split(" / ")[0].rstrip("!"),  # one name, and the commentary adds the "!"
         )
     champion_by_key = {champ_key(c.id): c.id for c in champions.values()} | {
         champ_key(c.name): c.id for c in champions.values()
