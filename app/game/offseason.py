@@ -25,7 +25,7 @@ what they had built for every new face in the lineup, and the new season is sche
 
 from collections import Counter
 
-from app.game import board, jobs, patches, reputation, retirement, rookies, roster, training, transfers
+from app.game import board, hiring, jobs, patches, reputation, retirement, rookies, roster, training, transfers
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
@@ -69,7 +69,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     career.history.append(summarise(cat, career))
     career.phase = "offseason"
     new_season = career.season + 1
-    retirement.retire(cat, career, career.season)
+    retired = retirement.retire(cat, career, career.season)
 
     for team in career.teams.values():
         for pid in expiring(career, team.id):
@@ -114,6 +114,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     retirement.announce(cat, career, rng, new_season)
     # Last, so nothing else in this call looks the new players up in a catalog that predates them.
     rookies.intake(cat, career, rng, new_season)
+    _new_staff_news(cat, career, hiring.new_faces(cat, career, rng, retired, new_season))
 
 
 def _staff_contracts(cat: Catalog, career: Career, rng: Rng, new_season: int) -> tuple[list[str], list[str]]:
@@ -129,7 +130,9 @@ def _staff_contracts(cat: Catalog, career: Career, rng: Rng, new_season: int) ->
             if state.contract and state.contract.until >= new_season:
                 continue
             name = cat.staff[sid].name
-            if team.id == career.team or rng.chance(0.65):
+            if team.id == career.team:
+                continue  # the manager's own staff are the manager's to extend (hiring.py)
+            if rng.chance(0.65):
                 salary = state.contract.salary if state.contract else cat.staff[sid].salary
                 state.contract = Contract(salary=salary, until=new_season + staffing.STAFF_YEARS - 1)
                 if team.id == career.team:
@@ -174,9 +177,17 @@ def _ai_keeps(cat: Catalog, career: Career, team_id: str, pid: str, rng: Rng) ->
     return rng.chance(max(0.05, min(0.9, chance)))
 
 
+def _new_staff_news(cat: Catalog, career: Career, made: list) -> None:
+    former = [f"{s.name} ({'coach' if s.kind == 'coach' else 'analyst'})" for s in made if s.former_player]
+    if former:
+        _message(career, "news", "Retired players turn to coaching",
+                 f"New on the staff market: {', '.join(former)}. Find them under Scouting.")
+
+
 def contract_warning(cat: Catalog, career: Career) -> None:
     """Tell the manager whose contracts run out on free agency day."""
     names = [cat.players[p].name for p in expiring(career, career.team) if p != career.teams[career.team].franchise]
+    names += [f"{cat.staff[s].name} ({hiring.SEAT_NAMES[cat.staff[s].kind]})" for s in hiring.expiring(career)]
     if names:
         _message(career, "contract", "Contracts ending",
                  f"These contracts end on {transfers.free_agency_day(career):%d %B}: {', '.join(names)}. Extend "

@@ -25,3 +25,4 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0017](0017-moving-money-between-the-salary-budget-and-the-bank.md) | Moving money between the salary budget and the bank | Accepted |
 | [0018](0018-debt-has-consequences.md) | Debt has consequences | Accepted |
 | [0019](0019-coaches-on-the-move.md) | Coaches on the move | Accepted |
+| [0020](0020-the-staff-market.md) | The staff market | Accepted |

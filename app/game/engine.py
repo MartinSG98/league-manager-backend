@@ -14,7 +14,7 @@ next season is scheduled. There is no draft after the first one."""
 from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
-from app.game import finances, jobs, rookies, shortlist, training, transfers
+from app.game import finances, hiring, jobs, rookies, shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
@@ -25,8 +25,8 @@ from app.game.state import (
     DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
     OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction,
     ScoutPlayerAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
-    ShortlistAction, SimSeriesAction, StaffState, StartDraftAction, TalkAction, TransferBidAction, TransferListAction,
-    WithdrawBidAction,
+    ShortlistAction, SimSeriesAction, StaffAcceptCounterAction, StaffOfferAction, StaffReleaseAction, StaffState,
+    StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
 
 FIRST_SEASON = 2027
@@ -333,8 +333,8 @@ def _hire_staff(cat: Catalog, career: Career) -> None:
              for kind, sid in (("coach", mine.coach), ("analyst", mine.analyst)) if sid]
     if names:
         message(career, "staff", "The board has hired your staff",
-                f"New this season: {' and '.join(names)}. Their salaries come on top of your budget. "
-                "When their contracts end, the board renews them.")
+                f"New this season: {' and '.join(names)}. Their salaries count against your budget. Extend them from "
+                "their page in their last season, or they leave when their contracts end.")
 
 
 _ALWAYS = (AcceptJobAction, ReadMessageAction)
@@ -403,6 +403,12 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         jobs.apply(cat, career, action.team, rng)
     elif isinstance(action, DeclineJobAction):
         jobs.decline(cat, career, action.team)
+    elif isinstance(action, StaffOfferAction):
+        hiring.offer(cat, career, action.staff, action.salary, action.years)
+    elif isinstance(action, StaffAcceptCounterAction):
+        hiring.accept_counter(cat, career, action.staff)
+    elif isinstance(action, StaffReleaseAction):
+        hiring.release(cat, career, action.staff)
     elif isinstance(action, SetTrainingAction):
         training.set_team(career, action.load, action.focus, action.play, action.clear_play)
     elif isinstance(action, SetPlayerTrainingAction):

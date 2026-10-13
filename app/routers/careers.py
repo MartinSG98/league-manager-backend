@@ -113,6 +113,22 @@ def player(save_id: str, player_id: str, session: Session = Depends(get_session)
     return views.player_detail(cat, career, player_id)
 
 
+@router.get("/{save_id}/staff")
+def staff(save_id: str, kind: str | None = None, region: str | None = None, free_only: bool = False,
+          limit: int = Query(200, le=1000), session: Session = Depends(get_session)) -> list[dict]:
+    _, career = _load(session, save_id)
+    return views.staff_search(_cat(career), career, kind, region, free_only, limit)
+
+
+@router.get("/{save_id}/staff/{staff_id}")
+def staff_member(save_id: str, staff_id: str, session: Session = Depends(get_session)) -> dict:
+    _, career = _load(session, save_id)
+    cat = _cat(career)
+    if staff_id not in cat.staff:
+        raise HTTPException(404, "No such staff member")
+    return views.staff_detail(cat, career, staff_id)
+
+
 @router.get("/{save_id}/competitions")
 def competitions(save_id: str, session: Session = Depends(get_session)) -> list[dict]:
     _, career = _load(session, save_id)

@@ -600,6 +600,9 @@ def open_window(cat: Catalog, career: Career) -> None:
 
 def open_free_agency(cat: Catalog, career: Career) -> None:
     """Contracts that ended with the season run out."""
+    from app.game import hiring
+
+    hiring.contracts_run_out(cat, career)
     gone = []
     for team in career.teams.values():
         for pid in list(team.roster):

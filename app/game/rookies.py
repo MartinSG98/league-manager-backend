@@ -18,7 +18,8 @@ from dataclasses import replace
 from app.game import ratings
 from app.game.catalog import ROLES, Catalog, ChampionRecord, Player
 from app.game.rng import Rng
-from app.game.state import Career, InboxMessage, PlayerState, Rookie
+from app.game.staff import Staff
+from app.game.state import Career, CareerStaff, InboxMessage, PlayerState, Rookie
 
 # (share of a class, lowest potential, highest potential, label) -- the labels never reach the client.
 CLASSES = (
@@ -56,13 +57,18 @@ def is_rookie(pid: str) -> bool:
 
 
 def catalog_for(cat: Catalog, career: Career) -> Catalog:
-    """The shared catalog with this career's rookies added. The shared one is never changed."""
-    if not career.rookies:
+    """The shared catalog with this career's rookies and new staff added. The shared one is never changed."""
+    players = {r.id: _player(r) for r in career.rookies if r.id not in cat.players}
+    staff = {s.id: _staff(s) for s in career.new_staff if s.id not in cat.staff}
+    if not players and not staff:
         return cat
-    extra = {r.id: _player(r) for r in career.rookies if r.id not in cat.players}
-    if not extra:
-        return cat
-    return replace(cat, players={**cat.players, **extra})
+    return replace(cat, players={**cat.players, **players} if players else cat.players,
+                   staff={**cat.staff, **staff} if staff else cat.staff)
+
+
+def _staff(s: CareerStaff) -> Staff:
+    return Staff(id=s.id, name=s.name, kind=s.kind, position=s.position, region=s.region, team=None,
+                 country=s.country, attributes=dict(s.attributes), overall=s.overall, salary=s.salary)
 
 
 def _player(r: Rookie) -> Player:
