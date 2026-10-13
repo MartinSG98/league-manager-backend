@@ -70,6 +70,8 @@ def add(cat: Catalog, career: Career, pid: str) -> Shortlisted:
     name = cat.players[pid].name
     if career.players[pid].team == career.team:
         raise IllegalAction(f"{name} already plays for you")
+    if career.players[pid].retired:
+        raise IllegalAction(f"{name} has retired")
     found = entry(career, pid)
     if found:
         return found

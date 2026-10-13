@@ -95,6 +95,8 @@ def check_can_talk(cat: Catalog, career: Career, pid: str) -> str | None:
     if pid not in cat.players:
         return "Unknown player"
     state = career.players[pid]
+    if state.retired:
+        return f"{cat.players[pid].name} has retired"
     if career.live is not None:
         return "Not during a match"
     if career.board.sacked:

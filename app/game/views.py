@@ -7,7 +7,7 @@ from app.game import board as boardroom
 from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
-from app.game import matchday, patches, reputation, roster, shortlist, training, transfers
+from app.game import matchday, patches, reputation, rookies, roster, shortlist, training, transfers
 from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog, Player
@@ -59,6 +59,9 @@ def player_row(cat: Catalog, career: Career, pid: str) -> dict:
         "fatigue": state.fatigue,
         "sharpness": state.sharpness,
         "status": training.condition_labels(state),
+        "rookie": rookies.is_rookie(pid),
+        "retiring": state.retiring,  # the season they said will be their last
+        "retired": state.retired,
     }
 
 
@@ -342,13 +345,15 @@ def squad_view(cat: Catalog, career: Career, team_id: str | None = None) -> dict
 
 
 def players_search(cat: Catalog, career: Career, region: str | None, free_agents: bool, role: str | None,
-                   limit: int) -> list[dict]:
+                   limit: int, rookies_only: bool = False) -> list[dict]:
     rows = []
     for p in cat.players.values():
         state = career.players[p.id]
         if region and cat.leagues[p.league].region != region:
             continue
-        if free_agents and state.team is not None:
+        if state.retired or (free_agents and state.team is not None):
+            continue
+        if rookies_only and not rookies.is_rookie(p.id):
             continue
         if role and p.role != role:
             continue

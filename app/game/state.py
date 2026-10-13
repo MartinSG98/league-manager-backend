@@ -57,6 +57,9 @@ class PlayerState(BaseModel):
     training: PlayerTraining = PlayerTraining()
     unsettled: bool = False  # wants to leave
     promise: int | None = None  # season in which the manager promised to let them go for a big offer
+    played: int = 0  # games in the seasons of this career before the current one
+    retiring: int | None = None  # the season they have said will be their last
+    retired: bool = False
 
 
 class Tactics(BaseModel):
@@ -385,6 +388,27 @@ class TransferOffer(BaseModel):
     note: str = ""
 
 
+class Rookie(BaseModel):
+    """A player the game made up: one of a season's rookie class (see rookies.py)."""
+    id: str
+    name: str
+    role: Role
+    country: str | None
+    league: str  # the league of the academy or ERL they came through, or of their region
+    team: str  # their team of origin, "" when they came straight from solo queue
+    season: int  # the season they turned pro for
+    experience: int
+    attributes: dict[str, int]
+    overall: int
+    potential: int  # the scouts' first estimate; the real ceiling is hidden like everyone's
+    aggression: int
+    leadership: int
+    reputation: int
+    salary: int
+    pool: list[tuple[str, int]]  # champion, games
+    signatures: list[str] = []
+
+
 class Shortlisted(BaseModel):
     """A player on the manager's shortlist."""
     player: str
@@ -440,6 +464,7 @@ class Career(BaseModel):
     next_offer: int = 1
     reviewed_games: int = 0  # the manager's games the analyst had seen at the last review
     shortlist: list[Shortlisted] = []
+    rookies: list[Rookie] = []  # every rookie class so far, oldest first
 
 
 # ---------- actions the client can post ----------

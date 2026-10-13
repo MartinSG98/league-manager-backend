@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.game import board, engine, match_engine, reputation, roster, shortlist, training, transfers
+from app.game import board, engine, match_engine, reputation, rookies, roster, shortlist, training, transfers
 from app.game import plays as set_plays
 from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
@@ -393,10 +393,12 @@ def test_the_window_closes_into_a_new_season_with_full_lineups(window):
         assert (career.day - before).days <= 7, "Continue moves through the window a week at a time"
     assert career.phase == "season" and career.matches
     assert career.day == closes
+    assert any(s.played for s in career.players.values()), "last season's games count towards careers"
+    mine = rookies.catalog_for(cat, career)  # rookies who signed are in lineups too
     for team in career.teams.values():
         assert set(team.lineup) == set(ROLES), team.id
         for role, pid in team.lineup.items():
-            assert career.players[pid].team == team.id and cat.players[pid].role == role
+            assert career.players[pid].team == team.id and mine.players[pid].role == role
     # Nobody plays for two clubs, and every rostered player has a contract.
     seen = set()
     for team in career.teams.values():
