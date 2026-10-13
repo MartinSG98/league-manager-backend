@@ -5,12 +5,15 @@ it out and retire when it ends: they leave their team, become nobody's free agen
 searches, the market and shortlists.
 
 The data has no ages, so a career age stands in: a debut at about 18 and some 90 games a year
-before the game started, then a year for every season played in it, give or take two years. That
-puts Faker around 30 and a rookie at 18. The chance of announcing grows with that age from 25
-(CHANCE); younger players only give up when they are going nowhere (rated below 60).
-A player still at the top (rated 85 or more) is half as likely to stop, and a legend who is still
-good after a thousand career games (a Faker, rated 80 or more) five times less likely; a veteran
-going nowhere (rated below 60) is twice as likely. The age is never shown: it is a stand-in, not a fact."""
+before the game started, counting no more than eight years of games, then a year for every season
+played in it, give or take two years. The cap matters for the stars of the LCK and LPL, who play
+far more than 90 games a year: counted in full, a 24-year-old with 800 games came out at 27. A rookie
+starts at 18. The chance of announcing grows with that age from 25 (CHANCE); younger players only
+give up when they are going nowhere (rated below 60).
+A player still among the best (rated 85 or more) does not stop before 30, and after that is a third
+as likely to. A good player (80 or more) is half as likely, and a legend still that good after a
+thousand career games (a Faker) five times less likely; a veteran going nowhere (rated below 60) is
+twice as likely. The age is never shown: it is a stand-in, not a fact."""
 
 from app.game import roster, transfers
 from app.game.catalog import Catalog
@@ -19,13 +22,15 @@ from app.game.state import Career, InboxMessage
 
 DATA_SEASON = 2026  # the season the catalog's career games run up to
 GAMES_A_YEAR = 90
+COUNTED_GAMES = 8 * GAMES_A_YEAR  # games past eight years' worth add no age: the busiest teams play far more
 DEBUT_AGE = 18
 # (career age from which, chance a season of announcing retirement)
 CHANCE = ((32, 0.50), (31, 0.35), (30, 0.25), (29, 0.16), (28, 0.10), (27, 0.06), (25, 0.03))
 YOUNG_QUIT = 0.01  # under 25 only a player going nowhere gives up
-STAR = 85  # rated this or better: half as likely to stop
-LEGEND_GAMES = 1000  # still rated LEGEND or better after this many career games: five times less likely
-LEGEND = 80
+STAR = 85  # rated this or better: does not stop before STAR_AGE, and a third as likely after it
+STAR_AGE = 30
+GOOD = 80  # rated this or better: half as likely to stop
+LEGEND_GAMES = 1000  # still GOOD after this many career games: five times less likely
 FADING = 60  # rated below this: twice as likely
 NOTABLE = 75  # reputation from which a retirement is news everywhere
 
@@ -35,7 +40,8 @@ def career_age(cat: Catalog, career: Career, pid: str) -> float:
     rookie = next((r for r in career.rookies if r.id == pid), None) if pid.startswith("r") else None
     debut = rookie.season if rookie else DATA_SEASON
     jitter = (fnv1a(f"{pid}|age") / 0xFFFFFFFF - 0.5) * 4
-    return max(17.0, DEBUT_AGE + player.experience / GAMES_A_YEAR + (career.season - debut) + jitter)
+    games = min(player.experience, COUNTED_GAMES)
+    return max(17.0, DEBUT_AGE + games / GAMES_A_YEAR + (career.season - debut) + jitter)
 
 
 def chance(cat: Catalog, career: Career, pid: str) -> float:
@@ -43,10 +49,14 @@ def chance(cat: Catalog, career: Career, pid: str) -> float:
     rating = roster.overall(cat, career, pid)
     if age < CHANCE[-1][0]:
         return YOUNG_QUIT if rating < FADING else 0.0
+    if rating >= STAR and age < STAR_AGE:
+        return 0.0  # still among the best: not yet
     base = next(p for start, p in CHANCE if age >= start)
-    if rating >= LEGEND and roster.career_games(cat, career, pid) >= LEGEND_GAMES:
+    if rating >= GOOD and roster.career_games(cat, career, pid) >= LEGEND_GAMES:
         base /= 5
     elif rating >= STAR:
+        base /= 3
+    elif rating >= GOOD:
         base /= 2
     elif rating < FADING:
         base *= 2

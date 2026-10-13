@@ -1,7 +1,7 @@
 # 0016. Retirements, announced a season ahead
 
 Date: 2026-10-13
-Status: Accepted
+Status: Accepted, amended 2026-10-13
 
 ## Context
 
@@ -18,6 +18,16 @@ The gol.gg data has no ages.
 - **News.** The manager hears about their own players, as player messages that stop Continue, and about players with a reputation of 75 or more.
 
 Career games now count the seasons played in the game (`PlayerState.played`), which development uses too: before, a player's career games never grew past their 2026 total plus the current season.
+
+## Amendment, 2026-10-13
+
+Two seasons into a career, LPL and LCK stars rated 88 to 93 (Knight, Elk, Gumayusi, Tian, RooKie) had retired at career ages of 26 to 30. Each had a chance of 1 to 5 percent, but there are some 70 players rated 85 or more, so a few went every year. Their career ages were also too high: the best teams play far more than 90 games a year, so a 24-year-old with 800 games came out at 27. Against the birth years of 37 well-known players, career games barely predict age at all past a few hundred games.
+
+- Career games count towards the age up to eight years' worth (720 games) and no further.
+- A player rated 85 or more does not announce before a career age of 30, and is a third as likely to after it (it was half).
+- A player rated 80 or more is half as likely to announce (before, only 85 or more counted).
+
+Expected announcements among players rated 85 or more fall from about 1 to 2.7 a season to almost none before 2030, and among those rated 78 to 84 by about a third. Retirements further down the ratings are unchanged.
 
 ## Consequences
 
