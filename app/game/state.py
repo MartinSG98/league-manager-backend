@@ -469,6 +469,7 @@ class Career(BaseModel):
     version: int = 1
     rs: int
     seed: int = 0  # fixed at creation, for hidden values that must never change
+    schedules_drawn: bool = False  # round robins are drawn at random; older saves had one fixed order
     manager: str
     team: str
     region: str
