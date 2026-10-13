@@ -101,6 +101,8 @@ class TeamState(BaseModel):
     plays: dict[str, float] = {}  # set play -> 0..100 learned
     training: Training = Training()
     listed: list[str] = []  # players the team would sell
+    expected: int = 0  # where its reputation ranked it in its league when the season started, 0 before
+    coach_since: date | None = None  # when the coach in the seat was appointed, None from the first draft
 
 
 class DraftPick(BaseModel):
@@ -375,6 +377,17 @@ class BoardState(BaseModel):
     wage_cut: date | None = None  # when the board last cut wages over the debt
 
 
+class Vacancy(BaseModel):
+    """An AI club looking for a head coach (see jobs.py)."""
+
+    team: str
+    opened: date
+    closes: date  # the club appoints someone if nothing else happened by then
+    offer_until: date | None = None  # an offer to the manager is open until then
+    applied: bool = False
+    declined: bool = False  # the manager turned it down or let it lapse
+
+
 class TransferOffer(BaseModel):
     """A bid for a player under contract: an AI club bidding for the manager's player, or the
     manager bidding for someone else's."""
@@ -462,6 +475,7 @@ class Career(BaseModel):
     manager_reputation: float = 0  # 0..100, what other clubs think of the manager
     board: BoardState = BoardState()
     job_offers: list[str] = []  # clubs that want the manager after a sacking
+    vacancies: list[Vacancy] = []  # AI clubs looking for a head coach
     offers: list[TransferOffer] = []
     conversations: list[Conversation] = []
     transfers: list[dict] = []  # completed moves this window, newest last
@@ -583,7 +597,17 @@ class BoardMeetingAction(BaseModel):
 
 
 class AcceptJobAction(BaseModel):
-    type: Literal["accept_job"]
+    type: Literal["accept_job"]  # after a sacking, or an offer from a club looking for a head coach
+    team: str
+
+
+class ApplyJobAction(BaseModel):
+    type: Literal["apply_job"]
+    team: str
+
+
+class DeclineJobAction(BaseModel):
+    type: Literal["decline_job"]
     team: str
 
 
@@ -660,6 +684,6 @@ Action = Annotated[
     | NextGameAction | SimSeriesAction | ReadMessageAction | OfferAction | AcceptCounterAction | ReleaseAction
     | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
     | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
-    | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction,
+    | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction | ApplyJobAction | DeclineJobAction,
     Field(discriminator="type"),
 ]

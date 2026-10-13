@@ -7,7 +7,7 @@ from app.game import board as boardroom
 from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
-from app.game import finances, matchday, patches, reputation, rookies, roster, shortlist, training, transfers
+from app.game import finances, jobs, matchday, patches, reputation, rookies, roster, shortlist, training, transfers
 from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog, Player
@@ -636,6 +636,8 @@ def board_view(cat: Catalog, career: Career) -> dict:
               "stars": reputation.stars(reputation.team_reputation(cat, career, t.id))}
              for t in cat.league_teams(career.league)), key=lambda r: -r["reputation"]),
         "job_offers": [_job_offer(cat, career, t) for t in career.job_offers],
+        "vacancies": jobs.view(cat, career),
+        "reach": jobs.reach(career),
         "star_reach": reputation.STAR_REACH,
         "thresholds": {"warning": boardroom.WARNING, "safe": boardroom.SAFE},
     }

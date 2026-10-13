@@ -98,7 +98,9 @@ Actions are JSON objects tagged by `type`:
 | `release` | `player` | Let a player go, paying half the rest of the contract |
 | `next_season` | | In the off-season, skip to the new season; unanswered bids lapse |
 | `board_meeting` | `stances` (objective id to -1, 0 or 1) | When the board is waiting to meet you |
-| `accept_job` | `team` | After a sacking, take one of the offers |
+| `accept_job` | `team` | After a sacking, take one of the offers; or take a club's offer while you have a club |
+| `apply_job` | `team` | Apply to a club looking for a head coach |
+| `decline_job` | `team` | Turn a club's offer down |
 | `set_training` | `load`, `focus`, `play`, `clear_play` (all optional) | Any time |
 | `set_player_training` | `player`, `attribute`, `champion` | Any time, for one of your players |
 | `set_play` | `play` (or none) | After champion select, before the game |
@@ -213,6 +215,7 @@ The coach's misjudgements are fixed for each person, so a coach always over- or 
 - **Bonuses.** First Stand and MSI are not objectives but bonuses: qualifying for First Stand is worth 4 confidence and reaching its final 3 more; qualifying for MSI 4, its semi-finals 3 and its final 3 more. Each also adds a point of manager reputation and a sponsor payment of 3 to 5 percent of the salary budget. Missing them costs nothing.
 - **Reviews.** Below 22 after a review, the board warns you; the next review still below 22 is the sack. Back above 35 lifts the warning. Nobody is warned in their first 75 days at a club.
 - **Reputation.** A team's reputation starts at the organisation's prestige and moves with results: +3 for a domestic title, +1.5 for a final, -1.5 for the bottom two, up to +12 for winning Worlds. Every off-season it drifts a tenth of the way back to prestige. Stars are (reputation - 50) / 10, in half stars. The manager starts at 0.6 x the club's reputation + 28 and gains with objectives and titles; a sacking costs 8. A sacked manager gets offers from three clubs at most one and a half stars above their own reputation.
+- **Coaches on the move.** An AI club's coach stands in for its head coach. Each club is expected to finish where its reputation ranked it in its league when the season started, and to reach Worlds when that rank is within its region's slots. After the season it weighs each split (a place of grace, then a point for every place lower) and a missed Worlds (three points): the chance to sack the coach is 4 percent a point, plus 35 for a missed Worlds, at most 85, and a third of that for a coach in the job less than four months. After a split, a favourite (expected in the top three) four or more places lower sacks its coach 30 percent of the time. A vacancy stays open two weeks. A club within your reach (up to 1.5 stars above your reputation) and about as big as yours approaches you 40 percent of the time plus 10 a star of room; you can also apply anywhere: out of reach is a no, in reach an offer 35 percent of the time plus 25 a star of room, otherwise the club appoints someone else. An offer is open a week; taking it moves you to the new club with a new board ([ADR 0019](docs/adr/0019-coaches-on-the-move.md)).
 
 **The transfer window.** It runs from the day after the Worlds final to January 16th, and Continue stops at least once a week.
 - **Value.** A player's market value is the salary their rating and reputation command, times 0.5 plus 0.55 per season left on the contract, plus a share for room to grow. The selling club asks 1.3 times that for a starter, 0.85 for a bench player, 1.25 more for its only player in a role and 0.8 for a listed or unsettled one. A franchise player is not for sale.
@@ -293,6 +296,7 @@ app/
     ├── transfers.py  the transfer window, fees, AI clubs' market, players who want to talk
     ├── offseason.py  the end of a season, development and the start of the next one
     ├── board.py      objectives, the meeting, confidence, the sack and new jobs
+    ├── jobs.py       AI clubs sacking coaches, vacancies, offers and applications
     ├── finances.py   moving money between the salary budget and the bank
     ├── reputation.py team and manager reputation, stars, sponsors
     ├── training.py   loads, team areas, players' own training, growth, the analyst's review

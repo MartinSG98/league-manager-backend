@@ -14,18 +14,19 @@ next season is scheduled. There is no draft after the first one."""
 from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
-from app.game import finances, rookies, shortlist, training, transfers
+from app.game import finances, jobs, rookies, shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptCounterAction, AcceptJobAction, Action, AdjustBudgetAction, AdvanceAction, AutoSelectAction, BanAction,
-    BoardMeetingAction, Career, DraftAutoAction, DraftNextAction, DraftPassAction, DraftPickAction, DraftSimAction,
-    DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction, OpponentTurnAction, PickAction,
-    PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction, SetLineupAction, SetPlayAction,
-    ScoutPlayerAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction, ShortlistAction, SimSeriesAction,
-    StaffState, StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
+    AcceptCounterAction, AcceptJobAction, Action, AdjustBudgetAction, AdvanceAction, ApplyJobAction, AutoSelectAction,
+    BanAction, BoardMeetingAction, Career, DeclineJobAction, DraftAutoAction, DraftNextAction, DraftPassAction,
+    DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
+    OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction,
+    ScoutPlayerAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
+    ShortlistAction, SimSeriesAction, StaffState, StartDraftAction, TalkAction, TransferBidAction, TransferListAction,
+    WithdrawBidAction,
 )
 
 FIRST_SEASON = 2027
@@ -100,6 +101,7 @@ def _maybe_finish_draft(cat: Catalog, career: Career, rng: Rng) -> None:
 def start_season(cat: Catalog, career: Career) -> None:
     career.phase = "season"
     calendar.create_season(cat, career)
+    jobs.set_expectations(cat, career)
     career.meta.next_patch = patches.first_patch_day(career.season)
     for team in career.teams.values():
         if team.id != career.team:
@@ -123,6 +125,7 @@ def _daily(cat: Catalog, career: Career, rng: Rng) -> None:
     if career.phase == "offseason":
         transfers.daily(cat, career, rng)
     shortlist.daily(cat, career)
+    jobs.daily(cat, career)
     if career.day.weekday() == 0:
         _weekly(cat, career, rng)
 
@@ -230,6 +233,8 @@ def _worth_stopping(career: Career, inbox_before: int) -> bool:
         if msg.kind in ("news", "board") and (" is set" in msg.subject or " win the " in msg.subject):
             return True
         if msg.kind == "draw":
+            return True
+        if msg.kind == "board" and msg.subject.startswith("Job offer"):
             return True
         if msg.kind == "board" and ("losing patience" in msg.subject or "sacked" in msg.subject):
             return True
@@ -390,7 +395,14 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     elif isinstance(action, BoardMeetingAction):
         board.hold_meeting(cat, career, action.stances)
     elif isinstance(action, AcceptJobAction):
-        board.accept_job(cat, career, action.team)
+        if career.board.sacked:
+            board.accept_job(cat, career, action.team)
+        else:
+            jobs.take(cat, career, action.team)
+    elif isinstance(action, ApplyJobAction):
+        jobs.apply(cat, career, action.team, rng)
+    elif isinstance(action, DeclineJobAction):
+        jobs.decline(cat, career, action.team)
     elif isinstance(action, SetTrainingAction):
         training.set_team(career, action.load, action.focus, action.play, action.clear_play)
     elif isinstance(action, SetPlayerTrainingAction):
