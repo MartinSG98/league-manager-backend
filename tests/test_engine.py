@@ -530,3 +530,29 @@ def test_the_next_season_cannot_start_early(drafted):
     career = drafted.model_copy(deep=True)
     with pytest.raises(IllegalAction):
         engine.apply(cat, career, NextSeasonAction(type="next_season"))
+
+
+def test_two_teams_calling_the_same_play_clash_once(drafted):
+    career = drafted.model_copy(deep=True)
+    career.teams["G2"].plays["dive"] = 100.0
+    career.teams["FNC"].plays["dive"] = 40.0
+    select = ChampSelect()
+    sides = matchday.draft_sides(cat, career, "G2", "FNC")
+    cs.run_ai(cat, career, select, sides, Rng(career), human=None)
+    blue_wins = even = 0
+    for seed in range(60):
+        career.rs = seed
+        blue = match_engine.prepare(cat, career, "blue", "G2", sides["blue"].lineup, dict(select.blue_picks),
+                                    sides["blue"].tactics, play="dive")
+        red = match_engine.prepare(cat, career, "red", "FNC", sides["red"].lineup, dict(select.red_picks),
+                                   sides["red"].tactics, play="dive")
+        result = match_engine.simulate(cat, career, blue, red, Rng(career), 1, ([], []))
+        plays = [e for e in result.events if e.kind == "play"]
+        assert len(plays) == 1 and plays[0].text.startswith("Set play clash, Tower dive")
+        outcome = result.record.play_results
+        if outcome["G2"] == outcome["FNC"]:
+            even += 1
+            assert not outcome["G2"], "a clash that cancels out works for nobody"
+        else:
+            blue_wins += outcome["G2"]
+    assert blue_wins > (60 - even) * 0.7, "the better prepared team wins most clashes"

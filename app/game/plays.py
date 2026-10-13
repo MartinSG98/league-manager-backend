@@ -8,7 +8,12 @@ works, giving the edge it is built for, or backfires.
 How likely a play is to work: 30 percent, plus up to 45 for how well it is learned, plus the
 team's skill in the area behind it (+2.5 percent a point above 10), minus the opponent's in the
 same area, plus how well it suits the composition: early plays want an early composition,
-the split push wants a scaling one."""
+the split push wants a scaling one.
+
+When both sides call the same play they run into each other (match_engine.Game.clash): one fight
+instead of two plays. Two sides about as likely to make it work cancel each other out 35 percent of
+the time; otherwise the side likelier to make it work is likelier to win it, by 1.5 percent per
+point of difference, and the winner takes a big swing, such as a 4 for 0 when two tower dives meet."""
 
 from dataclasses import dataclass
 from typing import Literal
