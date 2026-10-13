@@ -87,6 +87,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     grant = 0
     for team in career.teams.values():
         team.budget = board.season_budget(cat, career, team.id)
+        team.budget_moved = 0
         amount = board.transfer_grant(cat, career, team.id)
         team.cash += amount
         if team.id == career.team:

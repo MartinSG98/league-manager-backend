@@ -4,15 +4,15 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.game import board, engine, match_engine, reputation, rookies, roster, shortlist, training, transfers
+from app.game import board, engine, finances, match_engine, reputation, rookies, roster, shortlist, training, transfers
 from app.game import plays as set_plays
 from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
 from app.game.state import (
-    AcceptJobAction, AdvanceAction, AutoSelectAction, BoardMeetingAction, Competition, DraftNextAction, DraftSimAction,
-    OfferAction, PlayGameAction, RespondOfferAction, ScoutPlayerAction, SetPlayAction, SetPlayerTrainingAction,
-    SetTrainingAction, ShortlistAction, TalkAction, TransferBidAction, TransferListAction,
+    AcceptJobAction, AdjustBudgetAction, AdvanceAction, AutoSelectAction, BoardMeetingAction, Competition,
+    DraftNextAction, DraftSimAction, OfferAction, PlayGameAction, RespondOfferAction, ScoutPlayerAction, SetPlayAction,
+    SetPlayerTrainingAction, SetTrainingAction, ShortlistAction, TalkAction, TransferBidAction, TransferListAction,
 )
 
 cat = get_catalog()
@@ -483,3 +483,40 @@ def test_the_shortlist_follows_moves_and_drops_your_own_players(drafted):
     assert shortlist.entry(career, b) is None and shortlist.entry(career, a)
     engine.apply(cat, career, ShortlistAction(type="shortlist", player=a, on=False))
     assert career.shortlist == []
+
+
+def test_moving_money_between_the_bank_and_the_salary_budget_is_worth_the_weeks_left(drafted):
+    career = drafted.model_copy(deep=True)
+    team = career.teams[career.team]
+    budget, cash = team.budget, team.cash
+    lim = finances.limits(career)
+    assert lim.high >= budget + 100
+    bonus = career.board.bonuses[0] if career.board.bonuses else None
+    paid = board.bonus_payment(career, bonus) if bonus else None
+    engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=budget + 100))
+    assert team.budget == budget + 100 and team.budget_moved == -100
+    assert team.cash == cash - round(100 * lim.weeks / 52)
+    if bonus:
+        assert board.bonus_payment(career, bonus) == paid, "bonuses go by the budget the board set"
+    engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=budget))
+    assert (team.budget, team.cash, team.budget_moved) == (budget, cash, 0), "moving it back gives the same"
+
+
+def test_the_budget_stays_between_the_contracts_and_what_the_bank_can_pay(drafted):
+    career = drafted.model_copy(deep=True)
+    lim = finances.limits(career)
+    assert lim.low <= career.teams[career.team].budget <= lim.high
+    for budget in (lim.low - 10, lim.high + 10):
+        with pytest.raises(IllegalAction):
+            engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=budget))
+    engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=lim.high))
+    assert career.teams[career.team].cash >= 0
+
+
+def test_the_budget_is_moved_after_the_draft_and_a_new_one_runs_a_full_year(window):
+    career = engine.new_career(cat, "Tester", "T1", 3)
+    engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=career.teams["T1"].budget - 10))
+    assert finances.limits(window).weeks == 52
+    assert all(t.budget_moved == 0 for t in window.teams.values())
