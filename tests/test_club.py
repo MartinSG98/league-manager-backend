@@ -253,7 +253,7 @@ def test_closing_out_games_makes_throws_rarer():
 
 def test_set_plays_run_once_a_series_and_show_in_the_record(drafted):
     career = drafted.model_copy(deep=True)
-    for _ in range(40):
+    for _ in range(60):
         if career.live:
             break
         engine.apply(cat, career, AdvanceAction(type="advance"))
@@ -381,7 +381,7 @@ def test_the_window_closes_into_a_new_season_with_full_lineups(window):
     career = window
     closes = transfers.closing_day(career)
     assert closes == date(career.season + 1, 1, 16)
-    for _ in range(80):
+    for _ in range(120):
         if career.phase != "offseason":
             break
         for offer in [o for o in career.offers if o.seller == career.team and o.status == "open"]:
@@ -390,7 +390,7 @@ def test_the_window_closes_into_a_new_season_with_full_lineups(window):
             engine.apply(cat, career, TalkAction(type="talk", conversation=talk.id, choice="final"))
         before = career.day
         engine.apply(cat, career, AdvanceAction(type="advance"))
-        assert (career.day - before).days <= 7, "Continue moves through the window a week at a time"
+        assert (career.day - before).days == 1, "Continue moves through the window a day at a time"
     assert career.phase == "season" and career.matches
     assert career.day == closes
     assert any(s.played for s in career.players.values()), "last season's games count towards careers"

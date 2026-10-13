@@ -178,7 +178,7 @@ def test_a_better_analyst_writes_a_fuller_scouting_report(drafted):
 
 def test_a_match_day_brings_a_scouting_report(drafted):
     career = drafted.model_copy(deep=True)
-    for _ in range(20):
+    for _ in range(60):
         engine.apply(cat, career, AdvanceAction(type="advance"))
         if career.live:
             break

@@ -75,7 +75,7 @@ def test_a_career_from_draft_to_a_played_game(client):
     squad = client.get(f"/api/careers/{save}/squad").json()
     assert len(squad["lineup"]) == 5
 
-    for _ in range(20):
+    for _ in range(60):
         career = act(client, save, {"type": "advance"})["career"]
         if career["live"]:
             break

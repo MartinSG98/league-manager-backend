@@ -1,7 +1,7 @@
 # 0013. A transfer window instead of a yearly draft
 
 Date: 2026-10-12
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -27,3 +27,7 @@ Money now works like this:
 ## Consequences
 
 Rosters change between seasons through moves that make sense: bigger clubs take the best players from smaller ones, and a strong player at a weak club is hard to keep. The manager's off-season has decisions with a cost: sell to buy, keep an upset player or cash in. ADR 0006's draft now only happens once per career. Budgets are set by the board from the region's going rate and the club's reputation instead of from a draft pool. Saves made at the end of a season under the old rules open the window on their next action.
+
+## Amendment, 2026-10-14
+
+Continue now moves one day at a time, in the window as in the season, the way Football Manager does. It used to run on until the manager's next match, or through the window until a message about a transfer, a player, the board, a contract or staff arrived, and at the latest to the next Monday. The manager found that messages flew past unread. The client now opens unread messages one at a time before it moves the calendar.
