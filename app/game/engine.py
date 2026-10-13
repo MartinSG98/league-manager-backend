@@ -14,6 +14,7 @@ next season is scheduled. There is no draft after the first one."""
 from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
+from app.game import competitions as comps
 from app.game import finances, hiring, jobs, rookies, shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
@@ -50,6 +51,7 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
     career = Career(
         rs=seed & 0xFFFFFFFF,
         seed=(seed & 0xFFFFFFFF) or 1,
+        schedules_drawn=True,
         manager=manager.strip() or "Manager",
         team=team_id,
         region=team.region,
@@ -278,6 +280,20 @@ def skip_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
 # ---------- actions ----------
 
 
+def _redraw_schedules(career: Career) -> None:
+    """Older saves drew every round robin in the same fixed order: draw the ones not started yet again."""
+    for comp in career.competitions.values():
+        if comp.status != "upcoming":
+            continue
+        for stage in comp.stages:
+            if stage.kind != "round_robin" or not stage.matches or any(career.matches[m].winner for m in stage.matches):
+                continue
+            for mid in stage.matches:
+                career.matches.pop(mid, None)
+            days, stage.matches = stage.days, []
+            comps.build_round_robin(career, comp, stage, comp.start, days[-1], days=days)
+
+
 def migrate(cat: Catalog, career: Career) -> bool:
     """Bring a career saved by an older version up to date. Returns True when anything changed.
 
@@ -286,6 +302,10 @@ def migrate(cat: Catalog, career: Career) -> bool:
     board: every team gets its team areas and set plays, reputations start at prestige and the
     board meets the manager about the season's objectives."""
     changed = False
+    if not career.schedules_drawn:
+        _redraw_schedules(career)
+        career.schedules_drawn = True
+        changed = True
     if len(career.staff) < len(cat.staff):
         for sid in cat.staff:
             career.staff.setdefault(sid, StaffState(id=sid))

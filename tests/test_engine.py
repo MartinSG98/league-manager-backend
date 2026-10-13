@@ -556,3 +556,32 @@ def test_two_teams_calling_the_same_play_clash_once(drafted):
         else:
             blue_wins += outcome["G2"]
     assert blue_wins > (60 - even) * 0.7, "the better prepared team wins most clashes"
+
+
+def test_every_split_draws_its_own_schedule(drafted):
+    def opening_week(comp):
+        stage = comp.stages[0]
+        return frozenset(frozenset((drafted.matches[m].home, drafted.matches[m].away))
+                         for m in stage.matches if drafted.matches[m].day == stage.days[0])
+
+    splits = [drafted.competitions[f"{drafted.season}-LEC-{s}"] for s in (1, 2, 3)]
+    assert len({opening_week(c) for c in splits}) > 1, "the same opening week every split"
+    for comp in splits:
+        stage = comp.stages[0]
+        meetings = Counter(frozenset((drafted.matches[m].home, drafted.matches[m].away)) for m in stage.matches)
+        n = len(stage.teams)
+        assert len(meetings) == n * (n - 1) // 2 and set(meetings.values()) == {stage.rounds}
+
+
+def test_an_old_save_redraws_only_the_schedules_not_started(drafted):
+    career = drafted.model_copy(deep=True)
+    first = career.competitions[f"{career.season}-LEC-1"]
+    second = career.competitions[f"{career.season}-LEC-2"]
+    first.status = "running"
+    played = dict((m, career.matches[m].model_copy()) for m in first.stages[0].matches)
+    days, count = list(second.stages[0].days), len(second.stages[0].matches)
+    career.schedules_drawn = False
+    engine.migrate(cat, career)
+    assert career.schedules_drawn
+    assert all(career.matches[m] == played[m] for m in played), "a split under way keeps its schedule"
+    assert second.stages[0].days == days and len(second.stages[0].matches) == count

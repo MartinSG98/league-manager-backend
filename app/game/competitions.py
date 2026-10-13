@@ -6,8 +6,9 @@ competition moves on to the next stage or finishes."""
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import date, timedelta
+from types import SimpleNamespace
 
-from app.game.rng import Rng
+from app.game.rng import Rng, fnv1a
 from app.game.state import Career, Competition, Match, Stage
 
 # ---------- days ----------
@@ -72,12 +73,19 @@ def _circle(teams: list[str]) -> list[list[tuple[str, str]]]:
     return rounds
 
 
-def build_round_robin(career: Career, comp: Competition, stage: Stage, start: date, end: date) -> None:
+def build_round_robin(career: Career, comp: Competition, stage: Stage, start: date, end: date,
+                      days: list[date] | None = None) -> None:
+    """Every team meets every other `stage.rounds` times, in a draw of its own: who meets whom in which
+    week, and who is at home, changes with every split and season. Playoffs stay seeded brackets."""
+    rng = Rng(SimpleNamespace(rs=fnv1a(f"{career.seed}|{stage.id}")))
     groups = stage.groups or [stage.teams]
-    per_group = [_circle(g) for g in groups]
+    per_group = []
+    for group in groups:
+        rounds = rng.shuffle(_circle(rng.shuffle(group)))
+        per_group.append([[(a, b) if rng.chance(0.5) else (b, a) for a, b in pairs] for pairs in rounds])
     base_rounds = max(len(r) for r in per_group)
     total = base_rounds * stage.rounds
-    days = spread_days(start, end, total)
+    days = days or spread_days(start, end, total)
     stage.days = days
     for leg in range(stage.rounds):
         for r in range(base_rounds):
