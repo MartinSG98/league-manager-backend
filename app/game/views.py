@@ -399,6 +399,7 @@ def _stage_view(cat: Catalog, career: Career, stage: Stage) -> dict:
         "id": stage.id, "name": stage.name, "kind": stage.kind, "finished": stage.finished,
         "best_of": stage.best_of, "advance": stage.advance, "tables": tables, "matches": matches,
         "swiss_wins": comps.SWISS_WINS if stage.kind == "swiss" else None,
+        "pots": [[team_ref(cat, t) for t in pot] for pot in stage.pots],
     }
 
 

@@ -90,6 +90,16 @@ INTERNATIONALS = (
 
 PRIZE_SHARE = (0.30, 0.17, 0.10, 0.10, 0.05, 0.05, 0.05, 0.05)
 
+# The Worlds Swiss pots, as (region, rank in region), the way Worlds 2024 drew them: the four big
+# regions' champions, their runners-up, the third and fourth LCK and LPL teams, then everyone else.
+# The first round draws pot 1 against pot 4 and pot 2 against pot 3.
+WORLDS_POTS = (
+    (("KR", 1), ("CN", 1), ("EMEA", 1), ("NA", 1)),
+    (("KR", 2), ("CN", 2), ("EMEA", 2), ("NA", 2)),
+    (("KR", 3), ("CN", 3), ("KR", 4), ("CN", 4)),
+    (("EMEA", 3), ("APAC", 1), ("APAC", 2), ("BR", 1)),
+)
+
 
 def _d(season: int, md: tuple[int, int]) -> date:
     return date(season, *md)
@@ -203,8 +213,11 @@ def create_international(cat: Catalog, career: Career, event: International, rng
         comp.stages.append(stage)
         comps.build_single_elim(career, comp, stage, [[date(season, 6, 26), date(season, 6, 27)]])
     else:
-        stage = Stage(id=f"{comp.id}-SW", name="Swiss stage", kind="swiss", teams=teams, best_of=1, advance=8,
-                      days=[date(season, 10, d) for d in (1, 3, 5, 8, 10)])
+        seat = {(r, n): t for r, n, t in qualified}
+        pots = [[seat[s] for s in pot] for pot in WORLDS_POTS]
+        # The pots also seed the stage: within a record, a team from a higher pot ranks first.
+        stage = Stage(id=f"{comp.id}-SW", name="Swiss stage", kind="swiss", teams=[t for pot in pots for t in pot],
+                      pots=pots, best_of=1, advance=8, days=[date(season, 10, d) for d in (1, 3, 5, 8, 10)])
         comp.stages.append(stage)
         region_of = {t: cat.teams[t].region for t in teams}
         comps.build_swiss_round(career, comp, stage, rng, region_of)
@@ -220,12 +233,14 @@ def _swiss_draw(cat: Catalog, career: Career, comp: Competition, stage: Stage) -
     """Tell the manager how the Swiss round just drawn pairs up, pool by pool."""
     pools = comps.swiss_pools(career, stage)
     rnd = max(sum(p) for p in pools.values()) + 1
+    pot = {t: i + 1 for i, teams in enumerate(stage.pots) for t in teams}
     lines = []
     for mid in stage.matches:
         w, l = pools[mid]
         if w + l + 1 == rnd:
             m = career.matches[mid]
-            lines.append(f"{w}-{l}: {cat.teams[m.home].tag} vs {cat.teams[m.away].tag}")  # type: ignore[index]
+            label = f"Pot {pot[m.home]} v Pot {pot[m.away]}" if rnd == 1 and pot else f"{w}-{l}"  # type: ignore[index]
+            lines.append(f"{label}: {cat.teams[m.home].tag} vs {cat.teams[m.away].tag}")  # type: ignore[index]
     career.inbox.append(InboxMessage(
         id=career.next_message, day=career.day, kind="draw", subject=f"{comp.name}: the Swiss round {rnd} draw",
         body="\n".join(lines), competition=comp.id, round=rnd,

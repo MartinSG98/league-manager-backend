@@ -304,6 +304,27 @@ def test_the_swiss_stage_is_drawn_round_by_round_from_pools(finished):
     draws = [m for m in finished.inbox if m.kind == "draw" and m.competition == worlds.id]
     assert [m.round for m in draws] == [1, 2, 3, 4, 5]
     assert draws[1].body.count(" vs ") == 8
+    assert draws[0].body.count("Pot 1 v Pot 4") == 4 and draws[0].body.count("Pot 2 v Pot 3") == 4
+    met = [frozenset((finished.matches[m].home, finished.matches[m].away)) for m in stage.matches]
+    assert len(set(met)) == len(met)  # nobody plays the same team twice
+
+
+def test_the_first_swiss_round_draws_pot_1_against_pot_4_and_keeps_regions_apart(finished):
+    worlds = finished.competitions[f"{finished.season}-WORLDS"]
+    pots = worlds.stages[0].pots
+    assert [len(p) for p in pots] == [4, 4, 4, 4]
+    region_of = {t: cat.teams[t].region for pot in pots for t in pot}
+    pot_of = {t: i for i, pot in enumerate(pots) for t in pot}
+    for seed in range(40):
+        career = finished.model_copy(deep=True)
+        stage = Stage(id="X-SW", name="Swiss stage", kind="swiss", teams=[t for p in pots for t in p], pots=pots,
+                      best_of=1, days=[date(career.season, 10, d) for d in (1, 3, 5, 8, 10)])
+        career.rs = seed
+        comps.build_swiss_round(career, worlds, stage, Rng(career), region_of)
+        pairs = [(career.matches[m].home, career.matches[m].away) for m in stage.matches]
+        assert len(pairs) == 8
+        assert sorted((pot_of[a], pot_of[b]) for a, b in pairs) == [(0, 3)] * 4 + [(1, 2)] * 4
+        assert all(region_of[a] != region_of[b] for a, b in pairs)
 
 
 def test_ai_champion_select_fills_both_sides_without_repeats(drafted):
