@@ -42,6 +42,7 @@ WINDOW_CLOSES = (1, 16)  # of the next year, the day before the first split star
 OFFER_DAYS = 4  # how long an AI club waits for the manager's answer
 TALK_DAYS = 7  # how long a player waits to be heard
 AI_MOVE_CHANCE = 0.045  # a day, per AI club
+HOLE_GAP = 15  # a starter this far below the rest of the five is a hole the club fills first, every day
 COUNTER_FROM = 0.75  # a bid this close to the asking fee gets a counter
 MAX_BID_ROUNDS = 3
 TALKS_OFF_DAYS = 14  # how long a club that ended the talks takes no bid for the player
@@ -593,20 +594,30 @@ def _salary_for(cat: Catalog, career: Career, pid: str, team: TeamState) -> int:
     return asking_salary(roster.overall(cat, career, pid), cat.players[pid].reputation, cat.teams[team.id].region)
 
 
-def _sign_free_agent(cat: Catalog, career: Career, team: TeamState, role: str, need: int, force: bool = False) -> str | None:
-    """The best free agent better than `need` the club can pay; with `force`, the best it can
-    pay at all, or the cheapest one there is."""
+def _sign_free_agent(cat: Catalog, career: Career, team: TeamState, role: str, need: int, force: bool = False,
+                     record: bool = True) -> str | None:
+    """The best free agent better than `need` the club can pay, from its own region if there is
+    one there and from anywhere if not; with `force`, the best it can pay at all, or the cheapest
+    one there is. `record` keeps the move in the window's list."""
     region = cat.teams[team.id].region
     room = _room(career, team)
-    pool = _free_agents(cat, career, role, region) or _free_agents(cat, career, role)
     ai = team.id != career.team  # the manager's money moves only by their own hand
 
     def affordable(pid: str) -> bool:
         salary = _salary_for(cat, career, pid, team)
         return _fund(career, team, salary, 0, room) is not None if ai else salary <= room
 
-    fits = [p for p in pool if affordable(p) and interest(cat, career, p, team.id)[0] != "refuses"]
+    def candidates(pool: list[str]) -> list[str]:
+        return [p for p in pool if affordable(p) and interest(cat, career, p, team.id)[0] != "refuses"]
+
+    home = _free_agents(cat, career, role, region)
+    pool = home or _free_agents(cat, career, role)
+    fits = candidates(pool)
     better = [p for p in fits if roster.overall(cat, career, p) > need]
+    if not better and home:
+        # Nobody better at home: the club looks abroad.
+        abroad = candidates([p for p in _free_agents(cat, career, role) if p not in set(home)])
+        better = [p for p in abroad if roster.overall(cat, career, p) > need]
     choice = max(better, key=lambda p: roster.overall(cat, career, p), default=None)
     if choice is None and force:
         choice = (max(fits, key=lambda p: roster.overall(cat, career, p), default=None)
@@ -616,8 +627,33 @@ def _sign_free_agent(cat: Catalog, career: Career, team: TeamState, role: str, n
     if ai:  # the forced cheapest one, when nobody fits, is signed over the budget as before
         _spend(career, team, _fund(career, team, _salary_for(cat, career, choice, team), 0, room))
     _join(cat, career, team, choice, years=1 if roster.overall(cat, career, choice) < need + 3 else 2)
-    career.transfers.append({"day": career.day.isoformat(), "player": choice, "from": None, "to": team.id, "fee": 0})
+    if record:
+        career.transfers.append({"day": career.day.isoformat(), "player": choice, "from": None, "to": team.id, "fee": 0})
     return choice
+
+
+def hole(cat: Catalog, career: Career, team: TeamState) -> bool:
+    """Whether a club's five has a hole: an empty role, or a starter HOLE_GAP below the other four."""
+    if len(team.lineup) < len(ROLES):
+        return True
+    ratings = {r: roster.overall(cat, career, p) for r, p in team.lineup.items()}
+    weakest = min(ratings, key=lambda r: ratings[r])
+    rest = [v for r, v in ratings.items() if r != weakest]
+    return ratings[weakest] < sum(rest) / len(rest) - HOLE_GAP
+
+
+def fill_holes(cat: Catalog, career: Career) -> None:
+    """Mondays in the season: an AI club with a hole in its five signs a better free agent, if one
+    will come and it can pay him. Clubs cannot buy players under contract until the window."""
+    for team in career.teams.values():
+        if team.id == career.team and not career.board.sacked:
+            continue
+        if not hole(cat, career, team):
+            continue
+        role, current = _weakest_role(cat, career, team)
+        pid = _sign_free_agent(cat, career, team, role, current + 2, record=False)
+        if pid:
+            _news(cat, career, pid, None, team.id, 0)
 
 
 def daily(cat: Catalog, career: Career, rng: Rng) -> None:
@@ -636,7 +672,7 @@ def daily(cat: Catalog, career: Career, rng: Rng) -> None:
     teams = [t for t in career.teams.values() if t.id != career.team or career.board.sacked]
     made_offer = False
     for team in rng.shuffle(teams):
-        if not rng.chance(AI_MOVE_CHANCE):
+        if not hole(cat, career, team) and not rng.chance(AI_MOVE_CHANCE):
             continue
         made_offer = _ai_move(cat, career, team, rng, allow_offer=not made_offer) or made_offer
 
@@ -823,6 +859,10 @@ def close_window(cat: Catalog, career: Career) -> None:
                 pid = _sign_free_agent(cat, career, team, role, 0, force=True)
                 if pid and team.id == career.team:
                     signed.append(f"{cat.players[pid].name} ({role})")
+        if team.id != career.team and hole(cat, career, team):
+            # The last chance before the season: a starter far below the rest is replaced if anyone better is free.
+            role, current = _weakest_role(cat, career, team)
+            _sign_free_agent(cat, career, team, role, current + 2)
         for kind in ("coach", "analyst"):
             if getattr(team, kind) is None:
                 _hire_staff(cat, career, team, kind)

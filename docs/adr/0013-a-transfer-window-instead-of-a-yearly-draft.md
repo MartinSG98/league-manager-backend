@@ -35,3 +35,5 @@ Continue now moves one day at a time, in the window as in the season, the way Fo
 An agreed fee now holds the player: no other club bids for them while it stands. If the player leaves the selling club before signing, because their contract runs out or they retire, the deal is called off and the inbox says so. Saves with such a deal call it off when they load (`transfers.stale_deals`).
 
 A bid turned down no longer starts the talks over: every failed bid for a player in the window counts, and after the third the selling club takes no bid for that player for two weeks.
+
+AI clubs no longer leave a hole in their five for a season. One whose five has an empty role or a starter 15 below the other four acts every day of the window until it is filled, looks for free agents abroad when nobody better is free at home, replaces such a starter when the window closes, and during the season signs a better free agent on a Monday (`transfers.hole`, `transfers.fill_holes`).
