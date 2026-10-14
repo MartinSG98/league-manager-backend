@@ -42,6 +42,7 @@ TALK_DAYS = 7  # how long a player waits to be heard
 AI_MOVE_CHANCE = 0.045  # a day, per AI club
 COUNTER_FROM = 0.75  # a bid this close to the asking fee gets a counter
 MAX_BID_ROUNDS = 3
+TALKS_OFF_DAYS = 14  # how long a club that ended the talks takes no bid for the player
 AI_RAISE = 1.12  # how much an AI club adds when the manager asks for more
 SELL_LIMIT = 1.35  # the most an AI club pays over market value
 
@@ -208,6 +209,17 @@ def _new_offer(career: Career, pid: str, buyer: str, seller: str, fee: int, days
     return offer
 
 
+def _last_bid(career: Career, pid: str) -> TransferOffer | None:
+    """The manager's latest bid for the player in this window (the last one closed on January 16th)."""
+    opened = date(career.season, *WINDOW_CLOSES)
+    return next((o for o in reversed(career.offers)
+                 if o.player == pid and o.buyer == career.team and o.day > opened), None)
+
+
+def _talks_ended(offer: TransferOffer | None) -> bool:
+    return offer is not None and offer.status == "rejected" and offer.rounds >= MAX_BID_ROUNDS
+
+
 def check_bid(cat: Catalog, career: Career, pid: str, fee: int | None = None) -> str | None:
     if not window_open(career):
         return "Transfers happen in the off-season window, after Worlds"
@@ -227,6 +239,9 @@ def check_bid(cat: Catalog, career: Career, pid: str, fee: int | None = None) ->
         return f"{name} only just joined {cat.teams[state.team].name}"
     if agreed(career, pid):
         return f"The fee for {name} is agreed: talk contract terms with them"
+    last = _last_bid(career, pid)
+    if _talks_ended(last) and career.day < last.expires and last.seller == state.team:
+        return f"{cat.teams[state.team].name} ended the talks for {name}: no new bid before {last.expires:%d %B}"
     team = career.teams[career.team]
     if len(team.roster) >= contracts.MAX_ROSTER:
         return f"Your roster is full ({contracts.MAX_ROSTER} players)"
@@ -250,6 +265,13 @@ def bid(cat: Catalog, career: Career, pid: str, fee: int) -> TransferOffer:
         raise IllegalAction("Bid a fee")
     seller = career.players[pid].team or ""
     offer = next((o for o in career.offers if o.player == pid and o.buyer == career.team and o.status == "open"), None)
+    last = _last_bid(career, pid)
+    if (offer is None and last is not None and last.status == "rejected" and last.seller == seller
+            and not _talks_ended(last)):
+        # A bid turned down does not start the talks over: every failed bid in the window counts.
+        offer = last
+        offer.status = "open"
+        offer.expires = career.day + timedelta(days=OFFER_DAYS)
     if offer is None:
         offer = _new_offer(career, pid, career.team, seller, fee, OFFER_DAYS)
     offer.fee = fee
@@ -269,8 +291,12 @@ def bid(cat: Catalog, career: Career, pid: str, fee: int) -> TransferOffer:
     else:
         offer.status = "rejected"
         offer.counter = None
-        offer.note = (f"{seller_name} turn the bid down." if offer.rounds < MAX_BID_ROUNDS
-                      else f"{seller_name} are tired of haggling and end the talks.")
+        if offer.rounds < MAX_BID_ROUNDS:
+            offer.note = f"{seller_name} turn the bid down."
+        else:
+            offer.expires = career.day + timedelta(days=TALKS_OFF_DAYS)
+            offer.note = (f"{seller_name} are tired of haggling and end the talks: no new bid for {name} "
+                          f"before {offer.expires:%d %B}.")
     return offer
 
 
