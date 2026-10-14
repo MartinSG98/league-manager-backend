@@ -117,3 +117,28 @@ def test_a_vacancy_left_open_is_filled_when_it_closes(window):
     jobs.daily(cat, career)
     assert career.teams[club].coach is not None and jobs._vacancy(career, club) is None
     assert career.teams[club].coach_since == career.day
+
+
+def test_an_offer_at_the_end_of_the_season_stands_until_two_weeks_after_worlds(window, drafted):
+    from datetime import date, timedelta
+
+    from app.game import calendar
+
+    # Mid-season an offer is open a week.
+    early = drafted.model_copy(deep=True)
+    vacancy = jobs.open_vacancy(cat, early, _club(early), Rng(early))
+    jobs._offer(cat, early, vacancy, approached=True)
+    assert vacancy.offer_until == early.day + timedelta(days=jobs.OFFER_DAYS)
+    # Once the last split is over, until two weeks after the Worlds final, even before Worlds is drawn.
+    assert jobs.season_end_deadline(early) is None
+    last = next(c for c in early.competitions.values() if c.kind == "league" and c.split == len(calendar.SPLITS))
+    last.status = "finished"
+    final = date(early.season, *next(e.end for e in calendar.INTERNATIONALS if e.id == "WORLDS"))
+    assert jobs.season_end_deadline(early) == final + timedelta(days=jobs.AFTER_WORLDS_DAYS)
+    # And right after the final, the offer still has its two weeks.
+    career = window
+    final = career.competitions[f"{career.season}-WORLDS"].end
+    vacancy = jobs.open_vacancy(cat, career, _club(career), Rng(career))
+    jobs._offer(cat, career, vacancy, approached=True)
+    assert vacancy.offer_until == final + timedelta(days=jobs.AFTER_WORLDS_DAYS)
+    assert "wait until Worlds is over" in career.inbox[-1].body
