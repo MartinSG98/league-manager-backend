@@ -112,17 +112,27 @@ def asking_fee(cat: Catalog, career: Career, pid: str) -> int | None:
     return int(round(fee / 5) * 5)
 
 
+def home_region(cat: Catalog, career: Career, pid: str) -> str | None:
+    """The region a player sees clubs from: their club's, else that of the league they last played in."""
+    team = career.players[pid].team
+    if team in cat.teams:
+        return cat.teams[team].region
+    league = cat.leagues.get(cat.players[pid].league)
+    return league.region if league else None
+
+
 def interest(cat: Catalog, career: Career, pid: str, team_id: str) -> tuple[str, str]:
     """("keen" | "open" | "reluctant" | "refuses", why). Players measure the club's reputation
     against their own standing: their reputation, or that of the club they play for less 12,
-    whichever is higher, so nobody at a top club steps far down. An unsettled player is easier
-    to tempt."""
+    whichever is higher, so nobody at a top club steps far down. A club of the player's own
+    region is seen on the region's scale, any other on the world's (see reputation.compared). An
+    unsettled player is easier to tempt."""
     p = cat.players[pid]
     state = career.players[pid]
     if state.team == team_id:
         return "keen", "Already at the club"
-    club = reputation.team_reputation(cat, career, team_id)
-    now = reputation.team_reputation(cat, career, state.team) if state.team in career.teams else 0.0
+    current = state.team if state.team in career.teams else None
+    club, now = reputation.compared(cat, career, team_id, current, home_region(cat, career, pid))
     standing = max(p.reputation, now - 12)
     gap = standing - (club - 10) - (8 if state.unsettled else 0)
     stars = reputation.stars(club)
@@ -326,8 +336,7 @@ def _after_rejection(cat: Catalog, career: Career, offer: TransferOffer) -> None
     """A player wanted by a bigger club, or one who was promised a move, wants a word."""
     pid = offer.player
     state = career.players[pid]
-    mine = reputation.team_reputation(cat, career, career.team)
-    theirs = reputation.team_reputation(cat, career, offer.buyer)
+    theirs, mine = reputation.compared(cat, career, offer.buyer, career.team, cat.teams[career.team].region)
     big = theirs >= mine + 3
     if state.promise is not None and state.promise <= career.season and big:
         state.promise = None
@@ -557,7 +566,6 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
     room = _room(career, team)
     if room <= 0 or team.cash <= 0:
         return False
-    own = reputation.team_reputation(cat, career, team.id)
     taken = moved(career)
     targets = []
     for p in cat.players.values():
@@ -568,7 +576,8 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
         if rating < current + 4:
             continue
         seller = career.teams[state.team]
-        if reputation.team_reputation(cat, career, seller.id) > own + 5 and not state.unsettled:
+        own, theirs = reputation.compared(cat, career, team.id, seller.id, cat.teams[seller.id].region)
+        if theirs > own + 5 and not state.unsettled:
             continue  # players do not step down for a club smaller than theirs
         ask = asking_fee(cat, career, p.id)
         if ask is None or ask > team.cash * 0.7 or _salary_for(cat, career, p.id, team) > room:

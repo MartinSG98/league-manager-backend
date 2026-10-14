@@ -10,7 +10,13 @@ The manager has a reputation on the same scale. It starts a little below the clu
 them, grows with objectives met and titles won, and drops with a sacking. After a sacking only
 clubs up to one and a half stars above the manager call (see board.job_offers).
 
-Both are shown as stars: (reputation - 50) / 10, in half stars from 0.5 to 5."""
+Both are shown as stars: (reputation - 50) / 10, in half stars from 0.5 to 5.
+
+A club is rated twice. World stars weigh its reputation by its league's strength, so a big name
+in the LCP or CBLOL counts for less than one in the LCK. Region stars measure it against the
+biggest club of its own region, who is five stars. Players look at the region stars of a club
+from their own region and at the world stars of the rest; job offers go by world stars. Money
+(budgets, sponsors, the board's grant) stays on the plain reputation."""
 
 from app.game.catalog import Catalog
 from app.game.state import Career, Competition
@@ -42,6 +48,45 @@ def team_reputation(cat: Catalog, career: Career, team_id: str) -> float:
     if team is None or not team.reputation:
         return float(cat.teams[team_id].prestige)
     return team.reputation
+
+
+def world(cat: Catalog, career: Career, team_id: str) -> float:
+    """How the whole scene sees a club: its reputation weighed by its league's strength (LCK 100)."""
+    strength = cat.leagues[cat.teams[team_id].league].strength
+    return 50 + (team_reputation(cat, career, team_id) - 50) * strength / 100
+
+
+def regional(cat: Catalog, career: Career, team_id: str) -> float:
+    """How a club's own region sees it: against the region's biggest club, who sits at 100."""
+    region = cat.teams[team_id].region
+    top = max((team_reputation(cat, career, t) for t in career.teams if cat.teams[t].region == region),
+              default=100.0)
+    return min(100.0, team_reputation(cat, career, team_id) + 100 - top)
+
+
+def seen_from(cat: Catalog, career: Career, team_id: str, region: str | None) -> float:
+    """A club through the eyes of someone from `region`: their region's view of its own clubs, the world's of the rest."""
+    return regional(cat, career, team_id) if cat.teams[team_id].region == region else world(cat, career, team_id)
+
+
+def compared(cat: Catalog, career: Career, team_id: str, other: str | None, region: str | None) -> tuple[float, float]:
+    """A club and another (or nobody, 0) side by side through the eyes of someone from `region`:
+    on the region's scale when both are its own clubs, on the world's otherwise."""
+    local = cat.teams[team_id].region == region and (other is None or cat.teams[other].region == region)
+    scale = regional if local else world
+    return scale(cat, career, team_id), scale(cat, career, other) if other else 0.0
+
+
+def ratings(cat: Catalog, career: Career, team_id: str) -> dict:
+    """Both star ratings of a club, for the views."""
+    return {"world_stars": stars(world(cat, career, team_id)), "region_stars": stars(regional(cat, career, team_id)),
+            "region": cat.regions[cat.teams[team_id].region].league}
+
+
+def label(cat: Catalog, career: Career, team_id: str) -> str:
+    """Both ratings in words, for messages: "2.5 stars worldwide, 4.5 in the LCP"."""
+    r = ratings(cat, career, team_id)
+    return f"{r['world_stars']:g} stars worldwide, {r['region_stars']:g} in the {r['region']}"
 
 
 def starting_manager_reputation(team_reputation_value: float) -> float:

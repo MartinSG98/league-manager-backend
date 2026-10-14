@@ -358,7 +358,7 @@ def sack(cat: Catalog, career: Career, rng: Rng) -> None:
             offer.note = "The manager who made it was sacked"
     for talk in career.conversations:
         talk.resolved = True
-    names = ", ".join(f"{cat.teams[t].name} ({reputation.stars(reputation.team_reputation(cat, career, t)):g} stars)"
+    names = ", ".join(f"{cat.teams[t].name} ({reputation.label(cat, career, t)})"
                       for t in career.job_offers)
     _message(career, f"{cat.teams[career.team].name} have sacked you",
              f"The board has lost faith in you and ends your contract.\nClubs that called your agent: {names}.\n"
@@ -368,7 +368,7 @@ def sack(cat: Catalog, career: Career, rng: Rng) -> None:
 def job_offers(cat: Catalog, career: Career, rng: Rng, count: int = 3) -> list[str]:
     reach = reputation.stars(career.manager_reputation) + reputation.STAR_REACH
     teams = [t for t in career.teams if t != career.team]
-    level = {t: reputation.team_reputation(cat, career, t) for t in teams}
+    level = {t: reputation.world(cat, career, t) for t in teams}
     eligible = [t for t in teams if reputation.stars(level[t]) <= reach]
     if len(eligible) < count:
         eligible += sorted((t for t in teams if t not in eligible), key=lambda t: level[t])[: count - len(eligible)]
@@ -390,9 +390,8 @@ def accept_job(cat: Catalog, career: Career, team_id: str) -> None:
     career.negotiations = {}
     season = career.season + 1 if career.phase == "offseason" else career.season
     start_job(cat, career, season)
-    stars = reputation.stars(reputation.team_reputation(cat, career, team_id))
     _message(career, f"Welcome to {team.name}",
-             f"You are the new manager of {team.name} ({stars:g} stars). The board wants to meet you about "
+             f"You are the new manager of {team.name} ({reputation.label(cat, career, team_id)}). The board wants to meet you about "
              f"its objectives for {season}.")
 
 

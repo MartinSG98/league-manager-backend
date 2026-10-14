@@ -17,7 +17,7 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0009](0009-logos-and-photos-linked-from-lolesports.md) | Logos and photos linked from lolesports.com | Accepted |
 | [0010](0010-staff-from-liquipedia-with-own-ratings.md) | Staff from Liquipedia, with this game's own ratings | Accepted |
 | [0011](0011-training-areas-and-set-plays.md) | Training: team areas, set plays and a weekly plan | Accepted |
-| [0012](0012-the-board-and-reputation.md) | A board that sets objectives, and reputation in stars | Accepted |
+| [0012](0012-the-board-and-reputation.md) | A board that sets objectives, and reputation in stars | Accepted, amended |
 | [0013](0013-a-transfer-window-instead-of-a-yearly-draft.md) | A transfer window instead of a yearly draft | Accepted, amended |
 | [0014](0014-ratings-blend-three-seasons-career-and-internationals.md) | Ratings blend three seasons, the career and the international stage | Accepted |
 | [0015](0015-rookie-classes-in-the-career.md) | Rookie classes, kept in the career | Accepted |

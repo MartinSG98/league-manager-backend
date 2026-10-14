@@ -278,14 +278,15 @@ def _bonuses(career: Career) -> list[dict]:
 
 def _reputation(cat: Catalog, career: Career) -> dict:
     team = reputation.team_reputation(cat, career, career.team)
-    return {"team": round(team, 1), "team_stars": reputation.stars(team),
+    return {"team": round(team, 1), "team_stars": reputation.stars(team), **reputation.ratings(cat, career, career.team),
             "manager": career.manager_reputation, "manager_stars": reputation.stars(career.manager_reputation)}
 
 
 def _job_offer(cat: Catalog, career: Career, team_id: str) -> dict:
     team = career.teams[team_id]
     rep = reputation.team_reputation(cat, career, team_id)
-    return {"team": team_ref(cat, team_id), "stars": reputation.stars(rep), "budget": team.budget,
+    return {"team": team_ref(cat, team_id), "stars": reputation.stars(rep), **reputation.ratings(cat, career, team_id),
+            "budget": team.budget,
             "strength": round(roster.lineup_strength(cat, career, team), 1),
             "league_name": cat.leagues[cat.teams[team_id].league].name}
 
@@ -380,6 +381,7 @@ def squad_view(cat: Catalog, career: Career, team_id: str | None = None) -> dict
         "cash": team.cash,
         "prestige": cat.teams[team_id].prestige,
         "stars": reputation.stars(reputation.team_reputation(cat, career, team_id)),
+        **reputation.ratings(cat, career, team_id),
         "skills": {a: round(team.skills.get(a, 10.0), 1) for a in training.AREAS},
         "listed": team.listed if team_id == career.team else [],
         "franchise": team.franchise,
@@ -675,7 +677,8 @@ def board_view(cat: Catalog, career: Career) -> dict:
         },
         "league_reputation": sorted(
             ({"team": team_ref(cat, t.id), "reputation": round(reputation.team_reputation(cat, career, t.id), 1),
-              "stars": reputation.stars(reputation.team_reputation(cat, career, t.id))}
+              "stars": reputation.stars(reputation.team_reputation(cat, career, t.id)),
+              **reputation.ratings(cat, career, t.id)}
              for t in cat.league_teams(career.league)), key=lambda r: -r["reputation"]),
         "job_offers": [_job_offer(cat, career, t) for t in career.job_offers],
         "vacancies": jobs.view(cat, career),

@@ -28,3 +28,11 @@ A sacked manager can only accept a job. Three clubs at most one and a half stars
 ## Consequences
 
 The objectives make the season's story explicit, and the meeting is a real trade between ambition and budget. A small club's manager is judged on staying off the bottom, not on titles. Getting sacked costs reputation and usually a step down, but the career goes on. Saves from before this change get reputations from prestige and a board meeting on their next action, covering only the splits not yet finished.
+
+## Amendment, 2026-10-14
+
+A club is now rated twice, because one number put a big name of a weaker league level with the giants: GAM Esports showed three and a half stars, like Dplus KIA. The manager wanted a world rating and a region rating.
+- **World stars** weigh the reputation by the league's strength: 50 + (reputation - 50) x strength / 100, so the LCK loses nothing and a top LCP club drops about a star.
+- **Region stars** measure a club against the biggest club of its region, who sits at 100: reputation + 100 - the region's top.
+
+Players see a club of their own region on the region's scale and any other club on the world's, so Korean stars think twice about the LCP and its own players are keener on it. Two clubs of the player's region keep their plain gap. Job offers, applications and the clubs that call after a sacking go by world stars, and staff look at a club the way players from their region do. Budgets, sponsors and the transfer grant stay on the plain reputation, so no club's money changes.
