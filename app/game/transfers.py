@@ -26,6 +26,7 @@ When the window closes every club must field five: AI clubs and the manager's as
 best free agents they can afford for any empty role."""
 
 from datetime import date, timedelta
+from math import ceil
 
 from app.game import contracts, manager, reputation, roster
 from app.game import staff as staffing
@@ -43,6 +44,7 @@ AI_MOVE_CHANCE = 0.045  # a day, per AI club
 COUNTER_FROM = 0.75  # a bid this close to the asking fee gets a counter
 MAX_BID_ROUNDS = 3
 TALKS_OFF_DAYS = 14  # how long a club that ended the talks takes no bid for the player
+AI_CUSHION = 0.3  # the share of its bank an AI club keeps after a deal
 AI_RAISE = 1.12  # how much an AI club adds when the manager asks for more
 SELL_LIMIT = 1.35  # the most an AI club pays over market value
 
@@ -345,6 +347,8 @@ def respond(cat: Catalog, career: Career, offer_id: int, response: str, rng: Rng
         state = career.players[pid]
         offer.status = "completed"
         offer.note = f"{name} joins {buyer} for {offer.fee}k."
+        club = career.teams[offer.buyer]
+        _spend(career, club, _fund(career, club, _salary_for(cat, career, pid, club), offer.fee, _room(career, club)))
         _move(cat, career, pid, career.team, offer.buyer, offer.fee)
         state.promise = None
         _message(career, "transfer", f"{name} sold to {buyer}", f"{offer.note} The fee is in the bank.")
@@ -527,6 +531,34 @@ def _room(career: Career, team: TeamState) -> int:
     return team.budget - roster.payroll(career, team, season=career.season + 1)
 
 
+def _fund(career: Career, team: TeamState, salary: int, fee: int, room: int) -> int | None:
+    """How an AI club pays a salary and a fee, moving money between its salary budget and its bank
+    as the manager's slider does (finances.move): the change to its salary budget, 0 when both fit as
+    they are, or None when it cannot pay. A salary beyond the room raises the budget, paid from the
+    bank; a fee beyond what the bank spares comes out of wage budget the club will not use. The club
+    keeps AI_CUSHION of its bank, and moves nothing into the budget while in debt. `room` is _room."""
+    from app.game import finances  # here: finances needs this module
+
+    rate = finances.weeks_left(career) / finances.WEEKS
+    cushion = AI_CUSHION * max(0, team.cash)
+    if salary > room:
+        rise = ceil((salary - room) / finances.STEP) * finances.STEP
+        return rise if team.cash > 0 and team.cash - fee - rise * rate >= cushion else None
+    if team.cash - fee >= cushion:
+        return 0
+    spare = team.budget - contracts.committed(career, team) - salary
+    cut = ceil((cushion - (team.cash - fee)) / rate / finances.STEP) * finances.STEP
+    return -cut if cut <= spare else None
+
+
+def _spend(career: Career, team: TeamState, change: int | None) -> None:
+    """Move what _fund worked out between the club's salary budget and its bank."""
+    from app.game import finances
+
+    if change:
+        finances.move(career, team, team.budget + change)
+
+
 def _weakest_role(cat: Catalog, career: Career, team: TeamState) -> tuple[str, int]:
     """A role with nobody in it, or the starter with the lowest rating."""
     for role in ROLES:
@@ -558,8 +590,13 @@ def _sign_free_agent(cat: Catalog, career: Career, team: TeamState, role: str, n
     region = cat.teams[team.id].region
     room = _room(career, team)
     pool = _free_agents(cat, career, role, region) or _free_agents(cat, career, role)
-    fits = [p for p in pool if _salary_for(cat, career, p, team) <= room
-            and interest(cat, career, p, team.id)[0] != "refuses"]
+    ai = team.id != career.team  # the manager's money moves only by their own hand
+
+    def affordable(pid: str) -> bool:
+        salary = _salary_for(cat, career, pid, team)
+        return _fund(career, team, salary, 0, room) is not None if ai else salary <= room
+
+    fits = [p for p in pool if affordable(p) and interest(cat, career, p, team.id)[0] != "refuses"]
     better = [p for p in fits if roster.overall(cat, career, p) > need]
     choice = max(better, key=lambda p: roster.overall(cat, career, p), default=None)
     if choice is None and force:
@@ -567,6 +604,8 @@ def _sign_free_agent(cat: Catalog, career: Career, team: TeamState, role: str, n
                   or min(pool, key=lambda p: _salary_for(cat, career, p, team), default=None))
     if choice is None:
         return None
+    if ai:  # the forced cheapest one, when nobody fits, is signed over the budget as before
+        _spend(career, team, _fund(career, team, _salary_for(cat, career, choice, team), 0, room))
     _join(cat, career, team, choice, years=1 if roster.overall(cat, career, choice) < need + 3 else 2)
     career.transfers.append({"day": career.day.isoformat(), "player": choice, "from": None, "to": team.id, "fee": 0})
     return choice
@@ -601,8 +640,8 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
     if _sign_free_agent(cat, career, team, role, current + 2):
         return False
     room = _room(career, team)
-    if room <= 0 or team.cash <= 0:
-        return False
+    if team.cash <= 0:
+        return False  # in debt the board pays for no transfers
     taken = moved(career)
     targets = []
     for p in cat.players.values():
@@ -617,7 +656,7 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
         if theirs > own + 5 and not state.unsettled:
             continue  # players do not step down for a club smaller than theirs
         ask = asking_fee(cat, career, p.id)
-        if ask is None or ask > team.cash * 0.7 or _salary_for(cat, career, p.id, team) > room:
+        if ask is None or _fund(career, team, _salary_for(cat, career, p.id, team), ask, room) is None:
             continue
         if interest(cat, career, p.id, team.id)[0] == "refuses":
             continue
@@ -641,6 +680,10 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
                  f"{OFFER_DAYS} days.", offer=offer.id)
         return True
     fee = int(round(ask * (1.0 + rng.next() * 0.1) / 5) * 5)
+    change = _fund(career, team, _salary_for(cat, career, pid, team), fee, room)
+    if change is None:
+        return False
+    _spend(career, team, change)
     _move(cat, career, pid, seller, team.id, fee)
     _news(cat, career, pid, seller, team.id, fee)
     return False
