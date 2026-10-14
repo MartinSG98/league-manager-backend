@@ -77,6 +77,25 @@ def test_a_small_club_is_only_asked_to_stay_off_the_bottom():
     assert reputation.stars(career.teams["DSG"].reputation) < reputation.stars(career.teams["C9"].reputation)
 
 
+def test_a_club_is_bigger_in_its_region_than_in_the_world(drafted):
+    career = drafted
+    gam = reputation.ratings(cat, career, "GAM")
+    assert gam["region"] == "LCP" and gam["region_stars"] > gam["world_stars"]
+    biggest = max(cat.league_teams("LCP"), key=lambda t: career.teams[t.id].reputation)
+    assert reputation.ratings(cat, career, biggest.id)["region_stars"] == 5
+    # The same club in the LCK's eyes and the world's: the strongest league loses nothing.
+    t1 = career.teams["T1"].reputation
+    assert reputation.world(cat, career, "T1") == t1
+    # A player from the region sees GAM on its scale, one from elsewhere on the world's.
+    plain = career.teams["GAM"].reputation
+    home, _ = reputation.compared(cat, career, "GAM", None, "APAC")
+    abroad, _ = reputation.compared(cat, career, "GAM", None, "KR")
+    assert abroad < plain <= home
+    # Two clubs of the player's region side by side keep their gap.
+    a, b = reputation.compared(cat, career, "GAM", "CFO", "APAC")
+    assert round(a - b, 6) == round(plain - career.teams["CFO"].reputation, 6)
+
+
 def test_missing_objectives_warns_then_sacks_and_other_clubs_call(drafted):
     career = drafted.model_copy(deep=True)
     career.day += timedelta(days=120)  # past the grace period of a new job
@@ -292,10 +311,12 @@ def test_the_off_season_opens_a_window_with_new_budgets_and_money(finished):
 
 
 def _target(career, keen: bool = True):
-    """A starter at another club the manager can bid for."""
+    """A starter at another club the manager can bid for; keen: one who would not ask for more to come."""
     for p in sorted(cat.players.values(), key=lambda p: -roster.overall(cat, career, p.id)):
         state = career.players[p.id]
         if state.team in (None, career.team) or transfers.check_bid(cat, career, p.id) is not None:
+            continue
+        if keen and transfers.interest(cat, career, p.id, career.team)[0] not in ("keen", "open"):
             continue
         if career.teams[state.team].lineup.get(p.role) == p.id:
             return p.id

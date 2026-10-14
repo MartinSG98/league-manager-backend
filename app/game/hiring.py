@@ -105,7 +105,7 @@ def check_can_talk(cat: Catalog, career: Career, sid: str) -> str | None:
     seat = getattr(team, person.kind)
     if seat:
         return f"Release your {SEAT_NAMES[person.kind]}, {cat.staff[seat].name}, first"
-    club = reputation.stars(reputation.team_reputation(cat, career, career.team))
+    club = reputation.stars(reputation.seen_from(cat, career, career.team, person.region))
     if club + 1 < stars_wanted(cat, sid):
         return f"{person.name} wants to work for a bigger club"
     fee = compensation(cat, career, sid)

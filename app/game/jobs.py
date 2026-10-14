@@ -163,7 +163,7 @@ def reach(career: Career) -> float:
 
 
 def in_reach(cat: Catalog, career: Career, team_id: str) -> bool:
-    return reputation.stars(reputation.team_reputation(cat, career, team_id)) <= reach(career)
+    return reputation.stars(reputation.world(cat, career, team_id)) <= reach(career)
 
 
 def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacancy:
@@ -171,8 +171,8 @@ def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacanc
     career.vacancies.append(vacancy)
     if career.board.sacked or career.phase == "draft":
         return vacancy
-    level = reputation.team_reputation(cat, career, team_id)
-    own = reputation.team_reputation(cat, career, career.team)
+    level = reputation.world(cat, career, team_id)
+    own = reputation.world(cat, career, career.team)
     room = reach(career) - reputation.stars(level)
     if room >= 0 and level >= own - SIZE_GAP and rng.chance(min(0.8, 0.4 + 0.1 * room)):
         _offer(cat, career, vacancy, approached=True)
@@ -182,8 +182,7 @@ def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacanc
 def _offer(cat: Catalog, career: Career, vacancy: Vacancy, approached: bool) -> None:
     vacancy.offer_until = career.day + timedelta(days=OFFER_DAYS)
     team = cat.teams[vacancy.team]
-    stars = reputation.stars(reputation.team_reputation(cat, career, vacancy.team))
-    opening = (f"{team.name} ({stars:g} stars, {cat.leagues[team.league].name}) are looking for a head coach and "
+    opening = (f"{team.name} ({reputation.label(cat, career, vacancy.team)}) are looking for a head coach and "
                "want you." if approached else f"{team.name} were impressed by your application and offer you the job.")
     _board(career, f"Job offer: {team.name}",
            f"{opening} The offer is open until {vacancy.offer_until:%d %B}. Take it or turn it down on the Club "
@@ -202,7 +201,7 @@ def apply(cat: Catalog, career: Career, team_id: str, rng: Rng) -> None:
         raise IllegalAction("Not before the draft is over")
     vacancy.applied = True
     name = cat.teams[team_id].name
-    room = reach(career) - reputation.stars(reputation.team_reputation(cat, career, team_id))
+    room = reach(career) - reputation.stars(reputation.world(cat, career, team_id))
     if room < 0:
         _board(career, f"{name} turn you down", f"{name} want a head coach with a bigger name.")
     elif rng.chance(min(0.95, 0.35 + 0.25 * room)):
@@ -249,9 +248,9 @@ def take(cat: Catalog, career: Career, team_id: str) -> None:
     transfers._hire_staff(cat, career, new, "coach")  # the manager's assistant
     season = career.season + 1 if career.phase == "offseason" else career.season
     board.start_job(cat, career, season)
-    stars = reputation.stars(reputation.team_reputation(cat, career, team_id))
     _board(career, f"Welcome to {team.name}",
-           f"You leave {cat.teams[old].name} to become head coach of {team.name} ({stars:g} stars). The board wants "
+           f"You leave {cat.teams[old].name} to become head coach of {team.name} "
+           f"({reputation.label(cat, career, team_id)}). The board wants "
            f"to meet you about its objectives for {season}.")
     _news(career, f"{team.tag} appoint {career.manager}",
           f"{team.name} hire {career.manager} from {cat.teams[old].name} as their new head coach.")
@@ -308,9 +307,8 @@ def view(cat: Catalog, career: Career) -> list[dict]:
     for v in sorted(career.vacancies, key=lambda v: v.closes):
         if v.team == career.team:
             continue
-        level = reputation.team_reputation(cat, career, v.team)
         rows.append({
-            "team": team_ref(cat, v.team), "stars": reputation.stars(level),
+            "team": team_ref(cat, v.team), **reputation.ratings(cat, career, v.team),
             "league_name": cat.leagues[cat.teams[v.team].league].name, "opened": v.opened.isoformat(),
             "closes": v.closes.isoformat(), "offer_until": v.offer_until.isoformat() if v.offer_until else None,
             "applied": v.applied, "declined": v.declined, "in_reach": in_reach(cat, career, v.team),
