@@ -101,9 +101,12 @@ def check_can_talk(cat: Catalog, career: Career, pid: str) -> str | None:
         return "Not during a match"
     if career.board.sacked:
         return "You have no club right now"
-    if state.team not in (None, career.team) and transfers.agreed(career, pid) is None:
-        return f"{cat.players[pid].name} is under contract with another team"
     deal = transfers.agreed(career, pid)
+    if deal is not None and state.team != deal.seller:
+        # A deal older saves kept after the player moved on (see transfers.stale_deals).
+        return f"{cat.players[pid].name} is no longer at {cat.teams[deal.seller].name}: the deal is off"
+    if state.team not in (None, career.team) and deal is None:
+        return f"{cat.players[pid].name} is under contract with another team"
     if deal is not None and deal.fee > career.teams[career.team].cash:
         return (f"The bank cannot pay the {deal.fee}k fee to {cat.teams[deal.seller].name}: it holds "
                 f"{career.teams[career.team].cash}k")
@@ -183,6 +186,8 @@ def _sign(cat: Catalog, career: Career, pid: str, salary: int, years: int) -> No
 
     bought = transfers.complete_purchase(cat, career, pid)
     state = career.players[pid]
+    if state.team not in (None, career.team):
+        raise IllegalAction(f"{cat.players[pid].name} plays for {cat.teams[state.team].name}")  # the deal fell through
     team = career.teams[career.team]
     first = career.season if career.phase != "offseason" else career.season + 1
     state.contract = Contract(salary=salary, until=first + years - 1)

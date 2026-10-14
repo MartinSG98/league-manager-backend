@@ -191,6 +191,15 @@ def call_off(cat: Catalog, career: Career, pid: str, seller: str) -> None:
             _message(career, "transfer", f"Deal off: {name}", f"{name} has left {cat.teams[seller].name}, so {what} is off.")
 
 
+def stale_deals(cat: Catalog, career: Career) -> bool:
+    """Call off agreed fees for players who have left the selling club since. Saves from before
+    call_off kept them. Returns True when there were any."""
+    stale = [o for o in career.offers if o.status == "agreed" and career.players[o.player].team != o.seller]
+    for o in stale:
+        call_off(cat, career, o.player, o.seller)
+    return bool(stale)
+
+
 def _new_offer(career: Career, pid: str, buyer: str, seller: str, fee: int, days: int) -> TransferOffer:
     offer = TransferOffer(id=career.next_offer, player=pid, buyer=buyer, seller=seller, fee=fee, day=career.day,
                           expires=career.day + timedelta(days=days))
