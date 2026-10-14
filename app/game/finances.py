@@ -30,7 +30,7 @@ from app.game import calendar, contracts, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
-from app.game.state import Career, InboxMessage
+from app.game.state import Career, InboxMessage, TeamState
 
 WEEKS = 52
 STEP = 10  # budgets move in steps of 10k, like the board sets them
@@ -60,9 +60,14 @@ def budget_ends(career: Career) -> date:
     return date(season, *worlds.end)
 
 
+def weeks_left(career: Career) -> int:
+    """Weeks until the board sets the next salary budget: what a thousand of it is worth, in 52nds."""
+    return max(1, min(WEEKS, ceil((budget_ends(career) - career.day).days / 7)))
+
+
 def limits(career: Career) -> Limits:
     team = career.teams[career.team]
-    weeks = max(1, min(WEEKS, ceil((budget_ends(career) - career.day).days / 7)))
+    weeks = weeks_left(career)
     low = min(team.budget, contracts.committed(career, team))
     high = team.budget + max(0, int(transfers.free_cash(career) * WEEKS / weeks))
     return Limits(low=low, high=high, weeks=weeks)
@@ -80,7 +85,14 @@ def adjust(career: Career, budget: int) -> int:
         if team.cash < 0:
             raise IllegalAction(f"The club is {-team.cash}k in debt: the budget can only go down")
         raise IllegalAction(f"The bank cannot pay for a budget above {lim.high}k")
-    change = floor((team.budget - budget) * lim.rate + 0.5)  # halves up, as the client rounds its preview
+    return move(career, team, budget)
+
+
+def move(career: Career, team: TeamState, budget: int) -> int:
+    """Set a club's salary budget and settle the difference with its bank, at what a thousand of the
+    budget is worth today. Returns what the bank gained. The manager's slider comes through here, and
+    so do AI clubs paying for a signing (transfers._fund)."""
+    change = floor((team.budget - budget) * weeks_left(career) / WEEKS + 0.5)  # halves up, as the client rounds its preview
     team.cash += change
     team.budget_moved += team.budget - budget
     team.budget = budget

@@ -325,6 +325,40 @@ def _target(career, keen: bool = True):
     raise AssertionError("nobody to bid for")
 
 
+def test_ai_clubs_move_money_between_the_budget_and_the_bank_as_the_manager_can(window):
+    from app.game import contracts, finances
+
+    career = window
+    team = next(t for t in career.teams.values() if t.id != career.team)
+    committed = contracts.committed(career, team)
+    team.budget = committed + 500
+    room = transfers._room(career, team)
+    rate = finances.weeks_left(career) / finances.WEEKS
+    # A salary beyond the room raises the budget, paid from the bank at what the budget is worth now.
+    team.cash = 10000
+    assert transfers._fund(career, team, room, 0, room) == 0
+    assert transfers._fund(career, team, room + 95, 0, room) == 100
+    team.cash = 0
+    assert transfers._fund(career, team, room + 95, 0, room) is None, "an empty bank pays for nothing"
+    # A fee beyond what the bank spares comes out of wage budget the club will not use.
+    team.cash = 1000
+    cut = transfers._fund(career, team, 200, 900, room)
+    assert cut is not None and -300 <= cut < 0
+    assert transfers._fund(career, team, 200, 2000, room) is None, "not even the unused budget pays that"
+    # Signing for real: the budget goes up and the bank pays.
+    team.budget, team.cash = committed, 20000
+    budget, cash = team.budget, team.cash
+    role = next(r for r in ROLES if transfers._free_agents(cat, career, r, cat.teams[team.id].region))
+    pid = transfers._sign_free_agent(cat, career, team, role, 0)
+    assert pid and team.budget > budget and team.cash == cash - round((team.budget - budget) * rate)
+    # The manager's own money only moves by their hand.
+    mine = career.teams[career.team]
+    mine.budget, mine.cash = contracts.committed(career, mine), 20000
+    before = (mine.budget, mine.cash)
+    transfers._sign_free_agent(cat, career, mine, role, 0)
+    assert (mine.budget, mine.cash) == before
+
+
 def test_every_failed_bid_counts_and_a_club_tired_of_haggling_waits_two_weeks(window):
     career = window
     career.teams[career.team].cash = 20000

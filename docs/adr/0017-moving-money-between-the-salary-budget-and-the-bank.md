@@ -21,3 +21,7 @@ In this game the bank already holds the transfer money: fees come out of it, and
 ## Consequences
 
 The slider is a timing tool, not a source of money: a manager who needs a fee now can take it from the salaries they are not paying, and one who wants to pay a player more can buy budget room with money from the bank. Early in the season the rate is close to one to one, and late in the season budget room is cheap and worth little in the bank. Exact figures come out of the API (`budget_adjust` in the career view) so the client never computes limits on its own.
+
+## Amendment, 2026-10-14
+
+AI clubs move money the same way, so a rich club is not stuck behind a tight budget while the manager is not. When a salary does not fit, the club raises its budget and the bank pays at the same rate; when a fee is more than the bank spares, the club cuts wage budget it will not use (`transfers._fund`, through `finances.move`). It keeps 30 percent of its bank after a deal, as it did before, and moves nothing while in debt. The manager's own budget still moves only by the manager's hand, even when the assistant fills an empty role.
