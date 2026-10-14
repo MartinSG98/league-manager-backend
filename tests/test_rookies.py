@@ -51,3 +51,16 @@ def test_rookies_show_up_in_searches_and_can_be_signed(window):
     ask = contracts.ask(mine, career, target.id)
     engine.apply(cat, career, OfferAction(type="offer", player=target.id, salary=ask.salary, years=ask.years))
     assert career.players[target.id].team == career.team
+
+
+def test_a_careers_catalog_is_built_once_until_a_new_class_arrives(finished):
+    career = finished.model_copy(deep=True)
+    assert career.rookies
+    first = rookies.catalog_for(cat, career)
+    assert rookies.catalog_for(cat, career) is first, "built once per career"
+    assert rookies.catalog_for(first, career) is first, "an already merged catalog comes back as it is"
+    other = career.model_copy(deep=True)
+    assert rookies.catalog_for(cat, other) is not first, "another career gets its own"
+    career.rookies.append(career.rookies[0].model_copy(update={"id": "r-test", "name": "Testo"}))
+    fresh = rookies.catalog_for(cat, career)
+    assert fresh is not first and "r-test" in fresh.players and "r-test" not in first.players

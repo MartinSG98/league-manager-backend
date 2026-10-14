@@ -13,6 +13,7 @@ player (training.ceiling), so a scout report is the way to tell a wonderkid from
 Rookies live in the career (Career.rookies), not in the shared catalog. catalog_for gives a
 career its own catalog: the shared players plus that career's rookies."""
 
+import weakref
 from dataclasses import replace
 
 from app.game import ratings
@@ -56,14 +57,34 @@ def is_rookie(pid: str) -> bool:
     return pid.startswith("r")
 
 
+# The merged catalog of each career object, kept while the career lives. Rookies and new staff
+# are only ever appended and never change, so their counts tell whether it is still current;
+# reusing it also keeps champion select's caches per catalog (_duos, _by_role) warm.
+_merged: dict[int, tuple[weakref.ref, tuple[int, int, int], Catalog]] = {}
+
+
 def catalog_for(cat: Catalog, career: Career) -> Catalog:
     """The shared catalog with this career's rookies and new staff added. The shared one is never changed."""
+    if not career.rookies and not career.new_staff:
+        return cat
+    key = (id(cat), len(career.rookies), len(career.new_staff))
+    hit = _merged.get(id(career))
+    if hit is not None and hit[0]() is career and hit[1] == key:
+        return hit[2]
     players = {r.id: _player(r) for r in career.rookies if r.id not in cat.players}
     staff = {s.id: _staff(s) for s in career.new_staff if s.id not in cat.staff}
     if not players and not staff:
-        return cat
-    return replace(cat, players={**cat.players, **players} if players else cat.players,
-                   staff={**cat.staff, **staff} if staff else cat.staff)
+        return cat  # already merged
+    merged = replace(cat, players={**cat.players, **players} if players else cat.players,
+                     staff={**cat.staff, **staff} if staff else cat.staff)
+    slot = id(career)
+
+    def forget(ref: weakref.ref) -> None:
+        if _merged.get(slot, (None,))[0] is ref:
+            del _merged[slot]
+
+    _merged[slot] = (weakref.ref(career, forget), key, merged)
+    return merged
 
 
 def _staff(s: CareerStaff) -> Staff:

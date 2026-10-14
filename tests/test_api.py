@@ -128,3 +128,22 @@ def test_actions_out_of_turn_are_conflicts(client):
     assert r.status_code == 409
     r = client.post(f"/api/careers/{save}/actions", json={"type": "play_game"})
     assert r.status_code == 409
+
+
+def test_reads_share_a_parsed_career_and_a_failed_action_changes_nothing(client):
+    from app import repository
+
+    save = client.post("/api/careers", json={"team": "T1", "seed": 3}).json()["id"]
+    act(client, save, {"type": "board_meeting"})
+    client.get(f"/api/careers/{save}")
+    cached = repository._parsed[save][1]
+    before = cached.model_dump_json()
+    for path in ("", "/board", "/squad", "/draft", "/competitions", "/schedule", "/training", "/transfers",
+                 "/meta", "/shortlist", "/players", "/staff"):
+        assert client.get(f"/api/careers/{save}{path}").status_code in (200, 404, 409), path
+    assert repository._parsed[save][1] is cached, "reads reuse the parsed career"
+    assert cached.model_dump_json() == before, "reads change nothing"
+    assert client.post(f"/api/careers/{save}/actions", json={"type": "play_game"}).status_code == 409
+    assert repository._parsed[save][1] is cached and cached.model_dump_json() == before
+    act(client, save, {"type": "draft_next", "until_mine": True})
+    assert repository._parsed[save][1] is not cached, "what an action stores is what reads get next"
