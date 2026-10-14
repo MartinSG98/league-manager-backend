@@ -1,7 +1,7 @@
 # 0019. Coaches on the move
 
 Date: 2026-10-13
-Status: Accepted, amended 2026-10-14
+Status: Accepted, amended 2026-10-14 and 2026-10-15
 
 ## Context
 
@@ -36,3 +36,7 @@ An AI club has no manager of its own. Its coach seat (`TeamState.coach`, a real 
 ## Consequences
 
 About 15 coaching changes a season among 55 AI clubs in simulation: about 10 after Worlds and 5 after splits, mostly clubs that missed a Worlds they were expected at. A successful manager now gets offers without being sacked first, and can move up. Moving down is possible through applications. New coaches join only in the off-season (ADR 0020): when the free pool of a region runs dry during the season, a club may stay without a coach until the window closes.
+
+## Amendment, 2026-10-15
+
+Clubs often sack their coach when the last split ends, just before Worlds, and a week's offer then lapsed while the manager was still playing Worlds. An offer made from the end of the last split until the Worlds final now stands until two weeks after the final (`jobs.season_end_deadline`), and its message says the club will wait. The vacancy is not filled while the offer stands, as before. Offers at any other time of the season are open a week.

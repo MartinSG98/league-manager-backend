@@ -20,11 +20,12 @@ Vacancies stay open two weeks. A club approaches the manager when it is within t
 most STAR_REACH stars above their own reputation) and at least about as big as their club, 40
 percent of the time plus 10 for every star of room. The manager can apply to any vacancy: out of
 reach is a polite no, in reach the club offers the job 35 percent of the time plus 25 for every star
-of room, and otherwise appoints someone else at once. An offer is open a week. Taking it moves the
-manager to the new club, with a new board and the club's analyst; the board hires an assistant
+of room, and otherwise appoints someone else at once. An offer is open a week, except at the end of the season:
+one made from the end of the last split until the Worlds final stands until two weeks after the
+final, so a manager at Worlds can finish it first. Taking it moves the manager to the new club, with a new board and the club's analyst; the board hires an assistant
 coach for the empty seat. When a vacancy closes the club appoints the best free coach it can afford."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from app.game import board, calendar, reputation, transfers
 from app.game.catalog import Catalog
@@ -44,6 +45,7 @@ SPLIT_DROP = 4  # ... and finishing this many places lower
 SPLIT_SACK = 0.30
 VACANCY_DAYS = 14
 OFFER_DAYS = 7
+AFTER_WORLDS_DAYS = 14  # how long after the Worlds final an offer from the end of the season stands
 SIZE_GAP = 5.0  # reputation a club approaching the manager can be below their own club
 NOTABLE = 70  # reputation from which a club's coaching news reaches every league
 
@@ -189,13 +191,29 @@ def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacanc
     return vacancy
 
 
+def season_end_deadline(career: Career) -> date | None:
+    """Two weeks after this season's Worlds final, from the end of the last split until that day:
+    offers made then stand until it, so a manager at Worlds can finish it first."""
+    worlds = career.competitions.get(f"{career.season}-WORLDS")
+    final = worlds.end if worlds else date(career.season, *next(e.end for e in calendar.INTERNATIONALS
+                                                                    if e.id == "WORLDS"))
+    last = len(calendar.SPLITS)
+    over = career.phase == "offseason" or any(
+        c.kind == "league" and c.split == last and c.status == "finished" for c in career.competitions.values())
+    deadline = final + timedelta(days=AFTER_WORLDS_DAYS)
+    return deadline if over and career.day <= deadline else None
+
+
 def _offer(cat: Catalog, career: Career, vacancy: Vacancy, approached: bool) -> None:
-    vacancy.offer_until = career.day + timedelta(days=OFFER_DAYS)
+    week = career.day + timedelta(days=OFFER_DAYS)
+    deadline = season_end_deadline(career)
+    vacancy.offer_until = max(week, deadline) if deadline else week
     team = cat.teams[vacancy.team]
     opening = (f"{team.name} ({reputation.label(cat, career, vacancy.team)}) are looking for a head coach and "
                "want you." if approached else f"{team.name} were impressed by your application and offer you the job.")
+    wait = " They will wait until Worlds is over." if vacancy.offer_until > week else ""
     _board(career, f"Job offer: {team.name}",
-           f"{opening} The offer is open until {vacancy.offer_until:%d %B}. Take it or turn it down on the Club "
+           f"{opening}{wait} The offer is open until {vacancy.offer_until:%d %B}. Take it or turn it down on the Club "
            "screen. Taking it means leaving your club: your bids and talks end there.")
 
 
