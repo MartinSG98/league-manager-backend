@@ -15,7 +15,7 @@ seat falls to the manager. Three are the manager's alone:
 - man management: how well a talk with an unhappy player goes, and how fast an unsettled player
   settles
 - negotiation: how far players and staff come down on their salary, and how far below its asking
-  fee a selling club goes (a poor negotiator pays the asking fee)
+  fee a selling club goes (a poor negotiator gets less off, but never pays more than was asked)
 - tactics: how fast set plays are learned and how often they work
 
 What counts is the whole number: growth (to come) adds fractions. A career whose manager is not
@@ -24,7 +24,7 @@ created yet works as before: the staff do everything and the manager's own attri
 from dataclasses import dataclass
 from datetime import date
 
-from app.game import reputation
+from app.game import calendar, reputation
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.state import Career, Competition, CompetitionRecord, ManagerProfile, ManagerSeason, Spell
@@ -162,6 +162,12 @@ def haggle(career: Career) -> float:
     return 1 - 0.006 * (own(career, "negotiation") - 10)
 
 
+def floor(career: Career, asked: float, flexibility: float) -> float:
+    """The least a player or staff member takes: what they will come down to, moved by the
+    manager's negotiating, but never more than they asked, however poor the negotiator."""
+    return min(asked, asked * flexibility * haggle(career))
+
+
 def summary(career: Career) -> dict | None:
     p = career.profile
     if p is None:
@@ -214,7 +220,10 @@ def start_spell(career: Career) -> None:
         if last.team == career.team:
             return
         last.end, last.left = career.day, last.left or "moved"
+    moved = bool(career.spells)
     career.spells.append(Spell(team=career.team, start=career.day))
+    if moved and career.reputation_log:
+        reputation.log_manager(career)  # the new region's line starts on the day of the move
 
 
 def end_spell(career: Career, how: str) -> None:
@@ -244,6 +253,7 @@ def season_so_far(career: Career) -> list[CompetitionRecord]:
         if team is None or comp is None or team not in (match.home, match.away):
             continue
         rec = records.setdefault((comp.id, team), CompetitionRecord(name=comp.name, kind=_kind(comp), team=team))  # type: ignore[arg-type]
+        rec.first = min(rec.first or match.day, match.day)
         rec.series[0 if match.winner == team else 1] += 1
         won = sum(1 for g in match.games if g.winner == team)
         rec.games[0] += won
@@ -264,7 +274,8 @@ def record_season(career: Career) -> None:
 
 
 def _history_kind(name: str) -> str:
-    return {"First Stand": "FST", "MSI": "MSI", "Worlds": "WORLDS"}.get(name, "league")
+    """The kind of competition a season summary names: "MSI 2026" or "World Championship 2026"."""
+    return next((e.id for e in calendar.INTERNATIONALS if name.startswith((e.name, e.id))), "league")
 
 
 def ensure(career: Career) -> bool:
@@ -287,8 +298,38 @@ def ensure(career: Career) -> bool:
                      for n, p in h.finishes.items()]
             career.manager_seasons.append(ManagerSeason(season=h.season, competitions=comps))
             changed = True
+    for s in career.manager_seasons:
+        for c in s.competitions:
+            # Saves migrated before the summaries' names were read right took every event for a league.
+            if not c.team and c.kind == "league" and _history_kind(c.name) != "league":
+                c.kind = _history_kind(c.name)  # type: ignore[assignment]
+                changed = True
     career.manager_seasons.sort(key=lambda s: s.season)
     return changed
+
+
+def _during(spell: Spell, season: int, rec: CompetitionRecord) -> bool:
+    """Whether a competition was played under this spell: by the day of its first series, or for
+    records kept before that day was, by the season."""
+    if rec.team != spell.team:
+        return False
+    if rec.first is not None:
+        return spell.start <= rec.first and (spell.end is None or rec.first <= spell.end)
+    return spell.start.year <= season and (spell.end is None or season <= spell.end.year)
+
+
+def _region_on(cat: Catalog, career: Career, day: date) -> str:
+    team = _led(career, day)
+    return cat.teams[team].region if team in cat.teams else career.region
+
+
+def _log_point(cat: Catalog, career: Career, point: tuple) -> list:
+    """[day, world, region's reputation, the region's league]; the oldest points have the world alone."""
+    out = [point[0].isoformat(), *point[1:3]]
+    if len(point) > 2:
+        region = point[3] if len(point) > 3 else _region_on(cat, career, point[0])
+        out.append(cat.regions[region].league if region in cat.regions else region)
+    return out
 
 
 def _won_lost(records: list[CompetitionRecord], field: str) -> list[int]:
@@ -317,7 +358,7 @@ def record_view(cat: Catalog, career: Career) -> dict:
                      for c in s.competitions if c.place == 1]
     clubs = []
     for sp in career.spells:
-        mine = [c for s in seasons for c in s.competitions if c.team == sp.team]
+        mine = [c for s in seasons for c in s.competitions if _during(sp, s.season, c)]
         clubs.append({"team": ref(sp.team), "start": sp.start.isoformat(), "end": sp.end.isoformat() if sp.end else None,
                       "left": sp.left, "series": _won_lost(mine, "series"), "games": _won_lost(mine, "games"),
                       "titles": sum(1 for c in mine if c.place == 1)})
@@ -330,5 +371,5 @@ def record_view(cat: Catalog, career: Career) -> dict:
         "seasons": list(reversed(rows)),
         "trophies": list(reversed(trophies)),
         "clubs": list(reversed(clubs)),
-        "reputation_log": [[p[0].isoformat(), *p[1:]] for p in career.reputation_log],
+        "reputation_log": [_log_point(cat, career, p) for p in career.reputation_log],
     }

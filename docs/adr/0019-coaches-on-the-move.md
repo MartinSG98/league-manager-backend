@@ -1,7 +1,7 @@
 # 0019. Coaches on the move
 
 Date: 2026-10-13
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -24,7 +24,7 @@ An AI club has no manager of its own. Its coach seat (`TeamState.coach`, a real 
 - **Vacancies** stay open two weeks:
   - **Approaches.** A club approaches the manager when it is within reach (at most 1.5 stars above the manager's reputation, as for job offers after a sacking) and at least about as big as the manager's club (within 5 reputation). The chance is 40 percent plus 10 for every star of room, at most 80.
   - **Applications.** The manager can apply anywhere. A club out of reach says no. A club in reach offers the job 35 percent of the time plus 25 for every star of room, at most 95, and otherwise appoints someone else at once.
-  - **Offers** stay open a week and stop Continue. Taking one moves the manager:
+  - **Offers** stay open a week. Taking one moves the manager:
     - their bids and talks at the old club end;
     - a new board meets them;
     - the board hires an assistant coach for the empty seat.
@@ -35,4 +35,4 @@ An AI club has no manager of its own. Its coach seat (`TeamState.coach`, a real 
 
 ## Consequences
 
-About 15 coaching changes a season among 55 AI clubs in simulation: about 10 after Worlds and 5 after splits, mostly clubs that missed a Worlds they were expected at. A successful manager now gets offers without being sacked first, and can move up. Moving down is possible through applications. Coaches are never generated: when the free pool of a region runs dry, a club may stay without a coach until the window closes, as before.
+About 15 coaching changes a season among 55 AI clubs in simulation: about 10 after Worlds and 5 after splits, mostly clubs that missed a Worlds they were expected at. A successful manager now gets offers without being sacked first, and can move up. Moving down is possible through applications. New coaches join only in the off-season (ADR 0020): when the free pool of a region runs dry during the season, a club may stay without a coach until the window closes.

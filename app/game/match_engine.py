@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from app.game import roster, training
 from app.game.catalog import ROLES, Catalog
 from app.game.champ_select import champion_power, composition_modifier, focus_bias, lane_edge
-from app.game.plays import PLAYS, SetPlay
+from app.game.plays import PLAYS, SetPlay, manager_edge
 from app.game.plays import chance as play_chance
 from app.game.rng import Rng
 from app.game.state import Career, GameRecord, PlayerLine, Side, Tactics
@@ -194,7 +194,7 @@ class Game:
                 learned = career.teams[gs.team].plays.get(gs.play, 0.0) if gs.team in career.teams else 100.0
                 area = PLAYS[gs.play].area
                 gs.play_chance = play_chance(PLAYS[gs.play], learned, gs.skills.get(area, 10.0),
-                                             enemy.skills.get(area, 10.0), gs.early)
+                                             enemy.skills.get(area, 10.0), gs.early, manager_edge(career, gs.team))
             else:
                 gs.play = None
 

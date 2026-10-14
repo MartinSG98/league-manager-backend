@@ -1,7 +1,7 @@
 # 0018. Debt has consequences
 
 Date: 2026-10-13
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -21,7 +21,7 @@ Being in debt cost nothing. Bids were refused while the bank was below zero, but
   - The board pays for no transfers, so no bids, and the salary budget can only go down.
   - The board loses a point of confidence every week, or two once the debt passes a quarter of the salary budget. Confidence feeds the reviews, so a long debt can cost the job.
   - The first week in debt brings a message, and so does getting out of it.
-- **Deep debt cuts wages.** Past a quarter of the salary budget the board cuts every wage by 10 percent for the rest of the contracts, at most every eight weeks. Every player loses 20 morale. Each player except the franchise player may become unsettled and want to leave: 10 percent for an unknown, up to 50 for a star (by reputation). Lower wages leave more of the budget for the bank, which pays the debt down.
+- **Deep debt cuts wages.** Past a quarter of the salary budget the board cuts every player's wage by 10 percent (staff keep theirs) for the rest of the contracts, at most every eight weeks. Every player loses 20 morale. Each player except the franchise player may become unsettled and want to leave: 10 percent for an unknown, up to 50 for a star (by reputation). Lower wages leave more of the budget for the bank, which pays the debt down.
 - **The next transfer grant pays the debt first**, and the board's message says how much of it went there.
 - **The way out the manager controls** is cutting the salary budget, which puts money in the bank at once (ADR 0017).
 

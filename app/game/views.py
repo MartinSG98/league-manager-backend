@@ -528,11 +528,16 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
     suggestions: list[dict] = []
     board = None
     coach = cat.staff.get(career.teams[career.team].coach or "")
+    # Champion select is read by whoever drafts: the manager when they took it on or have no coach.
+    drafting = staffing.attribute(cat, career, career.team, "drafting")
+    yours = manager.does(cat, career, "drafting")
+    reader = ({"name": career.manager, "drafting": drafting, "you": True} if yours
+              else {"name": coach.name, "drafting": drafting, "you": False} if coach else None)
     if current and current[0] == live.our_side:
         me = teams[live.our_side]
         enemy = teams[cs.other_side(live.our_side)]
-        # The manager sees champion select through the coach's eyes, see staff.coach_lens.
-        board = cs.board(cat, career, select, live.our_side, me, enemy, lens=staffing.coach_lens(coach))
+        who = f"manager:{career.manager}" if yours else coach.id if coach else "nobody"
+        board = cs.board(cat, career, select, live.our_side, me, enemy, lens=staffing.coach_lens(drafting, who))
         suggestions = cs.suggestions(board)
     view = {
         "match": match_view(cat, career, match),
@@ -556,6 +561,7 @@ def live_view(cat: Catalog, career: Career) -> dict | None:
             for side, picks in (("blue", select.blue_picks), ("red", select.red_picks))
         },
         "coach": {"name": coach.name, "drafting": coach.attributes["drafting"]} if coach else None,
+        "reader": reader,
         "scouting": next((m.report for m in reversed(career.inbox)
                           if m.kind == "scouting" and m.report and m.report.get("match") == match.id), None),
         "bench": [player_row(cat, career, p) for p in career.teams[career.team].roster

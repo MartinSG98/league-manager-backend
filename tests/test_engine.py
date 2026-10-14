@@ -193,11 +193,9 @@ def test_a_match_day_brings_a_scouting_report(drafted):
 def test_the_coach_sets_how_hard_a_defeat_hits_and_how_fast_players_grow():
     assert staffing.defeat_morale(20) > staffing.defeat_morale(10) > staffing.defeat_morale(staffing.NOBODY)
     assert staffing.development_factor(20) > 1 > staffing.development_factor(staffing.NOBODY)
-    weights, hidden = staffing.coach_lens(None)
+    weights, hidden = staffing.coach_lens(staffing.NOBODY, "nobody")
     assert "lane" in hidden and "combo" in hidden
-    best = next(s for s in cat.staff.values() if s.kind == "coach")
-    perfect = staffing.Staff(**{**best.__dict__, "attributes": {**best.attributes, "drafting": 20}})
-    weights, hidden = staffing.coach_lens(perfect)
+    weights, hidden = staffing.coach_lens(20, "anyone")
     assert not hidden and all(abs(w - 1) < 1e-9 for w in weights.values())
 
 

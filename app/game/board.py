@@ -367,16 +367,12 @@ def sack(cat: Catalog, career: Career, rng: Rng) -> None:
              "Choose your next club to carry on.")
 
 
-def jobs_in_reach(cat: Catalog, career: Career, team_id: str) -> bool:
-    """Whether a club would have the manager: at most STAR_REACH stars above them, the way it sees both."""
-    mine, club = reputation.manager_vs_club(cat, career, team_id)
-    return club <= mine + reputation.STAR_REACH
-
-
 def job_offers(cat: Catalog, career: Career, rng: Rng, count: int = 3) -> list[str]:
+    from app.game import jobs  # here: jobs needs this module
+
     teams = [t for t in career.teams if t != career.team]
     level = {t: reputation.world(cat, career, t) for t in teams}
-    eligible = [t for t in teams if jobs_in_reach(cat, career, t)]
+    eligible = [t for t in teams if jobs.in_reach(cat, career, t)]
     if len(eligible) < count:
         eligible += sorted((t for t in teams if t not in eligible), key=lambda t: level[t])[: count - len(eligible)]
     # The bigger clubs in reach call first, with some luck in who is looking right now.

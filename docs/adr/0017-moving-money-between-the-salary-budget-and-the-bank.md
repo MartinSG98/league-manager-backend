@@ -1,7 +1,7 @@
 # 0017. Moving money between the salary budget and the bank
 
 Date: 2026-10-13
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -13,7 +13,7 @@ In this game the bank already holds the transfer money: fees come out of it, and
 
 - **What moves.** The manager moves money between the salary budget and the bank. There is no separate transfer budget.
 - **The rate.** A thousand of the budget is worth a thousand for every week left until the board sets the next budget (when Worlds ends), divided by 52. Cutting the budget by X puts X × weeks left / 52 in the bank now. Raising it costs as much. Over the rest of the season the club ends up with the same money either way: the manager only chooses when it is there and what it can buy.
-- **Limits.** The budget never drops below the contracts it already pays (next season's contracts during the off-season), and the bank never goes below zero. Budgets move in steps of 10k.
+- **Limits.** The budget never drops below the contracts it already pays (next season's contracts during the off-season), and the bank never goes below zero. The client moves the budget in steps of 10k, which the view publishes.
 - **When.** Any time after the draft. Not while the board is waiting to meet the manager, because the meeting itself changes the budget.
 - **The board.** The budget the board set is remembered (`TeamState.budget_moved`), and the sponsor payments that come as a share of the budget are paid on it, so moving money does not raise them. A new budget after Worlds clears the move.
 - **AI clubs** do not adjust their budgets.

@@ -31,3 +31,5 @@ Rosters change between seasons through moves that make sense: bigger clubs take 
 ## Amendment, 2026-10-14
 
 Continue now moves one day at a time, in the window as in the season, the way Football Manager does. It used to run on until the manager's next match, or through the window until a message about a transfer, a player, the board, a contract or staff arrived, and at the latest to the next Monday. The manager found that messages flew past unread. The client now opens unread messages one at a time before it moves the calendar.
+
+An agreed fee now holds the player: no other club bids for them while it stands. If the player leaves the selling club before signing, because their contract runs out or they retire, the deal is called off and the inbox says so. Saves with such a deal call it off when they load (`transfers.stale_deals`).

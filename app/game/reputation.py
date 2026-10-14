@@ -20,7 +20,7 @@ Both are shown as stars: (reputation - 50) / 10, in half stars from 0.5 to 5.
 A club is rated twice. World stars weigh its reputation by its league's strength, so a big name
 in the LCP or CBLOL counts for less than one in the LCK. Region stars measure it against the
 biggest club of its own region, who is five stars. Players look at the region stars of a club
-from their own region and at the world stars of the rest; job offers go by world stars. Money
+from their own region and at the world stars of the rest, and so do clubs judging the manager (jobs.reach). Money
 (budgets, sponsors, the board's grant) stays on the plain reputation."""
 
 from app.game.catalog import Catalog
@@ -179,11 +179,13 @@ def change_manager(cat: Catalog, career: Career, delta: float, everywhere: bool 
 
 
 def log_manager(career: Career) -> None:
-    """Note the manager's reputation for the Me screen's graph: one point a day at most."""
-    point = (career.day, career.manager_reputation, manager_in(career, career.region))
-    if career.reputation_log and career.reputation_log[-1][0] == career.day:
+    """Note the manager's reputation for the Me screen's graph: one point a day in a region at most.
+    Each point names its region, so a move to another region starts a line of its own."""
+    point = (career.day, career.manager_reputation, manager_in(career, career.region), career.region)
+    last = career.reputation_log[-1] if career.reputation_log else None
+    if last is not None and last[0] == career.day and (len(last) < 4 or last[3] == career.region):
         career.reputation_log[-1] = point
-    elif not career.reputation_log or tuple(career.reputation_log[-1][1:]) != point[1:]:
+    elif last is None or tuple(last[1:]) != point[1:]:
         career.reputation_log.append(point)
 
 

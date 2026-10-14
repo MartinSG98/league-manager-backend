@@ -1,7 +1,7 @@
 # 0007. Patches move the meta
 
 Date: 2026-10-11
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -11,7 +11,7 @@ A League season is shaped by patches. What is strong in January has been nerfed 
 
 Each champion has a meta power on the current patch, seeded from real 2026 pick and ban presence. Every two weeks a patch:
 - nerfs what this career's pro scene picked and banned most on the outgoing patch
-- buffs champions nobody played
+- buffs weak champions at random, mostly ones nobody plays
 - drifts everything slightly towards the middle
 
 Every sixth patch also moves a whole class. Patch notes go to the inbox and the meta screen.

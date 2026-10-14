@@ -2,7 +2,7 @@
 join it every off-season.
 
 Talks work like a player's (contracts.py), on a staff member's own page:
-- **The ask.** Their salary (staff.py), a sixth more to leave a club they already work for. They
+- **The ask.** Their salary (staff.py), 15 percent more to leave a club they already work for. They
   settle for 85 to 95 percent of it, a fixed share per person and season. Two seasons is what they
   want; every season more or less costs 5 percent of what the offer is worth to them. Three offers
   below that and they walk away for 30 days.
@@ -137,7 +137,7 @@ def offer(cat: Catalog, career: Career, sid: str, salary: int, years: int) -> Ne
     _fits(cat, career, sid, salary)
     talks = _talks(career, sid)
     want = asking_salary(cat, career, sid)
-    floor = want * _flexibility(sid, career.season) * manager.haggle(career)
+    floor = manager.floor(career, want, _flexibility(sid, career.season))
     effective = salary * (1 - 0.05 * abs(years - WANTED_YEARS))
     name = cat.staff[sid].name
     talks.rounds += 1

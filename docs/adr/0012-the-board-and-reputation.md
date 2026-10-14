@@ -1,7 +1,7 @@
 # 0012. A board that sets objectives, and reputation in stars
 
 Date: 2026-10-12
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -35,7 +35,7 @@ A club is now rated twice, because one number put a big name of a weaker league 
 - **World stars** weigh the reputation by the league's strength: 50 + (reputation - 50) x strength / 100, so the LCK loses nothing and a top LCP club drops about a star.
 - **Region stars** measure a club against the biggest club of its region, who sits at 100: reputation + 100 - the region's top.
 
-Players see a club of their own region on the region's scale and any other club on the world's, so Korean stars think twice about the LCP and its own players are keener on it. Two clubs of the player's region keep their plain gap. Job offers, applications and the clubs that call after a sacking go by world stars, and staff look at a club the way players from their region do. Budgets, sponsors and the transfer grant stay on the plain reputation, so no club's money changes.
+Players see a club of their own region on the region's scale and any other club on the world's, so Korean stars think twice about the LCP and its own players are keener on it. Two clubs of the player's region keep their plain gap. Who calls first after a sacking, and whether a club with a vacancy is about as big as the manager's, go by world reputation; who is in reach is under Jobs below. Staff look at a club the way players from their region do. Budgets, sponsors and the transfer grant stay on the plain reputation, so no club's money changes.
 
 The manager asked for the same two ratings for themselves. `manager_reputation` is now the world's, and `manager_standing` keeps the manager's reputation in each region they have worked in.
 - **The start.** A new manager starts in their region where the single number used to start. The world weighs that by the league's strength.

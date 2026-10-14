@@ -1,7 +1,7 @@
 # 0020. The staff market
 
 Date: 2026-10-13
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -17,7 +17,7 @@ The manager asked for staff pages with salary talks and releases, for coaches an
 
 - **Pages and Scouting.** Every coach and analyst has a page (`GET /careers/{id}/staff/{staff}`), and Scouting lists them by kind, region and free agents (`GET /careers/{id}/staff`).
 - **Talks** follow the player model:
-  - **The ask.** It is the staff member's salary, plus a sixth to leave a club they work for. They settle for 85 to 95 percent, a fixed share per person and season, over two seasons. Each season more or less costs 5 percent of what the offer is worth to them.
+  - **The ask.** It is the staff member's salary, plus 15 percent to leave a club they work for. They settle for 85 to 95 percent, a fixed share per person and season, over two seasons. Each season more or less costs 5 percent of what the offer is worth to them.
   - **Walking away.** Three offers below that, or one under 60 percent of the ask, and they refuse to talk for 30 days. A counter-offer can be accepted.
 - **Who comes.** A staff member rated 55 joins any club. Every 8 points more wants another star of club reputation, give or take one.
 - **One seat per kind.** The manager has one assistant coach and one analyst, so the seat has to be empty to hire: release first.

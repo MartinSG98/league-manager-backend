@@ -1,7 +1,7 @@
 # 0011. Training: team areas, set plays and a weekly plan
 
 Date: 2026-10-12
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -31,7 +31,7 @@ Set plays are drilled one at a time over 3-6 weeks and can be called from 40 per
 
 Players can also work on one attribute or learn one champion. Long-term growth heads for a ceiling that is hidden and fixed per career, up to six points either side of the potential shown. That ceiling is moved up or down by the average quality of the player's weeks: load, the coach's development, morale, sharpness and playing time.
 
-Every six games the analyst reads the team's last ten from new fields on each game record: gold at 15, the biggest lead each side had, fights won, throws and the set plays run. The analyst recommends the two areas that cost the most, and a weak analyst gets it wrong more often.
+Every six games the analyst reads the team's last ten from new fields on each game record: gold at 15, the biggest lead each side had, fights won, leads thrown away, dragons, Barons and towers. The analyst recommends the two areas that cost the most, and a weak analyst gets it wrong more often.
 
 ## Consequences
 
