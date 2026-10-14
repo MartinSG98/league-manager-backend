@@ -205,6 +205,8 @@ def _sign(cat: Catalog, career: Career, pid: str, salary: int, years: int) -> No
 
 def release(cat: Catalog, career: Career, pid: str) -> int:
     """Let a player go. The club pays half of what is left on the contract. Returns the cost."""
+    from app.game import transfers
+
     team = career.teams[career.team]
     if pid not in team.roster:
         raise IllegalAction("That player is not on your roster")
@@ -219,13 +221,13 @@ def release(cat: Catalog, career: Career, pid: str) -> int:
             raise IllegalAction(f"Sign another {role} before releasing your only one")
         team.lineup[role] = backup
     state = career.players[pid]
-    seasons_left = (state.contract.until - career.season + 1) if state.contract else 0
-    cost = int((state.contract.salary if state.contract else 0) * max(0, seasons_left) * 0.5)
+    cost = int((state.contract.salary if state.contract else 0) * transfers.seasons_left(career, pid) * 0.5)
     team.cash -= cost
     team.roster.remove(pid)
     state.team = None
     state.contract = None
     state.morale = 60
+    transfers.call_off(cat, career, pid, team.id)
     career.inbox.append(InboxMessage(id=career.next_message, day=career.day, kind="contract",
                                      subject=f"{cat.players[pid].name} released",
                                      body=f"Severance paid: {cost}k."))

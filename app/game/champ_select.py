@@ -518,7 +518,7 @@ def ai_step(cat: Catalog, career: Career, select: ChampSelect, sides: dict[str, 
         choice = max(pool, key=lambda r: r["score"] + rng.next() * 1.5 * me.noise)["champion"] if pool else None
         if choice is None:
             choice = next(c for c in cat.champions if c not in unavailable(select))
-        ban(select, side, choice)
+        ban(cat, select, side, choice)
     else:
         rows = options(cat, career, select, side, me, enemy, limit=6)
         if rows:
@@ -531,10 +531,12 @@ def ai_step(cat: Catalog, career: Career, select: ChampSelect, sides: dict[str, 
             pick(cat, select, side, choice, role)
 
 
-def ban(select: ChampSelect, side: Side, champion: str) -> None:
+def ban(cat: Catalog, select: ChampSelect, side: Side, champion: str) -> None:
     current = turn(select)
     if current != (side, "ban"):
         raise IllegalAction("It is not your ban")
+    if champion not in cat.champions:
+        raise IllegalAction("Unknown champion")
     if champion in unavailable(select):
         raise IllegalAction("That champion is not available")
     bans_of(select, side).append(champion)

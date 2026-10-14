@@ -197,9 +197,14 @@ def elim_ranking(career: Career, stage: Stage) -> list[str]:
     seed = {t: i for i, t in enumerate(stage.teams)}
     out_round: dict[str, int] = {}
     matches = [career.matches[m] for m in stage.matches]
-    for i, m in enumerate(matches):
+    # A match's round is one past the latest round feeding it (seeds come from round -1). Matches
+    # are built round by round, so a feeder always comes first.
+    depth: dict[str, int] = {}
+    for m in matches:
+        feeders = [src[2:] for src in (m.home_from, m.away_from) if src and src.startswith("W:")]
+        depth[m.id] = 1 + max((depth.get(f, 0) for f in feeders), default=-1)
         if m.loser:
-            out_round[m.loser] = i
+            out_round[m.loser] = depth[m.id]
     survivors = [t for t in stage.teams if t not in out_round]
     final = matches[-1] if matches else None
     if final and final.winner and not stage.advance:

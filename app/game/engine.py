@@ -15,7 +15,7 @@ from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
 from app.game import competitions as comps
-from app.game import finances, hiring, jobs, rookies, shortlist, training, transfers
+from app.game import finances, hiring, jobs, retirement, rookies, shortlist, training, transfers
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
@@ -306,6 +306,11 @@ def migrate(cat: Catalog, career: Career) -> bool:
         bonuses = board.bonuses_for(career, career.board.season)
         if bonuses:
             career.board.bonuses = bonuses
+            changed = True
+    for team in career.teams.values():
+        if team.franchise and career.players[team.franchise].retired:
+            # Retired before retirements handed the role on.
+            retirement.new_franchise(rookies.catalog_for(cat, career), career, team, cat.players[team.franchise].name)
             changed = True
     if career.phase == "offseason" and not any(h.season == career.season for h in career.history):
         # Saved at the end of a season under the old rules, before the transfer window existed.

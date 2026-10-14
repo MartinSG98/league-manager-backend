@@ -96,6 +96,11 @@ def _pair_weight(a: str, b: str) -> float:
     return PAIR_WEIGHT.get(frozenset((a, b)), 0.8)
 
 
+def _were_teammates(a, b) -> bool:
+    """Both came from the same 2026 team. Rookies straight from solo queue have no team ("")."""
+    return bool(a.team) and a.team == b.team
+
+
 def chemistry(cat: Catalog, career: Career, team: TeamState, lineup: dict[str, str] | None = None) -> tuple[float, list[str]]:
     """Team-wide modifier on top of individual ratings, about -5..+4, with the reasons behind it."""
     lineup = lineup or team.lineup
@@ -114,7 +119,7 @@ def chemistry(cat: Catalog, career: Career, team: TeamState, lineup: dict[str, s
         else:
             silent.update((pa.name, pb.name))
         # Teammates from 2026 already know each other; new pairs get there over twenty games.
-        shared = 20 if pa.team == pb.team else min(20, team.together.get(_pair_key(a, b), 0))
+        shared = 20 if _were_teammates(pa, pb) else min(20, team.together.get(_pair_key(a, b), 0))
         known_w += w * shared / 20
     communication = talk_w / total_w
     familiarity = known_w / total_w
@@ -124,7 +129,7 @@ def chemistry(cat: Catalog, career: Career, team: TeamState, lineup: dict[str, s
     else:
         reasons.append("Everyone shares a language")
     bot, sup = lineup.get("BOT"), lineup.get("SUP")
-    if bot and sup and cat.players[bot].team == cat.players[sup].team:
+    if bot and sup and _were_teammates(cat.players[bot], cat.players[sup]):
         reasons.append(f"{cat.players[bot].name} and {cat.players[sup].name} were a bot lane in 2026")
     if familiarity >= 0.6:
         reasons.append(f"Most of the lineup has played together ({familiarity:.0%})")
