@@ -7,7 +7,7 @@ Status: Accepted, amended 2026-10-14
 
 A career holds:
 - the contracts and form of about 1,400 players
-- 54 teams
+- 56 teams
 - a season of roughly a thousand series, with every game's picks and stat lines
 - the meta
 - an inbox
