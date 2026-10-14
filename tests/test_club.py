@@ -325,6 +325,24 @@ def _target(career, keen: bool = True):
     raise AssertionError("nobody to bid for")
 
 
+def test_every_failed_bid_counts_and_a_club_tired_of_haggling_waits_two_weeks(window):
+    career = window
+    career.teams[career.team].cash = 20000
+    pid = _target(career)
+    ask = transfers.asking_fee(cat, career, pid)
+    for _ in range(transfers.MAX_BID_ROUNDS):
+        engine.apply(cat, career, TransferBidAction(type="transfer_bid", player=pid, fee=int(ask * 0.5)))
+    bids = [o for o in career.offers if o.player == pid and o.buyer == career.team]
+    assert len(bids) == 1 and bids[0].status == "rejected" and bids[0].rounds == transfers.MAX_BID_ROUNDS
+    assert "ended the talks" in transfers.check_bid(cat, career, pid)
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, TransferBidAction(type="transfer_bid", player=pid, fee=ask))
+    career.day = bids[0].expires
+    assert transfers.check_bid(cat, career, pid) is None
+    engine.apply(cat, career, TransferBidAction(type="transfer_bid", player=pid, fee=ask))
+    assert career.offers[-1] is not bids[0] and career.offers[-1].status == "agreed", "two weeks on, new talks"
+
+
 def test_buying_a_player_takes_an_agreed_fee_and_personal_terms(window):
     career = window
     team = career.teams[career.team]
