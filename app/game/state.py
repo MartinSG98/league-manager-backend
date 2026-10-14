@@ -535,6 +535,7 @@ class Career(BaseModel):
     region_elo: dict[str, float] = {}  # region -> its rating in the global power rankings (power.py)
     region_elo_start: dict[str, float] = {}  # the same when the season began, for the trend
     franchise_choice: date | None = None  # the day by which the manager names a new franchise player, while one is due
+    predicted: list[str] = []  # competitions the analyst has sent predictions for (predictions.py)
     board: BoardState = BoardState()
     job_offers: list[str] = []  # clubs that want the manager after a sacking
     vacancies: list[Vacancy] = []  # AI clubs looking for a head coach

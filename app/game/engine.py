@@ -15,7 +15,7 @@ from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
 from app.game import competitions as comps
-from app.game import finances, hiring, jobs, power, retirement, rookies, shortlist, training, transfers
+from app.game import finances, hiring, jobs, power, predictions, retirement, rookies, shortlist, training, transfers
 from app.game import manager as management
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
@@ -134,6 +134,7 @@ def _daily(cat: Catalog, career: Career, rng: Rng) -> None:
     shortlist.daily(cat, career)
     transfers.franchise_daily(cat, career)
     jobs.daily(cat, career)
+    predictions.daily(cat, career, rng)
     if career.day.weekday() == 0:
         _weekly(cat, career, rng)
 
@@ -145,6 +146,8 @@ def _weekly(cat: Catalog, career: Career, rng: Rng) -> None:
                         + reputation.sponsor_income(cat, career, team.id))
     finances.weekly(cat, career, rng)
     training.weekly(cat, career, rng)
+    if career.phase == "season":
+        transfers.fill_holes(cat, career)
     if career.phase == "season" and not career.board.sacked:
         training.review(cat, career)
 

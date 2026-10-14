@@ -836,3 +836,23 @@ def test_the_board_names_the_best_player_when_the_manager_does_not(window):
     career.day = career.franchise_choice + timedelta(days=1)
     transfers.franchise_daily(cat, career)
     assert team.franchise == transfers.best_player(cat, career, team) and career.franchise_choice is None
+
+
+def test_an_ai_club_with_a_hole_fills_it_first(window):
+    career = window
+    c = rookies.catalog_for(cat, career)
+    team = next(t for t in career.teams.values() if t.id != career.team and len(t.lineup) == 5)
+    role = "TOP"
+    weak = min((p for p in c.players if career.players[p].team is None and c.players[p].role == role
+                and not career.players[p].retired), key=lambda p: roster.overall(c, career, p))
+    gone = team.lineup[role]
+    transfers._leave(c, career, team, gone)
+    career.players[gone].team = None
+    transfers._join(c, career, team, weak)
+    team.lineup[role] = weak
+    team.cash, team.budget = 50000, team.budget + 3000
+    assert transfers.hole(c, career, team)
+    before = roster.overall(c, career, team.lineup[role])
+    transfers.fill_holes(c, career)
+    assert roster.overall(c, career, team.lineup[role]) > before + 2, "a better free agent, from anywhere"
+    assert not transfers.hole(c, career, team) or roster.overall(c, career, team.lineup[role]) > before
