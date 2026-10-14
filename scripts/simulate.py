@@ -16,10 +16,12 @@ import time
 from collections import Counter, defaultdict
 
 from app.game import champ_select as cs
-from app.game import engine, match_engine, matchday
+from app.game import engine, manager, match_engine, matchday
 from app.game.catalog import get_catalog
 from app.game.rng import Rng
-from app.game.state import AdvanceAction, BoardMeetingAction, ChampSelect, DraftSimAction, Match, SimSeriesAction
+from app.game.state import (
+    AdvanceAction, BoardMeetingAction, ChampSelect, CreateManagerAction, DraftSimAction, Match, SimSeriesAction,
+)
 
 TARGET = {2: 0.58, 4: 0.65, 6: 0.72, 8: 0.78, 10: 0.84, 14: 0.9}
 # How often the side with each Soul wins: leagueofgraphs.com, all regions, patch 16.20 (October
@@ -28,11 +30,19 @@ TARGET = {2: 0.58, 4: 0.65, 6: 0.72, 8: 0.78, 10: 0.84, 14: 0.9}
 SOUL_TARGET = {"Infernal": 0.868, "Mountain": 0.880, "Ocean": 0.871, "Cloud": 0.906, "Hextech": 0.875, "Chemtech": 0.868}
 
 
-def win_curve(games: int, seed: int, souls: bool = False) -> None:
-    cat = get_catalog()
+def drafted_career(cat, seed: int):
+    """G2 after the draft, its manager created with the points spread evenly, as the tests do."""
     career = engine.new_career(cat, "bot", "G2", seed)
+    engine.apply(cat, career, CreateManagerAction(type="create_manager", background="coach",
+                                                  attributes=manager.even_spread(career, "coach")))
     engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
     engine.apply(cat, career, DraftSimAction(type="draft_sim"))
+    return career
+
+
+def win_curve(games: int, seed: int, souls: bool = False) -> None:
+    cat = get_catalog()
+    career = drafted_career(cat, seed)
     rng = Rng(career)
     teams = list(career.teams)
     pick = random.Random(seed)
@@ -80,9 +90,7 @@ def seasons(count: int, seed: int) -> None:
     cat = get_catalog()
     titles: dict[str, Counter] = defaultdict(Counter)
     for s in range(count):
-        career = engine.new_career(cat, "bot", "G2", seed + s)
-        engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
-        engine.apply(cat, career, DraftSimAction(type="draft_sim"))
+        career = drafted_career(cat, seed + s)
         while career.phase == "season":
             if career.live:
                 engine.apply(cat, career, SimSeriesAction(type="sim_series"))
