@@ -43,7 +43,10 @@ DAY_FORM = 6.5  # spread of a side's random form on the day
 BLUE_EDGE = 0.4
 FIGHT_CHANCE = (0.55, 0.2)  # chance of a fight in a minute with and without a live objective
 DRIFT_GOLD = 6.0  # gold per minute per point of power after laning, farm and map control
-BUFFS = {"baron": 5.0, "elder": 7.0, "soul": 3.0}
+BUFFS = {"baron": 5.0, "elder": 7.0}
+# Power a Soul gives, per element: fitted with scripts/simulate.py --souls so that the side with
+# each Soul wins about as often as in real games (SOUL_TARGET there).
+SOUL_POWER = {"Infernal": 1.5, "Mountain": 3.5, "Ocean": 2.0, "Cloud": 8.0, "Hextech": 2.5, "Chemtech": 1.5}
 KILL_GOLD = 300
 TOWER_GOLD = 550  # shared by the team, plates included
 # Team areas: power for a team at 20 against one at 10 (half that at 15, and minus below 10).
@@ -105,7 +108,7 @@ class GameSide:
     towers: int = 0  # enemy towers destroyed
     inhibs: int = 0  # enemy inhibitors destroyed
     dragons: list[str] = field(default_factory=list)
-    soul: bool = False
+    soul: str | None = None  # the element of the Soul, once the side has it
     grubs: int = 0
     barons: int = 0
     baron_until: int = -1
@@ -180,6 +183,7 @@ class Game:
         self.minute = 0
         self.first_blood = False
         self.dragon_at, self.baron_at, self.elder_at = 5, 20, None
+        self.drakes: list[str] = []  # every elemental drake taken in the game, by either side
         self.herald_done = False
         self.winner: GameSide | None = None
         self.second = 0
@@ -207,7 +211,7 @@ class Game:
             value += EARLY_POWER * gs.skill("early_game")
         if m < 25:
             value += min(6, gs.grubs) * 0.12
-        value += len(gs.dragons) * 0.35 + (BUFFS["soul"] if gs.soul else 0)
+        value += len(gs.dragons) * 0.35 + (SOUL_POWER[gs.soul] if gs.soul else 0)
         if gs.baron_until >= m:
             value += BUFFS["baron"]
         if gs.elder_until >= m:
@@ -341,16 +345,24 @@ class Game:
             self.elder_at = self.minute + 6
             self.log("elder", gs, f"{self.tag(gs)} slay the Elder Dragon")
             return
-        kind = self.rng.pick(DRAGONS) or "Infernal"
+        kind = self.next_drake()
+        self.drakes.append(kind)
         gs.dragons.append(kind)
         if len(gs.dragons) >= 4:
-            gs.soul = True
+            gs.soul = kind
             self.elder_at = self.minute + 6
             self.dragon_at = 999
-            self.log("soul", gs, f"{self.tag(gs)} claim the {gs.dragons[2]} Soul")
+            self.log("soul", gs, f"{self.tag(gs)} claim the {kind} Soul")
         else:
             self.dragon_at = self.minute + 5
             self.log("dragon", gs, f"{self.tag(gs)} take the {kind} Drake ({len(gs.dragons)})")
+
+    def next_drake(self) -> str:
+        """As on the Rift: the first two drakes are two different elements and the third a third one.
+        The Rift then takes that element's form, and every drake after it, and the Soul, is the same."""
+        if len(self.drakes) >= 3:
+            return self.drakes[2]
+        return self.rng.pick([d for d in DRAGONS if d not in self.drakes]) or DRAGONS[0]
 
     def early_objectives(self) -> None:
         m = self.minute
