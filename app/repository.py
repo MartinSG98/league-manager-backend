@@ -63,6 +63,7 @@ def store(session: Session, save: Save, career: Career, details: list[Detail] = 
           cache: bool = True) -> None:
     """Write the career back. With `cache` it also becomes the career reads get; an action that
     stores a migrated copy before running passes False, since it may still fail on that copy."""
+    save.team = career.team  # the manager may have moved clubs: the saved-careers list follows them
     save.season = career.season
     save.day = career.day
     save.phase = career.phase
