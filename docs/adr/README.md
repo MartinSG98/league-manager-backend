@@ -26,3 +26,4 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0018](0018-debt-has-consequences.md) | Debt has consequences | Accepted |
 | [0019](0019-coaches-on-the-move.md) | Coaches on the move | Accepted |
 | [0020](0020-the-staff-market.md) | The staff market | Accepted |
+| [0021](0021-the-manager-is-a-person.md) | The manager is a person | Accepted |

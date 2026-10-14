@@ -16,12 +16,14 @@ from app.game.state import (
     OpponentTurnAction, ReleaseAction, Stage, StartDraftAction,
 )
 
+from tests.conftest import create_manager
+
 cat = get_catalog()
 
 
 def fresh(seed: int = 7, team: str = "G2"):
     """A new career with the board meeting done, so the draft can start."""
-    career = engine.new_career(cat, "Tester", team, seed)
+    career = create_manager(engine.new_career(cat, "Tester", team, seed))
     engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
     return career
 
@@ -156,6 +158,7 @@ def engine_auto():
 def test_a_better_analyst_writes_a_fuller_scouting_report(drafted):
     def report(skill: int) -> dict:
         career = drafted.model_copy(deep=True)
+        career.profile.duties["scouting"] = "staff"  # the analyst writes it, however good the manager is
         sid = career.teams["G2"].analyst
         person = cat.staff[sid]
         # Swap in a copy of the analyst with the scouting we want.

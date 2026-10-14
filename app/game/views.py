@@ -7,7 +7,7 @@ from app.game import board as boardroom
 from app.game import calendar, champ_select as cs
 from app.game import competitions as comps
 from app.game import draft as drafting
-from app.game import finances, hiring, jobs, matchday, patches, reputation, rookies, roster, shortlist, training
+from app.game import finances, hiring, jobs, manager, matchday, patches, reputation, rookies, roster, shortlist, training
 from app.game import transfers
 from app.game import plays as set_plays
 from app.game import staff as staffing
@@ -231,6 +231,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
     return {
         "id": save_id,
         "manager": career.manager,
+        "profile": manager.summary(career),  # None: the manager is still to be created
         "season": career.season,
         "day": career.day.isoformat(),
         "phase": career.phase,
@@ -279,7 +280,8 @@ def _bonuses(career: Career) -> list[dict]:
 def _reputation(cat: Catalog, career: Career) -> dict:
     team = reputation.team_reputation(cat, career, career.team)
     return {"team": round(team, 1), "team_stars": reputation.stars(team), **reputation.ratings(cat, career, career.team),
-            "manager": career.manager_reputation, "manager_stars": reputation.stars(career.manager_reputation)}
+            "manager": career.manager_reputation, "manager_stars": reputation.stars(career.manager_reputation),
+            "manager_ratings": reputation.manager_ratings(cat, career)}
 
 
 def _job_offer(cat: Catalog, career: Career, team_id: str) -> dict:
@@ -682,7 +684,7 @@ def board_view(cat: Catalog, career: Career) -> dict:
              for t in cat.league_teams(career.league)), key=lambda r: -r["reputation"]),
         "job_offers": [_job_offer(cat, career, t) for t in career.job_offers],
         "vacancies": jobs.view(cat, career),
-        "reach": jobs.reach(career),
+        "reach": jobs.reach(cat, career),
         "star_reach": reputation.STAR_REACH,
         "thresholds": {"warning": boardroom.WARNING, "safe": boardroom.SAFE},
     }

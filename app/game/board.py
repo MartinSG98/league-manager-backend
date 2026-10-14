@@ -22,7 +22,7 @@ warning. Nobody is warned or sacked in their first 75 days, which covers the fir
 job. A sacked manager gets offers from clubs up to one and a half stars above their own
 reputation (see reputation.py) and picks where to go next."""
 
-from app.game import calendar, reputation
+from app.game import calendar, manager, reputation
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
@@ -133,6 +133,7 @@ def start_job(cat: Catalog, career: Career, season: int) -> None:
     """A new board relationship: fresh confidence and a meeting about this season's objectives."""
     from app.game import training
 
+    manager.start_spell(career)
     career.board = BoardState(season=season, confidence=START_CONFIDENCE, joined=career.day,
                               objectives=propose(cat, career, career.team, season), meeting=True,
                               bonuses=bonuses_for(career, season))
@@ -179,13 +180,13 @@ def bonus_payment(career: Career, bonus: Bonus) -> int:
     return int(round((team.budget + team.budget_moved) * bonus.sponsors / 10) * 10)
 
 
-def _settle(career: Career, bonus: Bonus, earned: bool) -> None:
+def _settle(cat: Catalog, career: Career, bonus: Bonus, earned: bool) -> None:
     b = career.board
     bonus.status = "earned" if earned else "missed"
     if not earned:
         return
     b.confidence = min(100, b.confidence + bonus.confidence)
-    reputation.change_manager(career, bonus.reputation)
+    reputation.change_manager(cat, career, bonus.reputation, everywhere=True)  # First Stand and MSI
     payment = bonus_payment(career, bonus)
     career.teams[career.team].cash += payment
     b.history.append(f"{career.day.isoformat()} Bonus: {describe_bonus(bonus)}. Confidence {b.confidence}/100.")
@@ -203,19 +204,19 @@ def event_created(cat: Catalog, career: Career, comp: Competition) -> None:
         if bonus.event != event or bonus.status != "pending":
             continue
         if bonus.place == 0:
-            _settle(career, bonus, qualified)
+            _settle(cat, career, bonus, qualified)
         elif not qualified:
             bonus.status = "missed"
 
 
-def _event_finished(career: Career, comp: Competition) -> None:
+def _event_finished(cat: Catalog, career: Career, comp: Competition) -> None:
     event = comp.id.split("-", 1)[1]
     if not comp.id.startswith(f"{career.board.season}-"):
         return
     place = comp.placements.index(career.team) + 1 if career.team in comp.placements else 99
     for bonus in career.board.bonuses:
         if bonus.event == event and bonus.status == "pending" and bonus.place:
-            _settle(career, bonus, place <= bonus.place)
+            _settle(cat, career, bonus, place <= bonus.place)
 
 
 def hold_meeting(cat: Catalog, career: Career, stances: dict[str, int]) -> None:
@@ -249,7 +250,7 @@ def _decide(cat: Catalog, career: Career, obj: Objective, met: bool, delta: int,
     obj.result = result
     b.confidence = max(0, min(100, b.confidence + delta))
     promised = (obj.target - obj.proposed) if obj.kind == "worlds" else (obj.proposed - obj.target)
-    reputation.change_manager(career, (1.5 + max(0, promised)) if met else -1.0)
+    reputation.change_manager(cat, career, (1.5 + max(0, promised)) if met else -1.0, everywhere=obj.kind == "worlds")
 
 
 def _worlds_reached(career: Career, comp: Competition | None) -> int:
@@ -267,7 +268,7 @@ def after_competition(cat: Catalog, career: Career, comp: Competition, rng: Rng)
     if b.sacked or b.meeting or not comp.placements:
         return
     if comp.kind == "international":
-        _event_finished(career, comp)
+        _event_finished(cat, career, comp)
     team = career.team
     title = comp.placements[0] == team
     if title:
@@ -348,8 +349,9 @@ def review(cat: Catalog, career: Career, rng: Rng, obj: Objective) -> None:
 def sack(cat: Catalog, career: Career, rng: Rng) -> None:
     b = career.board
     b.sacked = True
+    manager.end_spell(career, "sacked")
     b.warned = False
-    reputation.change_manager(career, reputation.MANAGER_SACKED)
+    reputation.change_manager(cat, career, reputation.MANAGER_SACKED)
     career.job_offers = job_offers(cat, career, rng)
     career.negotiations = {}
     for offer in career.offers:
@@ -365,11 +367,16 @@ def sack(cat: Catalog, career: Career, rng: Rng) -> None:
              "Choose your next club to carry on.")
 
 
+def jobs_in_reach(cat: Catalog, career: Career, team_id: str) -> bool:
+    """Whether a club would have the manager: at most STAR_REACH stars above them, the way it sees both."""
+    mine, club = reputation.manager_vs_club(cat, career, team_id)
+    return club <= mine + reputation.STAR_REACH
+
+
 def job_offers(cat: Catalog, career: Career, rng: Rng, count: int = 3) -> list[str]:
-    reach = reputation.stars(career.manager_reputation) + reputation.STAR_REACH
     teams = [t for t in career.teams if t != career.team]
     level = {t: reputation.world(cat, career, t) for t in teams}
-    eligible = [t for t in teams if reputation.stars(level[t]) <= reach]
+    eligible = [t for t in teams if jobs_in_reach(cat, career, t)]
     if len(eligible) < count:
         eligible += sorted((t for t in teams if t not in eligible), key=lambda t: level[t])[: count - len(eligible)]
     # The bigger clubs in reach call first, with some luck in who is looking right now.

@@ -16,7 +16,7 @@ be talked to once their club has accepted a transfer fee; signing them pays the 
 from dataclasses import dataclass
 from datetime import timedelta
 
-from app.game import reputation, roster
+from app.game import manager, reputation, roster
 from app.game.catalog import ROLES, Catalog
 from app.game.errors import IllegalAction
 from app.game.ratings import asking_salary
@@ -61,7 +61,7 @@ def ask(cat: Catalog, career: Career, pid: str) -> Ask:
     else:
         years = 2
     salary = int(round(salary / 5) * 5)
-    return Ask(salary=salary, years=years, floor=int(salary * _flexibility(pid, career.season)))
+    return Ask(salary=salary, years=years, floor=int(salary * _flexibility(pid, career.season) * manager.haggle(career)))
 
 
 def committed(career: Career, team) -> int:

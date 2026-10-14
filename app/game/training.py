@@ -27,6 +27,7 @@ closing games out, lost fights at teamfighting. A weak analyst sometimes reads i
 
 from dataclasses import dataclass
 
+from app.game import manager
 from app.game import plays as set_plays
 from app.game import roster
 from app.game import staff as staffing
@@ -183,6 +184,8 @@ def _team_week(cat: Catalog, career: Career, team: TeamState) -> None:
     play = team.training.play
     if play in set_plays.PLAYS and team.plays.get(play, 0.0) < 100:
         step = 100 / set_plays.PLAYS[play].weeks * load.gain ** 0.7 * teach
+        if team.id == career.team:
+            step *= manager.factor(manager.own(career, "tactics"))
         team.plays[play] = round(min(100.0, team.plays.get(play, 0.0) + step), 1)
         if team.plays[play] >= 100:
             team.training.play = None
@@ -226,7 +229,8 @@ def _player_week(cat: Catalog, career: Career, pid: str, state: PlayerState, rng
 
     calm = 45 if state.unsettled else 70
     state.morale = max(0, min(100, state.morale + (calm - state.morale) // staffing.morale_recovery_divisor(motivation)))
-    if state.unsettled and state.morale >= SETTLE_MORALE and rng.chance(SETTLE_CHANCE):
+    settle = SETTLE_CHANCE * (manager.factor(manager.own(career, "man_management")) if mine else 1.0)
+    if state.unsettled and state.morale >= SETTLE_MORALE and rng.chance(settle):
         state.unsettled = False
         if mine:
             _message(career, "player", f"{name} has settled",

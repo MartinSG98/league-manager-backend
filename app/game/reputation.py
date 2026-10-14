@@ -6,9 +6,14 @@ lowers it, and every off-season it drifts a tenth of the way back to the organis
 prestige. Players weigh it before they sign (see transfers.interest), sponsors pay by it and the
 board sets the budget by it.
 
-The manager has a reputation on the same scale. It starts a little below the club that hired
-them, grows with objectives met and titles won, and drops with a sacking. After a sacking only
-clubs up to one and a half stars above the manager call (see board.job_offers).
+The manager has a reputation on the same scale, also twice: their standing in the region they
+work in, and in the world. It starts a little below the club that hired them, in their region,
+and the world weighs it by the league's strength, as a club's. Objectives met, titles and a
+sacking move the region's in full and the world's by the league's strength; international
+results move both in full. In a region they never worked in, the manager is known by their
+world reputation. A club sees the manager the way it is seen itself: a club of the manager's
+region on the region's scale, any other on the world's, and only clubs up to one and a half
+stars above the manager on that scale want them (see jobs.py and board.job_offers).
 
 Both are shown as stars: (reputation - 50) / 10, in half stars from 0.5 to 5.
 
@@ -101,6 +106,41 @@ def ensure(cat: Catalog, career: Career) -> None:
             team.reputation = float(cat.teams[team.id].prestige)
     if not career.manager_reputation:
         career.manager_reputation = starting_manager_reputation(career.teams[career.team].reputation)
+        split_manager(cat, career)
+
+
+def _share(cat: Catalog, career: Career) -> float:
+    """How much of what happens in the manager's league the world notices."""
+    return cat.leagues[career.league].strength / 100
+
+
+def split_manager(cat: Catalog, career: Career) -> None:
+    """One number becomes two: what the manager has is their standing in their region, and the
+    world weighs it by the league's strength. For new careers and saves from before."""
+    regional = career.manager_reputation
+    career.manager_standing = {career.region: regional}
+    career.manager_reputation = round(50 + (regional - 50) * _share(cat, career), 1)
+    career.reputation_log = []
+    log_manager(career)
+
+
+def manager_in(career: Career, region: str | None) -> float:
+    """The manager's reputation in a region: what they built there, else their world reputation."""
+    return career.manager_standing.get(region or "", career.manager_reputation)
+
+
+def manager_ratings(cat: Catalog, career: Career) -> dict:
+    regional = manager_in(career, career.region)
+    return {"world": career.manager_reputation, "world_stars": stars(career.manager_reputation),
+            "regional": regional, "region_stars": stars(regional), "region": cat.regions[career.region].league}
+
+
+def manager_vs_club(cat: Catalog, career: Career, team_id: str) -> tuple[float, float]:
+    """The manager's stars and a club's, the way that club sees both: on the region's scale when
+    it is a club of the manager's region, on the world's otherwise."""
+    if cat.teams[team_id].region == career.region:
+        return stars(manager_in(career, career.region)), stars(regional(cat, career, team_id))
+    return stars(career.manager_reputation), stars(world(cat, career, team_id))
 
 
 def _event(comp: Competition) -> str:
@@ -125,11 +165,26 @@ def after_competition(cat: Catalog, career: Career, comp: Competition) -> None:
                                               + change_for(comp, i + 1))), 1)
     if comp.placements and comp.placements[0] == career.team:
         key = "league" if comp.kind == "league" else _event(comp)
-        change_manager(career, MANAGER_TITLE.get(key, 0.0))
+        change_manager(cat, career, MANAGER_TITLE.get(key, 0.0), everywhere=comp.kind != "league")
 
 
-def change_manager(career: Career, delta: float) -> None:
-    career.manager_reputation = round(max(30.0, min(100.0, career.manager_reputation + delta)), 1)
+def change_manager(cat: Catalog, career: Career, delta: float, everywhere: bool = False) -> None:
+    """The manager's region notes the full change; the world by the league's strength, or in full
+    for what happens on the international stage (`everywhere`)."""
+    regional = manager_in(career, career.region)
+    share = 1.0 if everywhere else _share(cat, career)
+    career.manager_reputation = round(max(30.0, min(100.0, career.manager_reputation + delta * share)), 1)
+    career.manager_standing[career.region] = round(max(30.0, min(100.0, regional + delta)), 1)
+    log_manager(career)
+
+
+def log_manager(career: Career) -> None:
+    """Note the manager's reputation for the Me screen's graph: one point a day at most."""
+    point = (career.day, career.manager_reputation, manager_in(career, career.region))
+    if career.reputation_log and career.reputation_log[-1][0] == career.day:
+        career.reputation_log[-1] = point
+    elif not career.reputation_log or tuple(career.reputation_log[-1][1:]) != point[1:]:
+        career.reputation_log.append(point)
 
 
 def drift(cat: Catalog, career: Career) -> None:

@@ -39,6 +39,17 @@ def test_catalog_lists_tier_one_teams_and_every_champion(client):
     assert set(data["event_logos"]) == {"FST", "MSI", "WORLDS"}
 
 
+def create_manager(client, save, background="coach"):
+    """Create the manager the way the client does: the points from the manager view, spread evenly."""
+    view = client.get(f"/api/careers/{save}/manager").json()
+    assert view["profile"] is None
+    attrs = [a["id"] for a in view["attributes"]]
+    points = next(b["points"] for b in view["backgrounds"] if b["id"] == background)
+    each, extra = divmod(view["rules"]["base"] * len(attrs) + points, len(attrs))
+    values = {a: each + (1 if i < extra else 0) for i, a in enumerate(attrs)}
+    return act(client, save, {"type": "create_manager", "background": background, "attributes": values})
+
+
 def test_unknown_team_is_rejected(client):
     assert client.post("/api/careers", json={"team": "NOPE"}).status_code == 400
 
@@ -49,7 +60,10 @@ def test_a_career_from_draft_to_a_played_game(client):
     assert career["phase"] == "draft" and career["draft"]["number"] == 1
     assert career["board"]["meeting"] and career["board"]["objectives"]
     r = client.post(f"/api/careers/{save}/actions", json={"type": "draft_next", "until_mine": True})
-    assert r.json()["career"]["draft"]["number"] == 1, "the draft waits for the board meeting"
+    assert r.json()["career"]["draft"]["number"] == 1, "the draft waits for the manager and the board meeting"
+    assert career["profile"] is None
+    assert client.post(f"/api/careers/{save}/actions", json={"type": "board_meeting"}).status_code == 409
+    assert create_manager(client, save)["career"]["profile"]["background"] == "coach"
     meeting = client.get(f"/api/careers/{save}/board").json()
     assert all(len(o["options"]) == 3 for o in meeting["objectives"])
     career = act(client, save, {"type": "board_meeting", "stances": {"split1": 1}})["career"]
@@ -134,6 +148,7 @@ def test_reads_share_a_parsed_career_and_a_failed_action_changes_nothing(client)
     from app import repository
 
     save = client.post("/api/careers", json={"team": "T1", "seed": 3}).json()["id"]
+    create_manager(client, save)
     act(client, save, {"type": "board_meeting"})
     client.get(f"/api/careers/{save}")
     cached = repository._parsed[save][1]
