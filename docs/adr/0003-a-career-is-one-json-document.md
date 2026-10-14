@@ -1,7 +1,7 @@
 # 0003. A career is one JSON document
 
 Date: 2026-10-11
-Status: Accepted
+Status: Accepted, amended 2026-10-14
 
 ## Context
 
@@ -25,3 +25,13 @@ The minute-by-minute timeline of a game the manager played is the one exception.
 ## Consequences
 
 The engine has no database code and works on plain models. Loading and saving a career right after the draft takes a few milliseconds. By Worlds the document is a few megabytes and still loads in well under a second. If multiple seasons make it too large, finished seasons can move out to their own rows without changing the engine.
+
+## Amendment, 2026-10-14: parsing once
+
+Mid-season the document had grown to 4.7 MB (1,121 matches with their game records) and took about 80 ms to parse. Every request parsed it again, and the UI follows each click with five to seven reads, which made about half a second of parsing per click, growing through the season.
+
+- **Reads** share one parsed career per save (`repository._parsed`), kept while the save's `updated_at` is unchanged. Views never change the career, and a test checks that they leave it as it was.
+- **Actions** parse their own copy, so one that fails half way leaves nothing behind. The copy they store becomes the one reads get.
+- **The catalog with a career's rookies and new staff** (`rookies.catalog_for`) is built once per parsed career, and again only when a new class arrives. Both lists only ever grow.
+
+Moving finished seasons out of the document remains the next step if it keeps growing.

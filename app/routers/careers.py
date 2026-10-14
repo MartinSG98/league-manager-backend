@@ -25,14 +25,14 @@ def _cat(career):
     return rookies.catalog_for(get_catalog(), career)
 
 
-def _load(session: Session, save_id: str):
-    found = repository.load_save(session, save_id)
+def _load(session: Session, save_id: str, fresh: bool = False):
+    found = repository.load_save(session, save_id, fresh)
     if found is None:
         raise HTTPException(404, "No such career")
     save, career = found
     # A save from an older version is brought up to date the first time it is opened.
     if engine.migrate(_cat(career), career):
-        repository.store(session, save, career)
+        repository.store(session, save, career, cache=not fresh)
     return save, career
 
 
@@ -67,7 +67,7 @@ def remove(save_id: str, session: Session = Depends(get_session)) -> None:
 
 @router.post("/{save_id}/actions")
 def act(save_id: str, action: Action, session: Session = Depends(get_session)) -> dict:
-    save, career = _load(session, save_id)
+    save, career = _load(session, save_id, fresh=True)
     try:
         outcome = engine.apply(_cat(career), career, action)
     except IllegalAction as exc:
