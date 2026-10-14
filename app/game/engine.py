@@ -312,6 +312,8 @@ def migrate(cat: Catalog, career: Career) -> bool:
             # Retired before retirements handed the role on.
             retirement.new_franchise(rookies.catalog_for(cat, career), career, team, cat.players[team.franchise].name)
             changed = True
+    if transfers.stale_deals(cat, career):
+        changed = True
     if career.phase == "offseason" and not any(h.season == career.season for h in career.history):
         # Saved at the end of a season under the old rules, before the transfer window existed.
         offseason.start_offseason(cat, career, Rng(career))

@@ -672,3 +672,36 @@ def test_rookies_from_solo_queue_have_not_played_together(window):
     assert "A new lineup that is still learning each other" in reasons
     team.together[roster._pair_key(solo["BOT"], solo["SUP"])] = 20
     assert roster.chemistry(mine, career, team, pair)[0] > fresh, "twenty games together make them a pair"
+
+
+def _stale(career):
+    """An older save: a fee was agreed, then the player moved to a third club and the deal stayed."""
+    pid, seller, offer = _agree(career)
+    other = next(t for t in career.teams if t not in (career.team, seller))
+    old = career.teams[seller]
+    old.roster.remove(pid)
+    old.lineup = {r: p for r, p in old.lineup.items() if p != pid}
+    career.teams[other].roster.append(pid)
+    career.players[pid].team = other
+    return pid, other, offer
+
+
+def test_a_stale_agreed_fee_never_puts_a_player_on_two_rosters(window):
+    from app.game import contracts
+
+    career = window.model_copy(deep=True)
+    pid, other, offer = _stale(career)
+    assert "the deal is off" in contracts.check_can_talk(rookies.catalog_for(cat, career), career, pid)
+    want = contracts.ask(cat, career, pid)
+    with pytest.raises(IllegalAction):
+        contracts._sign(cat, career, pid, want.salary, want.years)  # even past the check
+    assert pid in career.teams[other].roster and pid not in career.teams[career.team].roster
+    assert career.players[pid].team == other
+
+    career = window.model_copy(deep=True)
+    pid, other, offer = _stale(career)
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, OfferAction(type="offer", player=pid, salary=want.salary, years=want.years))
+    assert offer.status == "collapsed", "loading the save calls the deal off"
+    assert career.inbox[-1].subject.startswith("Deal off")
+    assert pid not in career.teams[career.team].roster
