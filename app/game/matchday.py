@@ -250,7 +250,7 @@ def _running_select(career: Career) -> ChampSelect:
 
 
 def human_ban(cat: Catalog, career: Career, champion: str, rng: Rng) -> None:
-    cs.ban(_running_select(career), career.live.our_side, champion)
+    cs.ban(cat, _running_select(career), career.live.our_side, champion)
     _check_ready(cat, career)
 
 

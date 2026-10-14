@@ -582,3 +582,72 @@ def test_winning_settles_an_unsettled_player_and_losing_does_not(drafted):
     assert not career.players[happy].unsettled
     assert any(m.subject == f"{cat.players[happy].name} has settled" for m in career.inbox)
     assert career.players[sad].unsettled, "an unhappy player stays unsettled"
+
+
+def _agree(career):
+    """The manager agrees a fee for a starter elsewhere; returns the player, the seller and the offer."""
+    team = career.teams[career.team]
+    team.cash = 20000
+    team.budget += 3000
+    pid = _target(career)
+    seller = career.players[pid].team
+    engine.apply(cat, career, TransferBidAction(type="transfer_bid", player=pid, fee=transfers.asking_fee(cat, career, pid)))
+    offer = career.offers[-1]
+    assert offer.status == "agreed"
+    return pid, seller, offer
+
+
+def test_a_player_with_an_agreed_fee_is_off_the_market_and_a_sale_elsewhere_ends_the_deal(window):
+    from app.game import contracts
+
+    career = window
+    pid, seller, offer = _agree(career)
+    assert transfers.spoken_for(career, pid), "AI clubs leave him alone while personal terms are open"
+    buyer = next(t for t in career.teams if t not in (career.team, seller))
+    transfers._move(cat, career, pid, seller, buyer, 500)
+    assert offer.status == "collapsed" and transfers.reserved(career) == 0
+    assert "under contract with another team" in contracts.check_can_talk(rookies.catalog_for(cat, career), career, pid)
+    assert pid in career.teams[buyer].roster and pid not in career.teams[career.team].roster
+    assert career.inbox[-1].subject.startswith("Deal off")
+
+
+def test_an_agreed_fee_lapses_when_the_contract_runs_out_and_the_player_comes_free(window):
+    from app.game import contracts
+
+    career = window
+    pid, seller, offer = _agree(career)
+    career.players[pid].contract.until = career.season
+    transfers.open_free_agency(cat, career)
+    assert career.players[pid].team is None and offer.status == "collapsed"
+    team = career.teams[career.team]
+    cash, seller_cash = team.cash, career.teams[seller].cash
+    want = contracts.ask(cat, career, pid)
+    engine.apply(cat, career, OfferAction(type="offer", player=pid, salary=want.salary, years=want.years))
+    assert career.players[pid].team == career.team and pid not in career.teams[seller].roster
+    assert team.cash == cash and career.teams[seller].cash == seller_cash, "a free agent costs no fee"
+
+
+def test_a_release_in_the_off_season_pays_for_the_seasons_still_to_come(window):
+    from app.game import contracts
+
+    for until, cost in ((window.season, 0), (window.season + 1, 0.5)):
+        career = window.model_copy(deep=True)
+        team = career.teams[career.team]
+        pid = next(p for p in team.roster if p not in team.lineup.values())
+        career.players[pid].contract.until = until  # this season's contracts run out on December 1st
+        salary = career.players[pid].contract.salary
+        assert contracts.release(cat, career, pid) == int(salary * cost)
+
+
+def test_rookies_from_solo_queue_have_not_played_together(window):
+    career = window
+    mine = rookies.catalog_for(cat, career)
+    solo = {r.role: r.id for r in career.rookies if not r.team}
+    assert "BOT" in solo and "SUP" in solo
+    team = career.teams[career.team]
+    pair = {"BOT": solo["BOT"], "SUP": solo["SUP"]}
+    fresh, reasons = roster.chemistry(mine, career, team, pair)
+    assert not any("were a bot lane" in r for r in reasons)
+    assert "A new lineup that is still learning each other" in reasons
+    team.together[roster._pair_key(solo["BOT"], solo["SUP"])] = 20
+    assert roster.chemistry(mine, career, team, pair)[0] > fresh, "twenty games together make them a pair"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.game import engine, jobs
+from app.game import engine, jobs, training
 from app.game.catalog import get_catalog
 from app.game.errors import IllegalAction
 from app.game.rng import Rng
@@ -78,10 +78,14 @@ def test_taking_an_offer_moves_the_manager_to_the_new_club(window):
     career = window
     old = career.team
     roster = list(career.teams[old].roster)
-    club = _club(career)
+    club = min((t for t in sorted(career.teams) if t != old and jobs._vacancy(career, t) is None
+                and jobs.in_reach(cat, career, t)), key=lambda t: len(training.team_games(career, t)))
+    career.reviewed_games = len(training.team_games(career, old))
+    assert career.reviewed_games > len(training.team_games(career, club))
     vacancy = jobs.open_vacancy(cat, career, club, Rng(career))
     jobs._offer(cat, career, vacancy, approached=False)
     engine.apply(cat, career, AcceptJobAction(type="accept_job", team=club))
+    assert career.reviewed_games == len(training.team_games(career, club)), "the analyst starts over"
     assert career.team == club and career.league == cat.teams[club].league
     assert career.board.meeting and not career.board.sacked
     assert career.teams[club].coach is not None, "the board hires the manager an assistant"

@@ -163,6 +163,24 @@ def agreed(career: Career, pid: str) -> TransferOffer | None:
     return next((o for o in career.offers if o.player == pid and o.buyer == career.team and o.status == "agreed"), None)
 
 
+def spoken_for(career: Career, pid: str) -> bool:
+    """A bid for the player is open or its fee agreed: no other club moves for him meanwhile."""
+    return any(o.player == pid and o.status in ("open", "agreed") for o in career.offers)
+
+
+def call_off(cat: Catalog, career: Career, pid: str, seller: str) -> None:
+    """The player left the club that was selling him, so the bids for him there fall through."""
+    name = cat.players[pid].name
+    for o in career.offers:
+        if o.player != pid or o.seller != seller or o.status not in ("open", "agreed"):
+            continue
+        what = f"the {o.fee}k fee you agreed" if o.status == "agreed" else f"your {o.fee}k bid"
+        o.status = "collapsed"
+        o.note = f"{name} left {cat.teams[seller].name}."
+        if o.buyer == career.team:
+            _message(career, "transfer", f"Deal off: {name}", f"{name} has left {cat.teams[seller].name}, so {what} is off.")
+
+
 def _new_offer(career: Career, pid: str, buyer: str, seller: str, fee: int, days: int) -> TransferOffer:
     offer = TransferOffer(id=career.next_offer, player=pid, buyer=buyer, seller=seller, fee=fee, day=career.day,
                           expires=career.day + timedelta(days=days))
@@ -249,9 +267,12 @@ def complete_purchase(cat: Catalog, career: Career, pid: str) -> TransferOffer |
     offer = agreed(career, pid)
     if offer is None:
         return None
-    _move(cat, career, pid, offer.seller, offer.buyer, offer.fee)
-    offer.status = "completed"
+    if career.players[pid].team != offer.seller:
+        call_off(cat, career, pid, offer.seller)
+        return None
+    offer.status = "completed"  # before the move, which calls off every other bid for him there
     offer.note = f"Completed for {offer.fee}k."
+    _move(cat, career, pid, offer.seller, offer.buyer, offer.fee)
     return offer
 
 
@@ -276,10 +297,10 @@ def respond(cat: Catalog, career: Career, offer_id: int, response: str, rng: Rng
     buyer = cat.teams[offer.buyer].name
     if response == "accept":
         state = career.players[pid]
-        _move(cat, career, pid, career.team, offer.buyer, offer.fee)
-        state.promise = None
         offer.status = "completed"
         offer.note = f"{name} joins {buyer} for {offer.fee}k."
+        _move(cat, career, pid, career.team, offer.buyer, offer.fee)
+        state.promise = None
         _message(career, "transfer", f"{name} sold to {buyer}", f"{offer.note} The fee is in the bank.")
         return offer
     if response == "negotiate":
@@ -435,6 +456,7 @@ def _leave(cat: Catalog, career: Career, team: TeamState, pid: str) -> None:
             del team.lineup[role]
     career.players[pid].team = None
     career.players[pid].contract = None
+    call_off(cat, career, pid, team.id)
 
 
 def _join(cat: Catalog, career: Career, team: TeamState, pid: str, years: int = 2) -> None:
@@ -553,7 +575,7 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
             continue
         if interest(cat, career, p.id, team.id)[0] == "refuses":
             continue
-        if any(o.player == p.id and o.status == "open" for o in career.offers):
+        if spoken_for(career, p.id):
             continue
         targets.append((rating - current - ask / 400, p.id, ask))
     if not targets:

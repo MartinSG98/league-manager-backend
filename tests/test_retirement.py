@@ -48,6 +48,18 @@ def test_some_players_announce_their_last_season_at_the_first_off_season(finishe
     assert not any(s.retired for s in finished.players.values()), "nobody retires without a year's notice"
 
 
+def test_a_retiring_franchise_player_hands_the_role_to_the_best_player_left(window):
+    career = window
+    mine = rookies.catalog_for(cat, career)
+    team = career.teams[career.team]
+    star = team.franchise
+    career.players[star].retiring = career.season
+    retirement.retire(mine, career, career.season)
+    best = max(team.roster, key=lambda p: (roster.overall(mine, career, p), mine.players[p].reputation))
+    assert team.franchise == best and star not in team.roster
+    assert career.inbox[-1].subject == f"{mine.players[best].name} is the new franchise player"
+
+
 def test_a_player_retires_when_their_last_season_ends(window):
     career = window
     mine = rookies.catalog_for(cat, career)
@@ -66,3 +78,13 @@ def test_a_player_retires_when_their_last_season_ends(window):
     found = views.players_search(mine, career, None, False, None, 5000)
     assert not {pid, other} & {row["id"] for row in found}
     assert any(m.subject == f"{cat.players[pid].name} retires" for m in career.inbox)
+
+
+def test_a_save_whose_franchise_player_already_retired_gets_a_new_one(window):
+    career = window
+    team = career.teams[career.team]
+    star = team.franchise
+    career.players[star].retired = True
+    team.roster.remove(star)
+    assert engine.migrate(cat, career)
+    assert team.franchise in team.roster and team.franchise != star

@@ -88,6 +88,8 @@ def retire(cat: Catalog, career: Career, season: int) -> list[str]:
         team = career.teams.get(state.team or "")
         if team is not None:
             transfers._leave(cat, career, team, pid)
+            if team.franchise == pid:
+                new_franchise(cat, career, team, name)
         state.team = None
         state.contract = None
         state.retired = True
@@ -95,6 +97,16 @@ def retire(cat: Catalog, career: Career, season: int) -> list[str]:
         gone.append(pid)
     career.shortlist = [e for e in career.shortlist if e.player not in gone]
     return gone
+
+
+def new_franchise(cat: Catalog, career: Career, team, retired: str) -> None:
+    """The club's best player left takes over as its franchise player."""
+    team.franchise = max(team.roster, key=lambda p: (roster.overall(cat, career, p), cat.players[p].reputation), default=None)
+    if team.franchise and team.id == career.team:
+        new = cat.players[team.franchise].name
+        _message(career, "player", f"{new} is the new franchise player",
+                 f"With {retired} gone, the board makes {new} the face of the club: not for sale, never released, "
+                 "and kept on when the contract runs out.")
 
 
 def announce(cat: Catalog, career: Career, rng: Rng, last_season: int) -> list[str]:

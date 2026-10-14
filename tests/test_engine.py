@@ -251,6 +251,22 @@ def test_six_team_bracket_gives_the_top_two_a_bye(drafted):
     assert teams[0] not in playing and teams[1] not in playing
 
 
+def test_knockout_losers_of_one_round_are_ranked_by_seed(drafted):
+    teams = [t.id for t in cat.league_teams("LPL")][:8]
+    comp = _comp(teams)
+    stage = Stage(id="T-PO", name="PO", kind="single_elim", teams=teams, best_of=5)
+    career = drafted.model_copy(deep=True)
+    comps.build_single_elim(career, comp, stage, [[date(2027, 2, 1)], [date(2027, 2, 8)], [date(2027, 2, 15)]])
+    for mid in stage.matches:  # the better seed wins every match
+        match = career.matches[mid]
+        comps._resolve(career, stage, match)
+        match.winner = min((match.home, match.away), key=teams.index)
+    ranking = comps.elim_ranking(career, stage)
+    assert ranking[:2] == teams[:2]
+    assert ranking[2:4] == teams[2:4], "semifinal losers by seed"
+    assert ranking[4:] == teams[4:], "quarterfinal losers by seed, whichever match they were in"
+
+
 # ---------- champion select and games ----------
 
 
@@ -362,6 +378,9 @@ def test_the_opponent_moves_one_turn_at_a_time_and_never_for_the_manager(drafted
     assert select.step == 1 and len(select.blue_bans) == 1
     engine.apply(cat, career, OpponentTurnAction(type="opponent_turn"))
     assert select.step == 1, "red's turn: nothing happens"
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, BanAction(type="ban", champion="NotAChampion"))
+    assert select.step == 1 and not select.red_bans, "a made-up champion does not use up the ban"
     engine.apply(cat, career, BanAction(type="ban", champion=matchday_suggestion(career)))
     engine.apply(cat, career, OpponentTurnAction(type="opponent_turn", until_mine=True))
     assert cs.turn(select) == ("red", "ban")

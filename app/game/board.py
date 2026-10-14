@@ -131,9 +131,13 @@ def stance_target(cat: Catalog, career: Career, obj: Objective, stance: int) -> 
 
 def start_job(cat: Catalog, career: Career, season: int) -> None:
     """A new board relationship: fresh confidence and a meeting about this season's objectives."""
+    from app.game import training
+
     career.board = BoardState(season=season, confidence=START_CONFIDENCE, joined=career.day,
                               objectives=propose(cat, career, career.team, season), meeting=True,
                               bonuses=bonuses_for(career, season))
+    # The analyst starts over at the new club: the next review comes a few games into the job.
+    career.reviewed_games = len(training.team_games(career, career.team))
 
 
 def new_season(cat: Catalog, career: Career, season: int) -> None:
