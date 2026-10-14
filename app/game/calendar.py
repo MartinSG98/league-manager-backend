@@ -7,7 +7,18 @@ them, laid out on real dates.
     Mar 28       split 2, playoffs from May 22
     Jun 26-Jul 12  MSI: a play-in, then a double-elimination bracket of eight
     Jul 18       split 3, playoffs from Sep 4
-    Oct 1-Nov 7  Worlds: a Swiss stage, then best-of-five knockouts
+    Sep 24-Nov 7 Worlds: a play-in, a Swiss stage, then best-of-five knockouts
+
+The international events follow Riot's 2026 rules:
+- First Stand: two teams from the LCK and the LPL, one from every other region. The region that
+  wins it sends both its MSI teams straight to the bracket.
+- MSI: two teams a region, one from Brazil. Every region's first seed and the First Stand
+  region's second go straight to the bracket of eight, seeded by how their regions did at First
+  Stand; the other four second seeds play in for the last place (double elimination, Bo5).
+- Worlds: three teams a region, two from Brazil, and a fourth for the two best regions at MSI;
+  the MSI champion is invited if it reached its region's playoffs. The last team of each of the
+  four other regions plays in for the sixteenth place in the Swiss stage. The Swiss pots go by
+  seed, then by the regions' place in the global power rankings (power.py).
 
 Every domestic playoff is a best-of-five double-elimination bracket, as in 2026: eight teams in
 the LPL and the LEC Versus, six everywhere else. The LEC (Spring and Summer) and the LCS Spring
@@ -21,6 +32,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.game import competitions as comps
+from app.game import power
 from app.game.catalog import Catalog
 from app.game.rng import Rng
 from app.game.state import Career, Competition, InboxMessage, Stage
@@ -83,22 +95,15 @@ INTERNATIONALS = (
     International("FST", "First Stand", 1, (3, 13), (3, 22),
                   {"KR": 2, "CN": 2, "EMEA": 1, "NA": 1, "APAC": 1, "BR": 1}, 1000),
     International("MSI", "Mid-Season Invitational", 2, (6, 26), (7, 12),
-                  {"KR": 2, "CN": 2, "EMEA": 2, "NA": 2, "APAC": 1, "BR": 1}, 2000),
-    International("WORLDS", "World Championship", 3, (10, 1), (11, 7),
-                  {"KR": 4, "CN": 4, "EMEA": 3, "NA": 2, "APAC": 2, "BR": 1}, 5000),
+                  {"KR": 2, "CN": 2, "EMEA": 2, "NA": 2, "APAC": 2, "BR": 1}, 2000),
+    # Before the fourth team the two best regions at MSI send (EXTRA_WORLDS_SLOTS).
+    International("WORLDS", "World Championship", 3, (9, 24), (11, 7),
+                  {"KR": 3, "CN": 3, "EMEA": 3, "NA": 3, "APAC": 3, "BR": 2}, 5000),
 )
+EXTRA_WORLDS_SLOTS = 2  # the two best regions at MSI send a fourth team to Worlds
 
 PRIZE_SHARE = (0.30, 0.17, 0.10, 0.10, 0.05, 0.05, 0.05, 0.05)
 
-# The Worlds Swiss pots, as (region, rank in region), the way Worlds 2024 drew them: the four big
-# regions' champions, their runners-up, the third and fourth LCK and LPL teams, then everyone else.
-# The first round draws pot 1 against pot 4 and pot 2 against pot 3.
-WORLDS_POTS = (
-    (("KR", 1), ("CN", 1), ("EMEA", 1), ("NA", 1)),
-    (("KR", 2), ("CN", 2), ("EMEA", 2), ("NA", 2)),
-    (("KR", 3), ("CN", 3), ("KR", 4), ("CN", 4)),
-    (("EMEA", 3), ("APAC", 1), ("APAC", 2), ("BR", 1)),
-)
 
 
 def _d(season: int, md: tuple[int, int]) -> date:
@@ -177,15 +182,59 @@ def _build_playoffs(career: Career, comp: Competition, seeds: list[str]) -> None
 # ---------- international ----------
 
 
+def _by_power(career: Career) -> list[str]:
+    """Regions from the strongest down in the global power rankings, or the usual order before them."""
+    return power.region_order(career) or list(REGION_ORDER)
+
+
+def event_regions(cat: Catalog, career: Career, event_id: str) -> list[str]:
+    """Regions by how they did at this season's event, best first (by their best team's place),
+    then the rest by power."""
+    comp = career.competitions.get(f"{career.season}-{event_id}")
+    order: list[str] = []
+    for team in (comp.placements if comp else []):
+        if cat.teams[team].region not in order:
+            order.append(cat.teams[team].region)
+    return order + [r for r in _by_power(career) if r not in order]
+
+
+def slots(cat: Catalog, career: Career, event: International) -> dict[str, int]:
+    """Teams each region sends: the event's own, and at Worlds a fourth for the two best regions at MSI."""
+    out = dict(event.slots)
+    if event.id == "WORLDS":
+        for region in event_regions(cat, career, "MSI")[:EXTRA_WORLDS_SLOTS]:
+            out[region] += 1
+    return out
+
+
+def expected_worlds_slots(career: Career, region: str) -> int:
+    """The Worlds teams a region can count on before MSI: the fourth for the two strongest regions."""
+    worlds = next(e for e in INTERNATIONALS if e.id == "WORLDS")
+    return worlds.slots[region] + (1 if region in _by_power(career)[:EXTRA_WORLDS_SLOTS] else 0)
+
+
+def _playoff_teams(comp: Competition) -> list[str]:
+    return comp.stages[1].teams if len(comp.stages) > 1 else comp.placements
+
+
 def _qualifiers(cat: Catalog, career: Career, event: International) -> list[tuple[str, int, str]]:
-    """(region, rank in region, team), every region's first seed before anyone's second."""
+    """(region, rank in region, team), every region's first seed before anyone's second, and the
+    regions within a seed by power. At Worlds the MSI champion is invited if it reached its region's
+    playoffs, in place of the last team that would have gone."""
+    seats = slots(cat, career, event)
+    msi = career.competitions.get(f"{career.season}-MSI")
+    champion = msi.placements[0] if event.id == "WORLDS" and msi and msi.placements else None
     rows = []
     for region_id in REGION_ORDER:
         league = cat.regions[region_id].league
         comp = career.competitions[f"{career.season}-{league}-{event.after_split}"]
-        for rank, team in enumerate(comp.placements[: event.slots[region_id]], start=1):
-            rows.append((region_id, rank, team))
-    rows.sort(key=lambda r: (r[1], REGION_ORDER.index(r[0])))
+        teams = comp.placements[: seats[region_id]]
+        if (champion and cat.teams[champion].region == region_id and champion not in teams
+                and champion in _playoff_teams(comp)):
+            teams = [*teams[:-1], champion]
+        rows += [(region_id, rank, team) for rank, team in enumerate(teams, start=1)]
+    order = _by_power(career)
+    rows.sort(key=lambda r: (r[1], order.index(r[0])))
     return rows
 
 
@@ -207,20 +256,27 @@ def create_international(cat: Catalog, career: Career, event: International, rng
         comp.stages.append(stage)
         comps.build_round_robin(career, comp, stage, date(season, 3, 13), date(season, 3, 16))
     elif event.id == "MSI":
-        direct = [t for r, n, t in qualified if r in ("KR", "CN") or (n == 1 and r in ("EMEA", "NA"))]
-        play_in = [t for t in teams if t not in direct]
-        stage = Stage(id=f"{comp.id}-PI", name="Play-In", kind="single_elim", teams=play_in, best_of=5, advance=2)
+        # Every first seed, seeded by how its region did at First Stand, and the First Stand region's
+        # second go straight to the bracket; the other second seeds play in for the eighth place.
+        order = event_regions(cat, career, "FST")
+        firsts = sorted((t for _, n, t in qualified if n == 1), key=lambda t: order.index(cat.teams[t].region))
+        bye = [t for r, n, t in qualified if r == order[0] and n == 2]
+        play_in = sorted((t for t in teams if t not in firsts + bye), key=lambda t: order.index(cat.teams[t].region))
+        comp.entrants = firsts + bye + play_in  # the bracket's seeds in order, then the play-in
+        stage = Stage(id=f"{comp.id}-PI", name="Play-In", kind="double_elim", teams=play_in, best_of=5, advance=1)
         comp.stages.append(stage)
-        comps.build_single_elim(career, comp, stage, [[date(season, 6, 26), date(season, 6, 27)]])
+        comps.build_double_elim(career, comp, stage, "four", date(season, 6, 26), date(season, 6, 30))
     else:
-        seat = {(r, n): t for r, n, t in qualified}
-        pots = [[seat[s] for s in pot] for pot in WORLDS_POTS]
-        # The pots also seed the stage: within a record, a team from a higher pot ranks first.
-        stage = Stage(id=f"{comp.id}-SW", name="Swiss stage", kind="swiss", teams=[t for pot in pots for t in pot],
-                      pots=pots, best_of=1, advance=8, days=[date(season, 10, d) for d in (1, 3, 5, 8, 10)])
+        # The last team of every region without a fourth plays in for the sixteenth Swiss place; the
+        # rest keep their seed order, which makes the Swiss pots.
+        extra = set(event_regions(cat, career, "MSI")[:EXTRA_WORLDS_SLOTS])
+        last = {r: t for r, _, t in sorted(qualified, key=lambda q: q[1])}
+        order = _by_power(career)
+        play_in = sorted((t for r, t in last.items() if r not in extra), key=lambda t: order.index(cat.teams[t].region))
+        comp.entrants = [t for _, _, t in qualified if t not in play_in] + play_in
+        stage = Stage(id=f"{comp.id}-PI", name="Play-In", kind="double_elim", teams=play_in, best_of=5, advance=1)
         comp.stages.append(stage)
-        region_of = {t: cat.teams[t].region for t in teams}
-        comps.build_swiss_round(career, comp, stage, rng, region_of)
+        comps.build_double_elim(career, comp, stage, "four", date(season, 9, 24), date(season, 9, 28))
 
     names = ", ".join(cat.teams[t].tag for t in teams)
     _news(career, f"{comp.name} is set", f"Qualified: {names}.")
@@ -246,6 +302,19 @@ def _swiss_draw(cat: Catalog, career: Career, comp: Competition, stage: Stage) -
         body="\n".join(lines), competition=comp.id, round=rnd,
     ))
     career.next_message += 1
+
+
+def _build_worlds_swiss(cat: Catalog, career: Career, comp: Competition, teams: list[str], rng: Rng) -> None:
+    """The Swiss stage of sixteen, in pots of four by seed and region power (the order of `teams`,
+    the play-in winner last). The first round draws pot 1 against pot 4 and pot 2 against pot 3;
+    within a record, a team from a higher pot ranks first."""
+    season = career.season
+    pots = [teams[i:i + 4] for i in range(0, len(teams), 4)]
+    stage = Stage(id=f"{comp.id}-SW", name="Swiss stage", kind="swiss", teams=teams, pots=pots, best_of=1,
+                  advance=8, days=[date(season, 10, d) for d in (1, 3, 5, 8, 10)])
+    comp.stages.append(stage)
+    comps.build_swiss_round(career, comp, stage, rng, {t: cat.teams[t].region for t in teams})
+    _swiss_draw(cat, career, comp, stage)
 
 
 def _build_international_knockout(career: Career, comp: Competition, seeds: list[str]) -> None:
@@ -291,7 +360,7 @@ def update(cat: Catalog, career: Career, rng: Rng) -> list[str]:
             continue
         stage.finished = True
         stage.ranking = comps.rank_stage(career, stage)
-        _advance_competition(cat, career, comp, stage)
+        _advance_competition(cat, career, comp, stage, rng)
         if comp.status == "finished":
             finished.append(comp.id)
     for comp_id in finished:
@@ -299,7 +368,7 @@ def update(cat: Catalog, career: Career, rng: Rng) -> list[str]:
     return finished
 
 
-def _advance_competition(cat: Catalog, career: Career, comp: Competition, stage: Stage) -> None:
+def _advance_competition(cat: Catalog, career: Career, comp: Competition, stage: Stage, rng: Rng) -> None:
     if comp.kind == "league":
         if stage.id.endswith("-RS"):
             _build_playoffs(career, comp, stage.ranking[: stage.advance])
@@ -311,10 +380,12 @@ def _advance_competition(cat: Catalog, career: Career, comp: Competition, stage:
             _build_international_knockout(career, comp, stage.ranking[: stage.advance])
             return
         if stage.id.endswith("-PI"):
-            # Direct seeds arrive as LCK1, LPL1, LEC1, LCS1, LCK2, LPL2 and keep that order, then
-            # the two play-in winners: first seeds meet the play-in teams and LCS1 meets LCK2.
+            # The direct places keep their seed order and the play-in winner comes last.
             direct = [t for t in comp.entrants if t not in stage.teams]
-            _build_international_knockout(career, comp, direct + stage.ranking[:2])
+            if comp.id.endswith("MSI"):
+                _build_international_knockout(career, comp, direct + stage.ranking[:1])
+            else:
+                _build_worlds_swiss(cat, career, comp, direct + stage.ranking[:1], rng)
             return
         earlier = [s for s in comp.stages if s is not stage]
         rest: list[str] = []
@@ -341,6 +412,20 @@ def _after_competition(cat: Catalog, career: Career, comp: Competition, rng: Rng
         place = comp.placements.index(career.team) + 1
         body += f"\nYour team finished {_ordinal(place)}."
     _news(career, f"{winner.tag} win the {comp.short}", body)
+    if comp.id == f"{career.season}-FST":
+        region = cat.teams[comp.placements[0]].region
+        _news(career, f"The {_league(cat, region)} earn two MSI byes",
+              f"{winner.name} won First Stand, so both {_league(cat, region)} teams go straight to the MSI bracket stage. "
+              "Every other region's second seed plays in for the last place, and the bracket is seeded by how the "
+              "regions did at First Stand." + _yours(cat, career, [region], "Your region is one of them."))
+    elif comp.id == f"{career.season}-MSI":
+        best = event_regions(cat, career, "MSI")[:EXTRA_WORLDS_SLOTS]
+        names = " and the ".join(_league(cat, r) for r in best)
+        _news(career, f"The {names} send four teams to Worlds",
+              f"The two best regions at MSI, the {names}, earn a fourth place at Worlds, and their teams skip the "
+              f"play-in. {winner.name} are invited as MSI champions if they reach their region's playoffs. The last "
+              "team of every other region plays in for the sixteenth place in the Swiss stage."
+              + _yours(cat, career, best, "Your region sends four."))
     if comp.kind == "league":
         from app.game import jobs
 
@@ -353,6 +438,32 @@ def _after_competition(cat: Catalog, career: Career, comp: Competition, rng: Rng
         )
         if event and done and f"{career.season}-{event.id}" not in career.competitions:
             create_international(cat, career, event, rng)
+
+
+def _league(cat: Catalog, region: str) -> str:
+    return cat.leagues[cat.regions[region].league].name
+
+
+def _yours(cat: Catalog, career: Career, regions: list[str], line: str) -> str:
+    return f"\n{line}" if cat.teams[career.team].region in regions else ""
+
+
+def announce_places(cat: Catalog, career: Career) -> None:
+    """At the start of a season: how many teams each region sends to each international event."""
+    order = _by_power(career)
+
+    def places(event: International) -> str:
+        return ", ".join(f"{_league(cat, r)} {event.slots[r]}" for r in order)
+
+    fst, msi, worlds = INTERNATIONALS
+    _news(career, f"International places for {career.season}",
+          f"First Stand (March): {places(fst)}. The winning region sends both its MSI teams straight to the "
+          "bracket stage.\n"
+          f"MSI (June and July): {places(msi)}. Every region's first seed and the First Stand region's second go "
+          "straight to the bracket; the other second seeds play in for the last place.\n"
+          f"Worlds (September to November): {places(worlds)}, and a fourth for the two best regions at MSI. The "
+          "last team of every other region plays in for the sixteenth place in the Swiss stage, whose pots follow "
+          "the global power rankings.")
 
 
 def _ordinal(n: int) -> str:

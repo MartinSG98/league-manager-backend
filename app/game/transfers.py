@@ -9,7 +9,8 @@ are free agents anyone can sign without a fee.
 A player under contract costs a transfer fee. Their market value comes from the salary their
 rating and reputation command, the seasons left on the contract and the room they have to grow.
 The selling club asks more than the market value for a starter or for its only player in a role,
-less for a listed or a bench player, and never sells its franchise player. A bid at the asking
+less for a listed or a bench player, and never sells its franchise player; only the manager's can go,
+and only to a bid of at least twice his market value (FRANCHISE_PRICE). A bid at the asking
 fee is accepted, one within three quarters of it gets a counter, a lower one is turned down.
 
 Once the clubs agree, the player has to agree personal terms (see contracts.py). Players weigh
@@ -46,6 +47,10 @@ MAX_BID_ROUNDS = 3
 TALKS_OFF_DAYS = 14  # how long a club that ended the talks takes no bid for the player
 AI_CUSHION = 0.3  # the share of its bank an AI club keeps after a deal
 AI_RAISE = 1.12  # how much an AI club adds when the manager asks for more
+FRANCHISE_PRICE = 2.0  # an AI club bids for the manager's franchise player only at this many times his value
+FRANCHISE_LIMIT = 3.0  # and raises such a bid up to this many times it
+FRANCHISE_INTEREST = 0.25  # how often a club that could afford him tries
+FRANCHISE_CHOICE_DAYS = 14  # the manager's time to name a new franchise player
 SELL_LIMIT = 1.35  # the most an AI club pays over market value
 
 
@@ -349,12 +354,16 @@ def respond(cat: Catalog, career: Career, offer_id: int, response: str, rng: Rng
         offer.note = f"{name} joins {buyer} for {offer.fee}k."
         club = career.teams[offer.buyer]
         _spend(career, club, _fund(career, club, _salary_for(cat, career, pid, club), offer.fee, _room(career, club)))
+        star = career.teams[career.team].franchise == pid
         _move(cat, career, pid, career.team, offer.buyer, offer.fee)
         state.promise = None
         _message(career, "transfer", f"{name} sold to {buyer}", f"{offer.note} The fee is in the bank.")
+        if star:
+            vacate_franchise(cat, career, career.teams[career.team], f"{name} has been sold")
         return offer
     if response == "negotiate":
-        ceiling = market_value(cat, career, pid) * SELL_LIMIT
+        star = career.teams[career.team].franchise == pid
+        ceiling = market_value(cat, career, pid) * (FRANCHISE_LIMIT if star else SELL_LIMIT)
         raised = int(round(offer.fee * AI_RAISE / 5) * 5)
         buyer_team = career.teams[offer.buyer]
         if offer.rounds >= 2 or raised > ceiling or raised > buyer_team.cash:
@@ -632,6 +641,64 @@ def daily(cat: Catalog, career: Career, rng: Rng) -> None:
         made_offer = _ai_move(cat, career, team, rng, allow_offer=not made_offer) or made_offer
 
 
+# ---------- the franchise player ----------
+
+
+def franchise_price(cat: Catalog, career: Career, pid: str) -> int:
+    """The least an AI club bids for the manager's franchise player."""
+    return int(round(market_value(cat, career, pid) * FRANCHISE_PRICE / 5) * 5)
+
+
+def best_player(cat: Catalog, career: Career, team: TeamState) -> str | None:
+    return max(team.roster, key=lambda p: (roster.overall(cat, career, p), cat.players[p].reputation), default=None)
+
+
+def vacate_franchise(cat: Catalog, career: Career, team: TeamState, why: str) -> None:
+    """The franchise player is gone. The manager names the next one, or the board does after
+    FRANCHISE_CHOICE_DAYS; an AI club names its best player at once."""
+    if team.id != career.team or career.board.sacked:
+        team.franchise = best_player(cat, career, team)
+        return
+    team.franchise = None
+    career.franchise_choice = career.day + timedelta(days=FRANCHISE_CHOICE_DAYS)
+    _message(career, "player", "Name a new franchise player",
+             f"{why}. Choose the new face of the club on a player's page (Make franchise player) by "
+             f"{career.franchise_choice:%d %B}: not for sale unless a club bids twice his value, never released, and "
+             "kept on when the contract runs out. If you do not, the board names your best player.")
+
+
+def name_franchise(cat: Catalog, career: Career, pid: str) -> None:
+    """The manager names the club's franchise player while the seat is empty."""
+    team = career.teams[career.team]
+    if team.franchise is not None or career.franchise_choice is None:
+        raise IllegalAction("The club already has its franchise player")
+    if pid not in team.roster:
+        raise IllegalAction("Only one of your players can be the franchise player")
+    team.franchise = pid
+    career.franchise_choice = None
+    name = cat.players[pid].name
+    _message(career, "player", f"{name} is the new franchise player",
+             f"{name} is the face of the club now: not for sale unless a club bids twice his value, never released, "
+             "and kept on when the contract runs out.")
+
+
+def franchise_daily(cat: Catalog, career: Career) -> None:
+    """A club without a franchise player names its best one, unless the manager is still choosing."""
+    for team in career.teams.values():
+        if team.franchise is not None or not team.roster:
+            continue
+        mine = team.id == career.team
+        if mine and career.franchise_choice is not None and career.day <= career.franchise_choice:
+            continue
+        team.franchise = best_player(cat, career, team)
+        if mine and team.franchise:
+            name = cat.players[team.franchise].name
+            _message(career, "player", f"{name} is the new franchise player",
+                     f"You did not name one, so the board makes {name}, your best player, the face of the club.")
+    if career.franchise_choice is not None and career.teams[career.team].franchise is not None:
+        career.franchise_choice = None
+
+
 def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offer: bool) -> bool:
     """One move by an AI club. Returns True when it bid for one of the manager's players."""
     role, current = _weakest_role(cat, career, team)
@@ -655,7 +722,10 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
         own, theirs = reputation.compared(cat, career, team.id, seller.id, cat.teams[seller.id].region)
         if theirs > own + 5 and not state.unsettled:
             continue  # players do not step down for a club smaller than theirs
-        ask = asking_fee(cat, career, p.id)
+        star = state.team == career.team and seller.franchise == p.id
+        if star and not rng.chance(FRANCHISE_INTEREST):
+            continue  # a bid for a club's face is rare, and only for a fortune
+        ask = franchise_price(cat, career, p.id) if star else asking_fee(cat, career, p.id)
         if ask is None or _fund(career, team, _salary_for(cat, career, p.id, team), ask, room) is None:
             continue
         if interest(cat, career, p.id, team.id)[0] == "refuses":
@@ -670,13 +740,21 @@ def _ai_move(cat: Catalog, career: Career, team: TeamState, rng: Rng, allow_offe
     if seller == career.team:
         if not allow_offer or career.board.sacked:
             return False
-        fee = int(round(market_value(cat, career, pid) * (0.9 + rng.next() * 0.3) / 5) * 5)
-        offer = _new_offer(career, pid, team.id, seller, min(fee, team.cash), OFFER_DAYS)
+        value = market_value(cat, career, pid)
+        star = career.teams[seller].franchise == pid
+        if star:
+            fee = int(round(value * (FRANCHISE_PRICE + rng.next() * 0.5) / 5) * 5)
+            if fee > team.cash:
+                return False  # never less than the fortune it takes
+        else:
+            fee = min(int(round(value * (0.9 + rng.next() * 0.3) / 5) * 5), team.cash)
+        offer = _new_offer(career, pid, team.id, seller, fee, OFFER_DAYS)
         name = cat.players[pid].name
         offer.note = f"{cat.teams[team.id].name} bid {offer.fee}k for {name}."
-        value = market_value(cat, career, pid)
+        why = (" He is your franchise player: the board will sell him only for a bid like this, at least twice "
+               "his value. Sell him and you name the next one.") if star else ""
         _message(career, "transfer", f"{cat.teams[team.id].name} bid {offer.fee}k for {name}",
-                 f"{offer.note} Market value about {value}k. Accept, turn it down or ask for more within "
+                 f"{offer.note} Market value about {value}k.{why} Accept, turn it down or ask for more within "
                  f"{OFFER_DAYS} days.", offer=offer.id)
         return True
     fee = int(round(ask * (1.0 + rng.next() * 0.1) / 5) * 5)

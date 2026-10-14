@@ -759,3 +759,80 @@ def test_a_stale_agreed_fee_never_puts_a_player_on_two_rosters(window):
     assert offer.status == "collapsed", "loading the save calls the deal off"
     assert career.inbox[-1].subject.startswith("Deal off")
     assert pid not in career.teams[career.team].roster
+
+
+def test_a_job_taken_during_worlds_sets_no_worlds_goal_for_a_team_not_in_it(drafted):
+    from app.game.state import Competition
+
+    career = drafted.model_copy(deep=True)
+    season = career.season
+    worlds = Competition(id=f"{season}-WORLDS", name="Worlds", short="World Championship", kind="international",
+                         start=career.day, end=career.day, entrants=["T1"], status="running")
+    career.competitions[worlds.id] = worlds
+    assert all(o.kind != "worlds" for o in board.propose(cat, career, "G2", season)), "G2 is not at Worlds"
+    assert any(o.kind == "worlds" for o in board.propose(cat, career, "T1", season))
+
+
+def test_a_club_bids_for_the_franchise_player_only_with_a_fortune(window):
+    career = window
+    c = rookies.catalog_for(cat, career)
+    mine = career.teams[career.team]
+    star = mine.franchise
+    role = c.players[star].role
+    career.players[star].unsettled = True
+    # Make the franchise player the only one worth a bid: everyone else in his role has just moved or retired.
+    for pid, state in career.players.items():
+        if c.players[pid].role == role and pid != star:
+            if state.team:
+                career.transfers.append({"day": career.day.isoformat(), "player": pid, "from": None, "to": state.team,
+                                         "fee": 0})
+            else:
+                state.retired = True
+    buyer = next(t for t in sorted(career.teams.values(), key=lambda t: -reputation.team_reputation(c, career, t.id))
+                 if t.id != career.team and transfers._weakest_role(c, career, t)[0] == role
+                 and transfers._weakest_role(c, career, t)[1] + 4 <= roster.overall(c, career, star))
+    buyer.cash, buyer.budget = 100000, buyer.budget + 5000
+    offers = []
+    for seed in range(60):
+        career.rs = seed
+        if transfers._ai_move(c, career, buyer, Rng(career), allow_offer=True):
+            offers = [o for o in career.offers if o.player == star]
+            if offers:
+                break
+    assert offers, "a rich club bids for the franchise player now and then"
+    assert offers[0].fee >= transfers.franchise_price(c, career, star) == round(2 * transfers.market_value(c, career, star) / 5) * 5
+
+
+def test_selling_the_franchise_player_lets_the_manager_name_the_next(window):
+    from datetime import timedelta
+
+    from app.game.state import RespondOfferAction, SetFranchiseAction
+
+    career = window
+    team = career.teams[career.team]
+    star = team.franchise
+    buyer = next(t for t in career.teams if t != career.team)
+    offer = transfers._new_offer(career, star, buyer, career.team, transfers.franchise_price(cat, career, star), 4)
+    engine.apply(cat, career, RespondOfferAction(type="respond_offer", offer=offer.id, response="accept"))
+    assert team.franchise is None and career.franchise_choice == career.day + timedelta(days=14)
+    assert career.inbox[-1].subject == "Name a new franchise player"
+    other = next(t for t in career.teams.values() if t.id != career.team).roster[0]
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, SetFranchiseAction(type="set_franchise", player=other))
+    pick = min(team.roster, key=lambda p: roster.overall(cat, career, p))
+    engine.apply(cat, career, SetFranchiseAction(type="set_franchise", player=pick))
+    assert team.franchise == pick and career.franchise_choice is None
+    with pytest.raises(IllegalAction):
+        engine.apply(cat, career, SetFranchiseAction(type="set_franchise", player=team.roster[0]))
+
+
+def test_the_board_names_the_best_player_when_the_manager_does_not(window):
+    from datetime import timedelta
+
+    career = window
+    team = career.teams[career.team]
+    transfers.vacate_franchise(cat, career, team, "Someone has retired")
+    assert team.franchise is None
+    career.day = career.franchise_choice + timedelta(days=1)
+    transfers.franchise_daily(cat, career)
+    assert team.franchise == transfers.best_player(cat, career, team) and career.franchise_choice is None

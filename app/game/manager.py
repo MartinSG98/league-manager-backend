@@ -122,7 +122,7 @@ def create(cat: Catalog, career: Career, background: str, attributes: dict[str, 
     bg = BACKGROUNDS[background]
     values = {a: float(min(CAP, attributes[a] + bg.bonus.get(a, 0))) for a in ATTRIBUTES}
     career.profile = ManagerProfile(background=background, country=country, attributes=values, created=career.day)
-    reputation.change_manager(cat, career, bg.reputation, everywhere=True)  # a past is known everywhere
+    reputation.change_manager(cat, career, bg.reputation, everywhere=True, fixed=True)  # a past is known everywhere
 
 
 def set_duty(career: Career, attr: str, who: str) -> None:

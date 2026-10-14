@@ -23,6 +23,7 @@ biggest club of its own region, who is five stars. Players look at the region st
 from their own region and at the world stars of the rest, and so do clubs judging the manager (jobs.reach). Money
 (budgets, sponsors, the board's grant) stays on the plain reputation."""
 
+from app.game import power
 from app.game.catalog import Catalog
 from app.game.state import Career, Competition
 
@@ -55,10 +56,15 @@ def team_reputation(cat: Catalog, career: Career, team_id: str) -> float:
     return team.reputation
 
 
+def strength(cat: Catalog, career: Career, region: str) -> float:
+    """How much of a region's results the world notices, 0-100: the strongest region in the global
+    power rankings is 100 (power.py). A career not yet ranked uses the league's fixed strength."""
+    return power.strength(career, region, cat.leagues[cat.regions[region].league].strength)
+
+
 def world(cat: Catalog, career: Career, team_id: str) -> float:
-    """How the whole scene sees a club: its reputation weighed by its league's strength (LCK 100)."""
-    strength = cat.leagues[cat.teams[team_id].league].strength
-    return 50 + (team_reputation(cat, career, team_id) - 50) * strength / 100
+    """How the whole scene sees a club: its reputation weighed by its region's strength."""
+    return 50 + (team_reputation(cat, career, team_id) - 50) * strength(cat, career, cat.teams[team_id].region) / 100
 
 
 def regional(cat: Catalog, career: Career, team_id: str) -> float:
@@ -111,7 +117,13 @@ def ensure(cat: Catalog, career: Career) -> None:
 
 def _share(cat: Catalog, career: Career) -> float:
     """How much of what happens in the manager's league the world notices."""
-    return cat.leagues[career.league].strength / 100
+    return strength(cat, career, career.region) / 100
+
+
+def _harder_at_the_top(value: float) -> float:
+    """What share of a gain a reputation at `value` takes: all of it up to 70, less and less above,
+    at least 15 percent. Losses always count in full."""
+    return max(0.15, min(1.0, (105 - value) / 35))
 
 
 def split_manager(cat: Catalog, career: Career) -> None:
@@ -168,13 +180,17 @@ def after_competition(cat: Catalog, career: Career, comp: Competition) -> None:
         change_manager(cat, career, MANAGER_TITLE.get(key, 0.0), everywhere=comp.kind != "league")
 
 
-def change_manager(cat: Catalog, career: Career, delta: float, everywhere: bool = False) -> None:
-    """The manager's region notes the full change; the world by the league's strength, or in full
-    for what happens on the international stage (`everywhere`)."""
+def change_manager(cat: Catalog, career: Career, delta: float, everywhere: bool = False, fixed: bool = False) -> None:
+    """The manager's region notes the full change; the world by the region's strength, or in full
+    for what happens on the international stage (`everywhere`). A gain counts for less the nearer
+    the reputation is to 100 (_harder_at_the_top), unless it is `fixed`, as a background's is."""
     regional = manager_in(career, career.region)
     share = 1.0 if everywhere else _share(cat, career)
-    career.manager_reputation = round(max(30.0, min(100.0, career.manager_reputation + delta * share)), 1)
-    career.manager_standing[career.region] = round(max(30.0, min(100.0, regional + delta)), 1)
+    damp = delta > 0 and not fixed
+    world_gain = delta * share * (_harder_at_the_top(career.manager_reputation) if damp else 1.0)
+    region_gain = delta * (_harder_at_the_top(regional) if damp else 1.0)
+    career.manager_reputation = round(max(30.0, min(100.0, career.manager_reputation + world_gain)), 1)
+    career.manager_standing[career.region] = round(max(30.0, min(100.0, regional + region_gain)), 1)
     log_manager(career)
 
 

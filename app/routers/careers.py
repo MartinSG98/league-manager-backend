@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from app import repository
 from app.db import get_session
-from app.game import contracts, engine, manager, rookies, transfers, views
+from app.game import contracts, engine, manager, power, rookies, transfers, views
 from app.game.catalog import get_catalog
 from app.game.errors import IllegalAction
 from app.game.state import Action
@@ -201,6 +201,12 @@ def training(save_id: str, session: Session = Depends(get_session)) -> dict:
 def manager_profile(save_id: str, session: Session = Depends(get_session)) -> dict:
     _, career = _load(session, save_id)
     return manager.view(_cat(career), career)
+
+
+@router.get("/{save_id}/power")
+def power_rankings(save_id: str, session: Session = Depends(get_session)) -> dict:
+    _, career = _load(session, save_id)
+    return power.view(_cat(career), career)
 
 
 @router.get("/{save_id}/board")
