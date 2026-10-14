@@ -483,6 +483,7 @@ class CompetitionRecord(BaseModel):
     series: list[int] = [0, 0]  # won, lost
     games: list[int] = [0, 0]
     place: int | None = None  # the final place, once the competition is over
+    first: date | None = None  # the day of its first series, which tells the spell it belongs to
 
 
 class ManagerSeason(BaseModel):
@@ -545,7 +546,7 @@ class Career(BaseModel):
     spells: list[Spell] = []  # the manager's clubs, oldest first
     manager_seasons: list[ManagerSeason] = []  # seasons that are over, oldest first
     # The manager's reputation each time it changed: day, world, region (older entries lack the region).
-    reputation_log: list[tuple[date, float, float] | tuple[date, float]] = []
+    reputation_log: list[tuple[date, float, float, str] | tuple[date, float, float] | tuple[date, float]] = []
 
 
 # ---------- actions the client can post ----------

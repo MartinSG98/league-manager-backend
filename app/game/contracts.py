@@ -61,7 +61,7 @@ def ask(cat: Catalog, career: Career, pid: str) -> Ask:
     else:
         years = 2
     salary = int(round(salary / 5) * 5)
-    return Ask(salary=salary, years=years, floor=int(salary * _flexibility(pid, career.season) * manager.haggle(career)))
+    return Ask(salary=salary, years=years, floor=int(manager.floor(career, salary, _flexibility(pid, career.season))))
 
 
 def committed(career: Career, team) -> int:

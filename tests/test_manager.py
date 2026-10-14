@@ -156,7 +156,7 @@ def test_a_sacking_ends_a_spell_and_a_new_job_starts_one(drafted):
     board.sack(cat, career, Rng(career))
     assert career.spells[-1].end == career.day and career.spells[-1].left == "sacked"
     regional = reputation.manager_in(career, career.region)
-    assert career.reputation_log[-1] == (career.day, career.manager_reputation, regional)
+    assert career.reputation_log[-1] == (career.day, career.manager_reputation, regional, career.region)
     assert career.manager_reputation < before
     engine.apply(cat, career, AcceptJobAction(type="accept_job", team=career.job_offers[0]))
     assert career.spells[-1].team == career.team != "G2" and career.spells[-1].end is None
@@ -165,7 +165,7 @@ def test_a_sacking_ends_a_spell_and_a_new_job_starts_one(drafted):
 
 
 def test_the_manager_has_a_world_and_a_region_reputation():
-    from app.game import board
+    from app.game import jobs
 
     career = engine.new_career(cat, "Tester", "GAM", 5)
     regional = reputation.manager_in(career, "APAC")
@@ -184,7 +184,7 @@ def test_the_manager_has_a_world_and_a_region_reputation():
     assert mine == reputation.stars(reputation.manager_in(career, "APAC"))
     mine, club = reputation.manager_vs_club(cat, career, "T1")
     assert mine == reputation.stars(career.manager_reputation) and club == 5
-    assert not board.jobs_in_reach(cat, career, "T1") and board.jobs_in_reach(cat, career, "CFO")
+    assert not jobs.in_reach(cat, career, "T1") and jobs.in_reach(cat, career, "CFO")
 
 
 def test_an_older_save_splits_its_managers_reputation():
@@ -194,4 +194,106 @@ def test_an_older_save_splits_its_managers_reputation():
     career.reputation_log = [(career.day, 81.8)]
     engine.migrate(cat, career)
     assert career.manager_standing == {"APAC": 81.8} and career.manager_reputation == round(50 + 31.8 * 0.8, 1)
-    assert career.reputation_log == [(career.day, career.manager_reputation, 81.8)]
+    assert career.reputation_log == [(career.day, career.manager_reputation, 81.8, "APAC")]
+
+
+def test_a_poor_negotiator_never_has_to_pay_more_than_was_asked(drafted):
+    career = drafted.model_copy(deep=True)
+    career.profile.attributes["negotiation"] = 1.0
+    asks = [contracts.ask(cat, career, p) for p in cat.players if career.players[p].team is None][:60]
+    assert asks and all(a.floor <= a.salary for a in asks)
+    assert manager.floor(career, 100, 0.99) == 100 and manager.floor(career, 100, 0.8) < 100
+
+
+def test_the_game_rolls_the_set_play_chance_the_picker_shows(drafted):
+    from app.game import champ_select as cs
+    from app.game import match_engine, matchday
+    from app.game.rng import Rng
+    from app.game.state import ChampSelect
+
+    career = drafted.model_copy(deep=True)
+    career.teams[career.team].plays["dive"] = 100.0
+    enemy = next(t.id for t in cat.league_teams(cat.teams[career.team].league) if t.id != career.team)
+    select = ChampSelect()
+    sides = matchday.draft_sides(cat, career, career.team, enemy)
+    cs.run_ai(cat, career, select, sides, Rng(career), human=None)
+    shown = []
+    for tactics in (1.0, 18.0):
+        career.profile.attributes["tactics"] = tactics
+        blue = match_engine.prepare(cat, career, "blue", career.team, sides["blue"].lineup, dict(select.blue_picks),
+                                    sides["blue"].tactics, play="dive")
+        red = match_engine.prepare(cat, career, "red", enemy, sides["red"].lineup, dict(select.red_picks),
+                                   sides["red"].tactics)
+        match_engine.Game(cat, career, blue, red, Rng(career), 1)
+        assert blue.play_chance == pytest.approx(plays.team_chance(cat, career, career.team, enemy, "dive", blue.early))
+        shown.append(blue.play_chance)
+    assert shown[1] > shown[0]
+
+
+def test_champion_select_is_read_by_whoever_drafts(drafted):
+    from app.game import views
+    from app.game.state import AdvanceAction, StartDraftAction
+
+    career = drafted.model_copy(deep=True)
+    for _ in range(60):
+        if career.live:
+            break
+        engine.apply(cat, career, AdvanceAction(type="advance"))
+    engine.apply(cat, career, StartDraftAction(type="start_champ_select"))
+    coach = cat.staff[career.teams[career.team].coach]
+    career.profile.duties["drafting"] = "staff"
+    assert views.live_view(cat, career)["reader"] == {"name": coach.name, "drafting": coach.attributes["drafting"],
+                                                      "you": False}
+    career.profile.duties["drafting"] = "manager"
+    career.profile.attributes["drafting"] = 18.0
+    assert views.live_view(cat, career)["reader"] == {"name": career.manager, "drafting": 18, "you": True}
+    career.profile.duties.pop("drafting")
+    career.teams[career.team].coach = None
+    assert views.live_view(cat, career)["reader"]["you"], "an empty seat falls to the manager"
+
+
+def test_a_migrated_season_knows_its_international_events():
+    from app.game.state import CompetitionRecord, ManagerSeason
+
+    career = engine.new_career(cat, "Tester", "GAM", 5)
+    kinds = {"LCP Split 1 2026": "league", "First Stand 2026": "FST", "Mid-Season Invitational 2026": "MSI",
+             "World Championship 2026": "WORLDS"}
+    assert {n: manager._history_kind(n) for n in kinds} == kinds
+    # Saves migrated before took every event for a league: the next load puts that right.
+    career.manager_seasons = [ManagerSeason(season=2026, competitions=[
+        CompetitionRecord(name=n, kind="league", team="", place=1) for n in kinds])]
+    assert manager.ensure(career)
+    assert [c.kind for c in career.manager_seasons[0].competitions] == list(kinds.values())
+
+
+def test_a_return_to_a_club_counts_each_spell_on_its_own():
+    from datetime import timedelta
+
+    from app.game.state import CompetitionRecord, ManagerSeason, Spell
+
+    career = engine.new_career(cat, "Tester", "GAM", 5)
+    day = career.day
+    career.spells = [Spell(team="GAM", start=day, end=day + timedelta(days=100), left="moved"),
+                     Spell(team="CFO", start=day + timedelta(days=101), end=day + timedelta(days=200), left="moved"),
+                     Spell(team="GAM", start=day + timedelta(days=201))]
+    career.manager_seasons = [ManagerSeason(season=career.season - 1, competitions=[
+        CompetitionRecord(name="A", kind="league", team="GAM", series=[5, 1], place=1, first=day + timedelta(days=10)),
+        CompetitionRecord(name="B", kind="league", team="CFO", series=[2, 2], first=day + timedelta(days=120)),
+        CompetitionRecord(name="C", kind="league", team="GAM", series=[3, 4], first=day + timedelta(days=220)),
+    ])]
+    clubs = manager.record_view(cat, career)["clubs"]
+    assert [(c["team"]["id"], c["series"], c["titles"]) for c in clubs] == [
+        ("GAM", [3, 4], 0), ("CFO", [2, 2], 0), ("GAM", [5, 1], 1)]
+
+
+def test_a_move_to_another_region_starts_its_own_line():
+    from datetime import timedelta
+
+    career = engine.new_career(cat, "Tester", "GAM", 5)
+    career.reputation_log = [career.reputation_log[0][:3]]  # a point from before points named their region
+    career.day += timedelta(days=30)
+    career.team, career.region = "T1", "KR"
+    manager.start_spell(career)
+    assert career.reputation_log[-1] == (career.day, career.manager_reputation, career.manager_reputation, "KR")
+    shown = manager.record_view(cat, career)["reputation_log"]
+    assert [p[3] for p in shown] == [cat.regions["APAC"].league, cat.regions["KR"].league]

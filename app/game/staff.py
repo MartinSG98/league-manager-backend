@@ -227,15 +227,14 @@ def scouting_level(value: int) -> int:
     return 1 if value < 6 else 2 if value < 11 else 3 if value < 16 else 4
 
 
-def coach_lens(coach: Staff | None) -> tuple[dict[str, float], set[str]]:
-    """How the manager's coach weighs the reasons behind a champion choice.
+def coach_lens(drafting: int, who: str) -> tuple[dict[str, float], set[str]]:
+    """How whoever drafts for the manager's club (the coach, or the manager, see manager.does)
+    weighs the reasons behind a champion choice.
 
     A perfect read (drafting 20) weighs everything as it is. Below that every kind of reason is
-    over- or underrated by a fixed amount that is part of who the coach is, up to 70 percent at
-    drafting 1, and weak coaches miss lane matchups (under 8) and champion combos (under 5)."""
-    drafting = coach.attributes.get("drafting", NOBODY) if coach else NOBODY
+    over- or underrated by a fixed amount that is part of who reads it (`who`), up to 70 percent at
+    drafting 1, and weak readers miss lane matchups (under 8) and champion combos (under 5)."""
     error = (20 - drafting) / 20 * 0.7
-    who = coach.id if coach else "nobody"
     weights = {}
     for kind in ("comfort", "meta", "role", "comp", "combo", "lane", "own"):
         swing = (fnv1a(f"{who}:{kind}") % 201 - 100) / 100  # -1..1

@@ -95,13 +95,16 @@ def chance(play: SetPlay, learned: float, skill: float, enemy_skill: float, earl
     return max(0.1, min(0.9, value + fit(play, early)))
 
 
+def manager_edge(career: Career, team_id: str) -> float:
+    """The manager's tactics, at their club: a percent a point above 10."""
+    return 0.01 * (manager.own(career, "tactics") - manager.NEUTRAL) if team_id == career.team else 0.0
+
+
 def team_chance(cat: Catalog, career: Career, team_id: str, enemy_id: str, play_id: str, early: float) -> float:
     play = PLAYS[play_id]
     team, enemy = career.teams[team_id], career.teams[enemy_id]
-    # The manager's tactics, at their club: a percent a point above 10.
-    bonus = 0.01 * (manager.own(career, "tactics") - manager.NEUTRAL) if team_id == career.team else 0.0
     return chance(play, team.plays.get(play_id, 0.0), team.skills.get(play.area, 10.0),
-                  enemy.skills.get(play.area, 10.0), early, bonus)
+                  enemy.skills.get(play.area, 10.0), early, manager_edge(career, team_id))
 
 
 def choose(cat: Catalog, career: Career, team_id: str, enemy_id: str, match: Match, early: float,
