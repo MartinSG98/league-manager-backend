@@ -30,7 +30,7 @@ The engine has no database code and works on plain models. Loading and saving a 
 
 Mid-season the document had grown to 4.7 MB (1,121 matches with their game records) and took about 80 ms to parse. Every request parsed it again, and the UI follows each click with five to seven reads, which made about half a second of parsing per click, growing through the season.
 
-- **Reads** share one parsed career per save (`repository._parsed`), kept while the save's `updated_at` is unchanged. Views never change the career, and a test checks that they leave it as it was.
+- **Reads** share one parsed career per save (`repository._parsed`), kept while the save's `updated_at` is unchanged. Only the two saves used last stay parsed (`CACHED_SAVES`): one parsed save takes about 40 MB, and one career is played at a time. Views never change the career, and a test checks that they leave it as it was.
 - **Actions** parse their own copy, so one that fails half way leaves nothing behind. The copy they store becomes the one reads get.
 - **The catalog with a career's rookies and new staff** (`rookies.catalog_for`) is built once per parsed career, and again only when a new class arrives. Both lists only ever grow.
 

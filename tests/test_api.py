@@ -147,3 +147,14 @@ def test_reads_share_a_parsed_career_and_a_failed_action_changes_nothing(client)
     assert repository._parsed[save][1] is cached and cached.model_dump_json() == before
     act(client, save, {"type": "draft_next", "until_mine": True})
     assert repository._parsed[save][1] is not cached, "what an action stores is what reads get next"
+
+
+def test_only_the_saves_used_last_stay_parsed(client):
+    from app import repository
+
+    saves = [client.post("/api/careers", json={"team": team, "seed": 3}).json()["id"] for team in ("T1", "G2", "BLG")]
+    for save in saves:
+        assert client.get(f"/api/careers/{save}").status_code == 200
+    assert list(repository._parsed) == saves[-repository.CACHED_SAVES:]
+    client.get(f"/api/careers/{saves[0]}")
+    assert list(repository._parsed)[-1] == saves[0] and len(repository._parsed) == repository.CACHED_SAVES

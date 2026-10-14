@@ -23,8 +23,18 @@ def create_save(session: Session, career: Career) -> Save:
 # Parsed careers by save id, for reads. A save grows to several megabytes and takes tens of
 # milliseconds to parse, and every click in the UI is followed by half a dozen reads. An action
 # parses its own copy, since it changes it and one that fails half way must leave nothing behind,
-# and the copy it stores becomes the cached one.
+# and the copy it stores becomes the cached one. Only the saves used last stay: a parsed save takes
+# tens of megabytes, and one career is played at a time.
 _parsed: dict[str, tuple[datetime, Career]] = {}
+CACHED_SAVES = 2
+
+
+def _remember(save_id: str, stamp: datetime, career: Career) -> None:
+    """Cache a parsed career as the most recently used, forgetting the oldest past CACHED_SAVES."""
+    _parsed.pop(save_id, None)
+    _parsed[save_id] = (stamp, career)
+    while len(_parsed) > CACHED_SAVES:
+        _parsed.pop(next(iter(_parsed)))
 
 
 def _stamp(moment: datetime) -> datetime:
@@ -41,10 +51,11 @@ def load_save(session: Session, save_id: str, fresh: bool = False) -> tuple[Save
         return None
     hit = _parsed.get(save_id)
     if not fresh and hit is not None and hit[0] == _stamp(save.updated_at):
+        _remember(save_id, *hit)
         return save, hit[1]
     career = Career.model_validate_json(save.state)
     if not fresh:
-        _parsed[save_id] = (_stamp(save.updated_at), career)
+        _remember(save_id, _stamp(save.updated_at), career)
     return save, career
 
 
@@ -63,7 +74,7 @@ def store(session: Session, save: Save, career: Career, details: list[Detail] = 
         session.merge(GameDetail(save_id=save.id, match_id=d.match, game=d.game, payload=json.dumps(d.payload)))
     session.commit()
     if cache:
-        _parsed[save.id] = (_stamp(stamp), career)
+        _remember(save.id, _stamp(stamp), career)
     else:
         _parsed.pop(save.id, None)
 
