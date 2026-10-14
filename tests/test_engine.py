@@ -608,3 +608,26 @@ def test_fights_come_with_a_casters_call(drafted):
     names = {cat.players[p].name.upper() for p in list(sides["blue"].lineup.values()) + list(sides["red"].lineup.values())}
     assert all(any(n in c for n in names) for c in calls), "every call names a player"
     assert all("!!" not in c and " / " not in c for c in calls)
+
+
+def test_drakes_follow_the_rift_and_the_soul_is_the_rift_element(drafted):
+    career = drafted.model_copy(deep=True)
+    select = ChampSelect()
+    sides = matchday.draft_sides(cat, career, "G2", "FNC")
+    cs.run_ai(cat, career, select, sides, Rng(career), human=None)
+    souls = Counter()
+    for seed in range(40):
+        career.rs = seed
+        blue = match_engine.prepare(cat, career, "blue", "G2", sides["blue"].lineup, dict(select.blue_picks),
+                                    sides["blue"].tactics)
+        red = match_engine.prepare(cat, career, "red", "FNC", sides["red"].lineup, dict(select.red_picks),
+                                   sides["red"].tactics)
+        events = match_engine.simulate(cat, career, blue, red, Rng(career), 1, ([], [])).events
+        drakes = [e.text.split(" the ")[1].split()[0] for e in events if e.kind in ("dragon", "soul")]
+        assert len(set(drakes[:3])) == len(drakes[:3]), "the first three drakes are three different elements"
+        assert all(d == drakes[2] for d in drakes[2:]), "the Rift keeps the third drake's element"
+        soul = [e for e in events if e.kind == "soul"]
+        if soul:
+            assert soul[0].text.endswith(f"the {drakes[2]} Soul")
+            souls[drakes[2]] += 1
+    assert sum(souls.values()) >= 10 and len(souls) >= 3
