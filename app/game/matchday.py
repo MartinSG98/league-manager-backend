@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from app.game import champ_select as cs
 from app.game import competitions as comps
-from app.game import match_engine, patches, roster, training
+from app.game import match_engine, patches, power, roster, training
 from app.game import plays as set_plays
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
@@ -140,6 +140,7 @@ def finish_match(cat: Catalog, career: Career, match: Match) -> None:
         for pid in state.lineup.values():
             p = career.players[pid]
             p.morale = max(0, min(100, p.morale + delta))
+    power.after_series(cat, career, match)
     comps.on_match_finished(career, match)
 
 

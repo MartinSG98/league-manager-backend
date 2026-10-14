@@ -252,6 +252,7 @@ def career_view(cat: Catalog, career: Career, save_id: str) -> dict:
         "inbox": [m.model_dump(mode="json") for m in reversed(career.inbox[-40:])],
         "season_over": calendar.season_over(career),
         "draw": _pending_draw(career),
+        "franchise_choice": career.franchise_choice.isoformat() if career.franchise_choice else None,
         "shortlist": [e.player for e in career.shortlist],
         "board": {
             "confidence": b.confidence, "security": boardroom.job_security(career), "warned": b.warned,

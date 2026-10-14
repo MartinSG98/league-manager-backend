@@ -237,6 +237,15 @@ DOUBLE_ELIM: dict[str, DoubleElimShape] = {
         ("LF", "Lower final", "lower", 4, "L:UF", "W:L5", 3),
         ("GF", "Grand final", "final", 5, "W:UF", "W:LF", 2),
     ],
+    # Four teams down to one (the MSI and Worlds play-ins).
+    "four": [
+        ("U1", "Upper round 1", "upper", 0, "S:1", "S:4", 0),
+        ("U2", "Upper round 1", "upper", 0, "S:2", "S:3", 0),
+        ("UF", "Upper final", "upper", 1, "W:U1", "W:U2", 0),
+        ("L1", "Lower round 1", "lower", 1, "L:U1", "L:U2", 4),
+        ("LF", "Lower final", "lower", 2, "L:UF", "W:L1", 3),
+        ("GF", "Play-in final", "final", 3, "W:UF", "W:LF", 2),
+    ],
     # Six teams, the top four in the upper bracket and 5th and 6th in the lower (LEC, LCS Spring).
     "six_upper_four": [
         ("U1", "Upper round 1", "upper", 0, "S:1", "S:4", 0),

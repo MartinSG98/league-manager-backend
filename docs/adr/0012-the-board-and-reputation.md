@@ -43,3 +43,5 @@ The manager asked for the same two ratings for themselves. `manager_reputation` 
 - **Elsewhere.** In a region the manager never worked in, they are known by their world reputation.
 - **Jobs.** A club of the manager's region compares its region stars with the manager's region stars; any other club compares world stars. The one and a half star reach holds on either scale.
 - **Older saves.** Their single number becomes the manager's standing in their region, and the world's is derived from it.
+
+The league strengths that weigh the world's view are no longer fixed: they come from the global power rankings, and gains to the manager's reputation slow near the top. See [0022](0022-global-power-rankings-and-the-2026-international-rules.md).

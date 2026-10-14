@@ -40,3 +40,5 @@ About 15 coaching changes a season among 55 AI clubs in simulation: about 10 aft
 ## Amendment, 2026-10-15
 
 Clubs often sack their coach when the last split ends, just before Worlds, and a week's offer then lapsed while the manager was still playing Worlds. An offer made from the end of the last split until the Worlds final now stands until two weeks after the final (`jobs.season_end_deadline`), and its message says the club will wait. The vacancy is not filled while the offer stands, as before. Offers at any other time of the season are open a week.
+
+Taking a job now ends every other offer, and no club approaches the manager in their first half season at a club (`jobs.SETTLING_DAYS`, 180 days); applying is still up to the manager. A board met once Worlds is set asks nothing of it from a team that is not in it, so taking over a club during Worlds no longer brings a Worlds goal it could only miss.

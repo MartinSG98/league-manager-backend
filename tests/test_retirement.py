@@ -48,16 +48,20 @@ def test_some_players_announce_their_last_season_at_the_first_off_season(finishe
     assert not any(s.retired for s in finished.players.values()), "nobody retires without a year's notice"
 
 
-def test_a_retiring_franchise_player_hands_the_role_to_the_best_player_left(window):
+def test_a_retiring_franchise_player_lets_the_manager_choose_and_an_ai_club_names_its_best(window):
     career = window
     mine = rookies.catalog_for(cat, career)
     team = career.teams[career.team]
     star = team.franchise
+    other = next(t for t in career.teams.values() if t.id != career.team and t.franchise)
+    theirs = other.franchise
     career.players[star].retiring = career.season
+    career.players[theirs].retiring = career.season
     retirement.retire(mine, career, career.season)
-    best = max(team.roster, key=lambda p: (roster.overall(mine, career, p), mine.players[p].reputation))
-    assert team.franchise == best and star not in team.roster
-    assert career.inbox[-1].subject == f"{mine.players[best].name} is the new franchise player"
+    assert team.franchise is None and career.franchise_choice is not None and star not in team.roster
+    assert any(m.subject == "Name a new franchise player" for m in career.inbox)
+    best = max(other.roster, key=lambda p: (roster.overall(mine, career, p), mine.players[p].reputation))
+    assert other.franchise == best and theirs not in other.roster
 
 
 def test_a_player_retires_when_their_last_season_ends(window):

@@ -84,7 +84,7 @@ def propose(cat: Catalog, career: Career, team_id: str, season: int) -> list[Obj
             continue  # already decided before the manager arrived
         out.append(Objective(id=f"split{split}", kind="split", split=split, target=target, proposed=target))
     region = cat.teams[team_id].region
-    slots = next(e for e in calendar.INTERNATIONALS if e.id == "WORLDS").slots[region]
+    slots = calendar.expected_worlds_slots(career, region)
     if rank == 0 and region in ("KR", "CN"):
         worlds = 3
     elif rank < slots // 2 or (rank == 0 and slots >= 2):
@@ -94,7 +94,8 @@ def propose(cat: Catalog, career: Career, team_id: str, season: int) -> list[Obj
     else:
         worlds = 0
     worlds_comp = career.competitions.get(f"{season}-WORLDS")
-    if worlds_comp is None or worlds_comp.status != "finished":
+    # Once Worlds is set, the board asks something of it only from a team that is in it.
+    if worlds_comp is None or (worlds_comp.status != "finished" and team_id in worlds_comp.entrants):
         out.append(Objective(id="worlds", kind="worlds", target=worlds, proposed=worlds))
     return out
 

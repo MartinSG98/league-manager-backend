@@ -171,13 +171,15 @@ def test_the_manager_has_a_world_and_a_region_reputation():
     regional = reputation.manager_in(career, "APAC")
     assert career.manager_standing == {"APAC": regional}
     assert career.manager_reputation == round(50 + (regional - 50) * 0.8, 1), "the world weighs the LCP at 80 percent"
-    # A league title: the region in full, the world by the league's strength.
-    world = career.manager_reputation
+    # A league title: the region in full, the world by the region's strength (gains are full below 70).
+    regional, world = 60.0, 56.0
+    career.manager_standing["APAC"], career.manager_reputation = regional, world
     reputation.change_manager(cat, career, 3.0)
     assert reputation.manager_in(career, "APAC") == regional + 3 and career.manager_reputation == round(world + 2.4, 1)
     # An international title: both in full.
     reputation.change_manager(cat, career, 6.0, everywhere=True)
     assert reputation.manager_in(career, "APAC") == regional + 9 and career.manager_reputation == round(world + 8.4, 1)
+    career.manager_standing["APAC"], career.manager_reputation = 86.0, 75.0  # a name in the LCP
     # Somewhere they never worked, they are their world name; clubs judge them on their own scale.
     assert reputation.manager_in(career, "KR") == career.manager_reputation
     mine, club = reputation.manager_vs_club(cat, career, "CFO")

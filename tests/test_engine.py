@@ -313,7 +313,7 @@ def test_playoffs_and_msi_are_double_elimination(finished):
 
 def test_the_swiss_stage_is_drawn_round_by_round_from_pools(finished):
     worlds = finished.competitions[f"{finished.season}-WORLDS"]
-    stage = worlds.stages[0]
+    stage = next(s for s in worlds.stages if s.kind == "swiss")
     pools = Counter(comps.swiss_pools(finished, stage).values())
     # 16 teams: every pool splits in two until three wins or three defeats.
     assert pools == {(0, 0): 8, (1, 0): 4, (0, 1): 4, (2, 0): 2, (1, 1): 4, (0, 2): 2,
@@ -328,7 +328,7 @@ def test_the_swiss_stage_is_drawn_round_by_round_from_pools(finished):
 
 def test_the_first_swiss_round_draws_pot_1_against_pot_4_and_keeps_regions_apart(finished):
     worlds = finished.competitions[f"{finished.season}-WORLDS"]
-    pots = worlds.stages[0].pots
+    pots = next(s for s in worlds.stages if s.kind == "swiss").pots
     assert [len(p) for p in pots] == [4, 4, 4, 4]
     region_of = {t: cat.teams[t].region for pot in pots for t in pot}
     pot_of = {t: i for i, pot in enumerate(pots) for t in pot}
@@ -516,7 +516,7 @@ def test_a_season_plays_through_to_worlds(finished):
     assert short == {"First Stand", "Mid-Season Invitational", "World Championship"}
     assert len(career.meta.history) >= 20  # a patch every two weeks
     worlds = career.competitions[f"{career.season}-WORLDS"]
-    assert len(worlds.entrants) == 16
+    assert len(worlds.entrants) == 19
 
 
 def test_match_engine_records_add_up(drafted):

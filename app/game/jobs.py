@@ -22,7 +22,8 @@ percent of the time plus 10 for every star of room. The manager can apply to any
 reach is a polite no, in reach the club offers the job 35 percent of the time plus 25 for every star
 of room, and otherwise appoints someone else at once. An offer is open a week, except at the end of the season:
 one made from the end of the last split until the Worlds final stands until two weeks after the
-final, so a manager at Worlds can finish it first. Taking it moves the manager to the new club, with a new board and the club's analyst; the board hires an assistant
+final, so a manager at Worlds can finish it first. Clubs leave a manager alone for half a season (SETTLING_DAYS) after they take a
+job, and taking one ends every other offer. Taking it moves the manager to the new club, with a new board and the club's analyst; the board hires an assistant
 coach for the empty seat. When a vacancy closes the club appoints the best free coach it can afford."""
 
 from datetime import date, timedelta
@@ -46,6 +47,7 @@ SPLIT_SACK = 0.30
 VACANCY_DAYS = 14
 OFFER_DAYS = 7
 AFTER_WORLDS_DAYS = 14  # how long after the Worlds final an offer from the end of the season stands
+SETTLING_DAYS = 180  # after taking a job, no club approaches the manager for this long
 SIZE_GAP = 5.0  # reputation a club approaching the manager can be below their own club
 NOTABLE = 70  # reputation from which a club's coaching news reaches every league
 
@@ -70,9 +72,8 @@ def expected(cat: Catalog, career: Career, team_id: str) -> int:
     return team.expected or _by_reputation(cat, career, team.league).index(team_id) + 1
 
 
-def _worlds_slots(cat: Catalog, team_id: str) -> int:
-    worlds = next(e for e in calendar.INTERNATIONALS if e.id == "WORLDS")
-    return worlds.slots.get(cat.teams[team_id].region, 0)
+def _worlds_slots(cat: Catalog, career: Career, team_id: str) -> int:
+    return calendar.expected_worlds_slots(career, cat.teams[team_id].region)
 
 
 def season_points(cat: Catalog, career: Career, team_id: str, season: int) -> tuple[int, bool]:
@@ -85,7 +86,7 @@ def season_points(cat: Catalog, career: Career, team_id: str, season: int) -> tu
         if comp and team_id in comp.placements:
             points += max(0, comp.placements.index(team_id) + 1 - exp - GRACE_PLACES)
     worlds = career.competitions.get(f"{season}-WORLDS")
-    missed = exp <= _worlds_slots(cat, team_id) and (worlds is None or team_id not in worlds.entrants)
+    missed = exp <= _worlds_slots(cat, career, team_id) and (worlds is None or team_id not in worlds.entrants)
     return points + (MISSED_WORLDS if missed else 0), missed
 
 
@@ -181,7 +182,7 @@ def in_reach(cat: Catalog, career: Career, team_id: str) -> bool:
 def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacancy:
     vacancy = Vacancy(team=team_id, opened=career.day, closes=career.day + timedelta(days=VACANCY_DAYS))
     career.vacancies.append(vacancy)
-    if career.board.sacked or career.phase == "draft":
+    if career.board.sacked or career.phase == "draft" or settling(career):
         return vacancy
     level = reputation.world(cat, career, team_id)
     own = reputation.world(cat, career, career.team)
@@ -202,6 +203,12 @@ def season_end_deadline(career: Career) -> date | None:
         c.kind == "league" and c.split == last and c.status == "finished" for c in career.competitions.values())
     deadline = final + timedelta(days=AFTER_WORLDS_DAYS)
     return deadline if over and career.day <= deadline else None
+
+
+def settling(career: Career) -> bool:
+    """Whether the manager took their job too recently for other clubs to approach them."""
+    joined = career.board.joined
+    return joined is not None and (career.day - joined).days < SETTLING_DAYS
 
 
 def _offer(cat: Catalog, career: Career, vacancy: Vacancy, approached: bool) -> None:
@@ -269,6 +276,10 @@ def take(cat: Catalog, career: Career, team_id: str) -> None:
     career.job_offers = []
     career.teams[old].listed = []
     career.vacancies = [v for v in career.vacancies if v.team != team_id]
+    for other in career.vacancies:  # the manager has chosen: every other offer is off
+        if other.offer_until is not None:
+            other.offer_until = None
+            other.declined = True
     team = cat.teams[team_id]
     career.team, career.region, career.league = team_id, team.region, team.league
     new = career.teams[team_id]

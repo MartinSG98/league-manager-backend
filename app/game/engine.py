@@ -15,7 +15,7 @@ from datetime import timedelta
 
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
 from app.game import competitions as comps
-from app.game import finances, hiring, jobs, retirement, rookies, shortlist, training, transfers
+from app.game import finances, hiring, jobs, power, retirement, rookies, shortlist, training, transfers
 from app.game import manager as management
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
@@ -26,7 +26,7 @@ from app.game.state import (
     BanAction, BoardMeetingAction, Career, CreateManagerAction, DeclineJobAction, DraftAutoAction, DraftNextAction, DraftPassAction,
     DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
     OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction,
-    ScoutPlayerAction, SetDutyAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
+    ScoutPlayerAction, SetDutyAction, SetFranchiseAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
     ShortlistAction, SimSeriesAction, StaffAcceptCounterAction, StaffOfferAction, StaffReleaseAction, StaffState,
     StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
@@ -67,6 +67,7 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
     rng = Rng(career)
     draft.setup(cat, career)
     reputation.ensure(cat, career)
+    power.ensure(cat, career)
     training.ensure(cat, career)
     for league, d in career.drafts.items():
         if league != career.league:
@@ -106,6 +107,8 @@ def start_season(cat: Catalog, career: Career) -> None:
     career.phase = "season"
     calendar.create_season(cat, career)
     jobs.set_expectations(cat, career)
+    power.new_season(career)
+    calendar.announce_places(cat, career)
     career.meta.next_patch = patches.first_patch_day(career.season)
     for team in career.teams.values():
         if team.id != career.team:
@@ -129,6 +132,7 @@ def _daily(cat: Catalog, career: Career, rng: Rng) -> None:
     if career.phase == "offseason":
         transfers.daily(cat, career, rng)
     shortlist.daily(cat, career)
+    transfers.franchise_daily(cat, career)
     jobs.daily(cat, career)
     if career.day.weekday() == 0:
         _weekly(cat, career, rng)
@@ -301,6 +305,8 @@ def migrate(cat: Catalog, career: Career) -> bool:
     if any(not t.skills or not t.plays for t in career.teams.values()):
         training.ensure(cat, career)
         changed = True
+    if power.ensure(cat, career):
+        changed = True
     if not career.board.season:
         board.start_job(cat, career, career.season + 1 if career.phase == "offseason" else career.season)
         changed = True
@@ -452,6 +458,8 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         management.create(cat, career, action.background, action.attributes, action.name, action.country)
     elif isinstance(action, SetDutyAction):
         management.set_duty(career, action.attribute, action.who)
+    elif isinstance(action, SetFranchiseAction):
+        transfers.name_franchise(cat, career, action.player)
     elif isinstance(action, ReadMessageAction):
         for msg in career.inbox:
             if action.id is None or msg.id == action.id:

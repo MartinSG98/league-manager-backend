@@ -89,7 +89,7 @@ def retire(cat: Catalog, career: Career, season: int) -> list[str]:
         if team is not None:
             transfers._leave(cat, career, team, pid)
             if team.franchise == pid:
-                new_franchise(cat, career, team, name)
+                transfers.vacate_franchise(cat, career, team, f"{name} has retired")
         state.team = None
         state.contract = None
         state.retired = True

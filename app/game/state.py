@@ -102,6 +102,8 @@ class TeamState(BaseModel):
     training: Training = Training()
     listed: list[str] = []  # players the team would sell
     expected: int = 0  # where its reputation ranked it in its league when the season started, 0 before
+    elo: float = 0.0  # the global power rankings' rating (power.py), 0 until seeded
+    elo_start: float = 0.0  # its rating when the season began, for the trend
     coach_since: date | None = None  # when the coach in the seat was appointed, None from the first draft
 
 
@@ -530,6 +532,9 @@ class Career(BaseModel):
     next_message: int = 1
     manager_reputation: float = 0  # 0..100, what the whole scene thinks of the manager
     manager_standing: dict[str, float] = {}  # region -> the manager's reputation there, where they have worked
+    region_elo: dict[str, float] = {}  # region -> its rating in the global power rankings (power.py)
+    region_elo_start: dict[str, float] = {}  # the same when the season began, for the trend
+    franchise_choice: date | None = None  # the day by which the manager names a new franchise player, while one is due
     board: BoardState = BoardState()
     job_offers: list[str] = []  # clubs that want the manager after a sacking
     vacancies: list[Vacancy] = []  # AI clubs looking for a head coach
@@ -690,6 +695,11 @@ class CreateManagerAction(BaseModel):
     country: str | None = None
 
 
+class SetFranchiseAction(BaseModel):
+    type: Literal["set_franchise"]  # while the seat is empty: one of the manager's players becomes the franchise player
+    player: str
+
+
 class SetDutyAction(BaseModel):
     type: Literal["set_duty"]
     attribute: str
@@ -780,6 +790,7 @@ Action = Annotated[
     | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
     | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
     | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction | ApplyJobAction | DeclineJobAction
-    | StaffOfferAction | StaffAcceptCounterAction | StaffReleaseAction | CreateManagerAction | SetDutyAction,
+    | StaffOfferAction | StaffAcceptCounterAction | StaffReleaseAction | CreateManagerAction | SetDutyAction
+    | SetFranchiseAction,
     Field(discriminator="type"),
 ]

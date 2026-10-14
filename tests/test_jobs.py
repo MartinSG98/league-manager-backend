@@ -142,3 +142,25 @@ def test_an_offer_at_the_end_of_the_season_stands_until_two_weeks_after_worlds(w
     jobs._offer(cat, career, vacancy, approached=True)
     assert vacancy.offer_until == final + timedelta(days=jobs.AFTER_WORLDS_DAYS)
     assert "wait until Worlds is over" in career.inbox[-1].body
+
+
+def test_taking_a_job_ends_other_offers_and_clubs_wait_half_a_season(window):
+    from datetime import timedelta
+
+    career = window
+    first, second, third = [t for t in sorted(career.teams) if t != career.team and jobs._vacancy(career, t) is None
+                            and jobs.in_reach(cat, career, t)][:3]
+    offers = [jobs.open_vacancy(cat, career, club, Rng(career)) for club in (first, second)]
+    for vacancy in offers:
+        jobs._offer(cat, career, vacancy, approached=True)
+    engine.apply(cat, career, AcceptJobAction(type="accept_job", team=first))
+    assert offers[1].offer_until is None and offers[1].declined, "the other offer is off"
+    assert jobs.settling(career)
+    career.manager_reputation = 100.0
+    for seed in range(20):
+        career.rs = seed
+        vacancy = jobs.open_vacancy(cat, career, third, Rng(career))
+        assert vacancy.offer_until is None, "nobody approaches a manager who just arrived"
+        career.vacancies.remove(vacancy)
+    career.day = career.board.joined + timedelta(days=jobs.SETTLING_DAYS)
+    assert not jobs.settling(career)
