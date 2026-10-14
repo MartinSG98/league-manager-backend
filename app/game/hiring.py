@@ -20,7 +20,7 @@ Talks work like a player's (contracts.py), on a staff member's own page:
 
 from datetime import timedelta
 
-from app.game import roster, transfers
+from app.game import manager, roster, transfers
 from app.game import staff as staffing
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
@@ -137,7 +137,7 @@ def offer(cat: Catalog, career: Career, sid: str, salary: int, years: int) -> Ne
     _fits(cat, career, sid, salary)
     talks = _talks(career, sid)
     want = asking_salary(cat, career, sid)
-    floor = want * _flexibility(sid, career.season)
+    floor = want * _flexibility(sid, career.season) * manager.haggle(career)
     effective = salary * (1 - 0.05 * abs(years - WANTED_YEARS))
     name = cat.staff[sid].name
     talks.rounds += 1

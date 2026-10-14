@@ -19,7 +19,8 @@ An analyst has two:
 - scouting: how much the report on the next opponent reveals
 - meta: how early and how well the patch preview reads the next balance changes
 
-A team without a coach or analyst works as if they had attributes of 4."""
+A team without a coach or analyst works as if they had attributes of 4. At the manager's club the
+manager does the work they took on and covers an empty seat (see manager.py)."""
 
 import re
 import unicodedata
@@ -170,12 +171,19 @@ def region_staff(cat, region: str, kind: StaffKind | None = None) -> list[Staff]
 
 
 def attribute(cat, career, team_id: str | None, attr: str) -> int:
-    """The attribute of the team's coach or analyst who covers `attr`, NOBODY for an empty seat."""
+    """The attribute of whoever does that work for the team: the coach or analyst who covers
+    `attr`, NOBODY for an empty seat. At the manager's club the manager does it instead when they
+    took it on or the seat is empty (see manager.py)."""
     team = career.teams.get(team_id or "")
     if team is None:
         return NOBODY
     sid = team.analyst if attr in ANALYST_ATTRIBUTES else team.coach
     person = cat.staff.get(sid or "")
+    if team_id == career.team and career.profile is not None:
+        from app.game import manager  # here: manager needs the catalog, which needs this module
+
+        if manager.does(cat, career, attr):
+            return int(career.profile.attributes.get(attr, NOBODY))
     return person.attributes.get(attr, NOBODY) if person else NOBODY
 
 

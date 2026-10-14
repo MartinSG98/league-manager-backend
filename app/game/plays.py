@@ -7,7 +7,8 @@ works, giving the edge it is built for, or backfires.
 
 How likely a play is to work: 30 percent, plus up to 45 for how well it is learned, plus the
 team's skill in the area behind it (+2.5 percent a point above 10), minus the opponent's in the
-same area, plus how well it suits the composition: early plays want an early composition,
+same area, plus at the manager's club 1 percent a point of the manager's tactics above 10, plus
+how well it suits the composition: early plays want an early composition,
 the split push wants a scaling one.
 
 When both sides call the same play they run into each other (match_engine.Game.clash): one fight
@@ -18,6 +19,7 @@ point of difference, and the winner takes a big swing, such as a 4 for 0 when tw
 from dataclasses import dataclass
 from typing import Literal
 
+from app.game import manager
 from app.game.catalog import Catalog
 from app.game.rng import Rng
 from app.game.state import Career, Match, TeamState
@@ -88,16 +90,18 @@ def fit(play: SetPlay, early: float) -> float:
     return 0.0
 
 
-def chance(play: SetPlay, learned: float, skill: float, enemy_skill: float, early: float) -> float:
-    value = 0.30 + 0.45 * min(100.0, learned) / 100 + 0.025 * (skill - 10) - 0.015 * (enemy_skill - 10)
+def chance(play: SetPlay, learned: float, skill: float, enemy_skill: float, early: float, bonus: float = 0.0) -> float:
+    value = 0.30 + 0.45 * min(100.0, learned) / 100 + 0.025 * (skill - 10) - 0.015 * (enemy_skill - 10) + bonus
     return max(0.1, min(0.9, value + fit(play, early)))
 
 
 def team_chance(cat: Catalog, career: Career, team_id: str, enemy_id: str, play_id: str, early: float) -> float:
     play = PLAYS[play_id]
     team, enemy = career.teams[team_id], career.teams[enemy_id]
+    # The manager's tactics, at their club: a percent a point above 10.
+    bonus = 0.01 * (manager.own(career, "tactics") - manager.NEUTRAL) if team_id == career.team else 0.0
     return chance(play, team.plays.get(play_id, 0.0), team.skills.get(play.area, 10.0),
-                  enemy.skills.get(play.area, 10.0), early)
+                  enemy.skills.get(play.area, 10.0), early, bonus)
 
 
 def choose(cat: Catalog, career: Career, team_id: str, enemy_id: str, match: Match, early: float,

@@ -25,7 +25,7 @@ what they had built for every new face in the lineup, and the new season is sche
 
 from collections import Counter
 
-from app.game import board, hiring, jobs, patches, reputation, retirement, rookies, roster, training, transfers
+from app.game import board, hiring, jobs, manager, patches, reputation, retirement, rookies, roster, training, transfers
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.ratings import ATTRIBUTES, asking_salary
@@ -67,6 +67,7 @@ def expiring(career: Career, team_id: str) -> list[str]:
 
 def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     career.history.append(summarise(cat, career))
+    manager.record_season(career)
     career.phase = "offseason"
     new_season = career.season + 1
     retired = retirement.retire(cat, career, career.season)

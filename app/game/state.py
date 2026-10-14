@@ -465,6 +465,44 @@ class Conversation(BaseModel):
     outcome: str = ""
 
 
+class Spell(BaseModel):
+    """The manager's time at one club."""
+
+    team: str
+    start: date
+    end: date | None = None  # None: still there
+    left: Literal["", "moved", "sacked"] = ""
+
+
+class CompetitionRecord(BaseModel):
+    """How the manager's team did in one competition."""
+
+    name: str
+    kind: Literal["league", "FST", "MSI", "WORLDS"]
+    team: str
+    series: list[int] = [0, 0]  # won, lost
+    games: list[int] = [0, 0]
+    place: int | None = None  # the final place, once the competition is over
+
+
+class ManagerSeason(BaseModel):
+    """The manager's season, kept when it ends: the competitions are cleared for the next one."""
+
+    season: int
+    competitions: list[CompetitionRecord] = []
+    reputation: float = 0
+
+
+class ManagerProfile(BaseModel):
+    """The manager as a person (see manager.py): created once, after the club is picked."""
+
+    background: Literal["pro", "coach", "analyst", "newcomer"]
+    country: str | None = None  # ISO 3166 alpha-2
+    attributes: dict[str, float]  # 1-20; what counts is the whole number, growth adds fractions
+    duties: dict[str, Literal["manager", "staff"]] = {}  # a staff attribute -> who does that work; absent: the better one
+    created: date
+
+
 class Career(BaseModel):
     version: int = 1
     rs: int
@@ -489,7 +527,8 @@ class Career(BaseModel):
     history: list[SeasonSummary] = []
     negotiations: dict[str, Negotiation] = {}
     next_message: int = 1
-    manager_reputation: float = 0  # 0..100, what other clubs think of the manager
+    manager_reputation: float = 0  # 0..100, what the whole scene thinks of the manager
+    manager_standing: dict[str, float] = {}  # region -> the manager's reputation there, where they have worked
     board: BoardState = BoardState()
     job_offers: list[str] = []  # clubs that want the manager after a sacking
     vacancies: list[Vacancy] = []  # AI clubs looking for a head coach
@@ -502,6 +541,11 @@ class Career(BaseModel):
     rookies: list[Rookie] = []  # every rookie class so far, oldest first
     new_staff: list[CareerStaff] = []  # coaches and analysts who joined the market in this career
     staff_talks: dict[str, Negotiation] = {}  # staff id -> contract talks
+    profile: ManagerProfile | None = None  # None until the manager is created; older saves create theirs on load
+    spells: list[Spell] = []  # the manager's clubs, oldest first
+    manager_seasons: list[ManagerSeason] = []  # seasons that are over, oldest first
+    # The manager's reputation each time it changed: day, world, region (older entries lack the region).
+    reputation_log: list[tuple[date, float, float] | tuple[date, float]] = []
 
 
 # ---------- actions the client can post ----------
@@ -637,6 +681,20 @@ class StaffReleaseAction(BaseModel):
     staff: str
 
 
+class CreateManagerAction(BaseModel):
+    type: Literal["create_manager"]
+    background: Literal["pro", "coach", "analyst", "newcomer"]
+    attributes: dict[str, int]  # before the background's bonus
+    name: str | None = None
+    country: str | None = None
+
+
+class SetDutyAction(BaseModel):
+    type: Literal["set_duty"]
+    attribute: str
+    who: Literal["manager", "staff", "auto"]  # auto: whoever is better at it
+
+
 class ApplyJobAction(BaseModel):
     type: Literal["apply_job"]
     team: str
@@ -721,6 +779,6 @@ Action = Annotated[
     | NextSeasonAction | BoardMeetingAction | AcceptJobAction | SetTrainingAction | SetPlayerTrainingAction
     | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
     | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction | ApplyJobAction | DeclineJobAction
-    | StaffOfferAction | StaffAcceptCounterAction | StaffReleaseAction,
+    | StaffOfferAction | StaffAcceptCounterAction | StaffReleaseAction | CreateManagerAction | SetDutyAction,
     Field(discriminator="type"),
 ]

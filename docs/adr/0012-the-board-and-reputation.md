@@ -36,3 +36,10 @@ A club is now rated twice, because one number put a big name of a weaker league 
 - **Region stars** measure a club against the biggest club of its region, who sits at 100: reputation + 100 - the region's top.
 
 Players see a club of their own region on the region's scale and any other club on the world's, so Korean stars think twice about the LCP and its own players are keener on it. Two clubs of the player's region keep their plain gap. Job offers, applications and the clubs that call after a sacking go by world stars, and staff look at a club the way players from their region do. Budgets, sponsors and the transfer grant stay on the plain reputation, so no club's money changes.
+
+The manager asked for the same two ratings for themselves. `manager_reputation` is now the world's, and `manager_standing` keeps the manager's reputation in each region they have worked in.
+- **The start.** A new manager starts in their region where the single number used to start. The world weighs that by the league's strength.
+- **Changes.** Objectives, titles and a sacking move the region's in full and the world's by the league's strength. First Stand and MSI bonuses, the Worlds objective and international titles move both in full.
+- **Elsewhere.** In a region the manager never worked in, they are known by their world reputation.
+- **Jobs.** A club of the manager's region compares its region stars with the manager's region stars; any other club compares world stars. The one and a half star reach holds on either scale.
+- **Older saves.** Their single number becomes the manager's standing in their region, and the world's is derived from it.

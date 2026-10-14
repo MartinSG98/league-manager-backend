@@ -158,12 +158,22 @@ def _vacancy(career: Career, team_id: str) -> Vacancy | None:
     return next((v for v in career.vacancies if v.team == team_id), None)
 
 
-def reach(career: Career) -> float:
-    return reputation.stars(career.manager_reputation) + reputation.STAR_REACH
+def reach(cat: Catalog, career: Career) -> dict:
+    """The most stars a club can have and still want the manager: in their region on its scale, elsewhere on the world's."""
+    regional = reputation.manager_in(career, career.region)
+    return {"region": reputation.stars(regional) + reputation.STAR_REACH,
+            "world": reputation.stars(career.manager_reputation) + reputation.STAR_REACH,
+            "region_name": cat.regions[career.region].league}
+
+
+def room(cat: Catalog, career: Career, team_id: str) -> float:
+    """Stars to spare between what the manager reaches and the club, the way the club sees both."""
+    mine, club = reputation.manager_vs_club(cat, career, team_id)
+    return mine + reputation.STAR_REACH - club
 
 
 def in_reach(cat: Catalog, career: Career, team_id: str) -> bool:
-    return reputation.stars(reputation.world(cat, career, team_id)) <= reach(career)
+    return room(cat, career, team_id) >= 0
 
 
 def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacancy:
@@ -173,8 +183,8 @@ def open_vacancy(cat: Catalog, career: Career, team_id: str, rng: Rng) -> Vacanc
         return vacancy
     level = reputation.world(cat, career, team_id)
     own = reputation.world(cat, career, career.team)
-    room = reach(career) - reputation.stars(level)
-    if room >= 0 and level >= own - SIZE_GAP and rng.chance(min(0.8, 0.4 + 0.1 * room)):
+    spare = room(cat, career, team_id)
+    if spare >= 0 and level >= own - SIZE_GAP and rng.chance(min(0.8, 0.4 + 0.1 * spare)):
         _offer(cat, career, vacancy, approached=True)
     return vacancy
 
@@ -201,10 +211,10 @@ def apply(cat: Catalog, career: Career, team_id: str, rng: Rng) -> None:
         raise IllegalAction("Not before the draft is over")
     vacancy.applied = True
     name = cat.teams[team_id].name
-    room = reach(career) - reputation.stars(reputation.world(cat, career, team_id))
-    if room < 0:
+    spare = room(cat, career, team_id)
+    if spare < 0:
         _board(career, f"{name} turn you down", f"{name} want a head coach with a bigger name.")
-    elif rng.chance(min(0.95, 0.35 + 0.25 * room)):
+    elif rng.chance(min(0.95, 0.35 + 0.25 * spare)):
         _offer(cat, career, vacancy, approached=False)
     else:
         _board(career, f"{name} turn you down", f"{name} thank you for your interest and appoint someone else.")

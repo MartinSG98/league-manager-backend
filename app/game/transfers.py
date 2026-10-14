@@ -27,7 +27,7 @@ best free agents they can afford for any empty role."""
 
 from datetime import date, timedelta
 
-from app.game import contracts, reputation, roster
+from app.game import contracts, manager, reputation, roster
 from app.game import staff as staffing
 from app.game.catalog import ROLES, Catalog
 from app.game.errors import IllegalAction
@@ -254,7 +254,8 @@ def bid(cat: Catalog, career: Career, pid: str, fee: int) -> TransferOffer:
         offer = _new_offer(career, pid, career.team, seller, fee, OFFER_DAYS)
     offer.fee = fee
     offer.rounds += 1
-    ask = asking_fee(cat, career, pid) or 0
+    # What they settle for: a good negotiator gets something off the asking fee, a poor one pays it.
+    ask = int(round((asking_fee(cat, career, pid) or 0) * min(1.0, manager.haggle(career)) / 5) * 5)
     seller_name = cat.teams[seller].name
     name = cat.players[pid].name
     if fee >= ask:
@@ -417,7 +418,8 @@ def _resolve(cat: Catalog, career: Career, conv: Conversation, choice: str, rng:
     starter = team is not None and conv.player in team.lineup.values()
     conv.resolved = True
     if choice == "vital":
-        odds = 0.5 + (career.manager_reputation - 60) / 100 + (0.15 if starter else -0.1)
+        odds = 0.5 + (reputation.manager_in(career, career.region) - 60) / 100 + (0.15 if starter else -0.1)
+        odds += 0.02 * (manager.own(career, "man_management") - manager.NEUTRAL)
         odds -= 0.25 if conv.topic == "broken_promise" else 0.0
         if rng.chance(max(0.1, min(0.9, odds))):
             state.morale = max(state.morale, 60)

@@ -16,16 +16,17 @@ from datetime import timedelta
 from app.game import board, calendar, contracts, draft, matchday, offseason, patches, reputation, roster, scouting
 from app.game import competitions as comps
 from app.game import finances, hiring, jobs, retirement, rookies, shortlist, training, transfers
+from app.game import manager as management
 from app.game.catalog import Catalog
 from app.game.errors import IllegalAction
 from app.game.matchday import Outcome
 from app.game.rng import Rng
 from app.game.state import (
     AcceptCounterAction, AcceptJobAction, Action, AdjustBudgetAction, AdvanceAction, ApplyJobAction, AutoSelectAction,
-    BanAction, BoardMeetingAction, Career, DeclineJobAction, DraftAutoAction, DraftNextAction, DraftPassAction,
+    BanAction, BoardMeetingAction, Career, CreateManagerAction, DeclineJobAction, DraftAutoAction, DraftNextAction, DraftPassAction,
     DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
     OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction,
-    ScoutPlayerAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
+    ScoutPlayerAction, SetDutyAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
     ShortlistAction, SimSeriesAction, StaffAcceptCounterAction, StaffOfferAction, StaffReleaseAction, StaffState,
     StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
@@ -84,6 +85,7 @@ def new_career(cat: Catalog, manager: str, team_id: str, seed: int) -> Career:
               f"with a budget of {career.teams[team_id].budget}k for the season.\n"
               "Before the draft starts the board wants to agree this season's objectives with you.")
     board.start_job(cat, career, season)
+    management.ensure(career)
     return career
 
 
@@ -314,6 +316,11 @@ def migrate(cat: Catalog, career: Career) -> bool:
             changed = True
     if transfers.stale_deals(cat, career):
         changed = True
+    if career.manager_reputation and not career.manager_standing:
+        reputation.split_manager(cat, career)  # one reputation for the manager became two
+        changed = True
+    if management.ensure(career):
+        changed = True
     if career.phase == "offseason" and not any(h.season == career.season for h in career.history):
         # Saved at the end of a season under the old rules, before the transfer window existed.
         offseason.start_offseason(cat, career, Rng(career))
@@ -341,9 +348,10 @@ def _hire_staff(cat: Catalog, career: Career) -> None:
                 "their page in their last season, or they leave when their contracts end.")
 
 
-_ALWAYS = (AcceptJobAction, ReadMessageAction)
+_ALWAYS = (AcceptJobAction, ReadMessageAction, CreateManagerAction)
 _NEED_THE_BOARD = (DraftPickAction, DraftStaffAction, DraftPassAction, DraftAutoAction, DraftSimAction, AdvanceAction,
                    NextSeasonAction, TransferBidAction, OfferAction, AdjustBudgetAction)
+_NEED_THE_MANAGER = (*_NEED_THE_BOARD, BoardMeetingAction)  # the manager is created before anything else
 
 
 def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
@@ -353,6 +361,10 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
     outcome = Outcome()
     if career.board.sacked and not isinstance(action, _ALWAYS):
         raise IllegalAction("You have no club: choose one of the job offers first")
+    if career.profile is None and isinstance(action, DraftNextAction):
+        return outcome  # the draft waits for the manager too
+    if career.profile is None and isinstance(action, _NEED_THE_MANAGER):
+        raise IllegalAction("Create your manager first")
     if career.board.meeting and isinstance(action, DraftNextAction):
         return outcome  # the draft waits for the meeting; a client on a timer just gets nothing
     if career.board.meeting and isinstance(action, _NEED_THE_BOARD):
@@ -436,6 +448,10 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         shortlist.request(cat, career, action.player)
     elif isinstance(action, AdjustBudgetAction):
         finances.adjust(career, action.budget)
+    elif isinstance(action, CreateManagerAction):
+        management.create(cat, career, action.background, action.attributes, action.name, action.country)
+    elif isinstance(action, SetDutyAction):
+        management.set_duty(career, action.attribute, action.who)
     elif isinstance(action, ReadMessageAction):
         for msg in career.inbox:
             if action.id is None or msg.id == action.id:

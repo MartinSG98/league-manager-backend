@@ -15,6 +15,8 @@ from app.game.state import (
     SetPlayerTrainingAction, SetTrainingAction, ShortlistAction, TalkAction, TransferBidAction, TransferListAction,
 )
 
+from tests.conftest import create_manager
+
 cat = get_catalog()
 
 
@@ -50,7 +52,7 @@ def _last(career) -> list[str]:
 
 
 def test_a_new_career_starts_with_a_board_meeting_that_holds_the_draft():
-    career = engine.new_career(cat, "Tester", "T1", 3)
+    career = create_manager(engine.new_career(cat, "Tester", "T1", 3))
     assert career.board.meeting
     assert [o.kind for o in career.board.objectives] == ["split", "split", "split", "worlds"]
     # The favourite is asked for a lot.
@@ -535,7 +537,7 @@ def test_the_budget_stays_between_the_contracts_and_what_the_bank_can_pay(drafte
 
 
 def test_the_budget_is_moved_after_the_draft_and_a_new_one_runs_a_full_year(window):
-    career = engine.new_career(cat, "Tester", "T1", 3)
+    career = create_manager(engine.new_career(cat, "Tester", "T1", 3))
     engine.apply(cat, career, BoardMeetingAction(type="board_meeting"))
     with pytest.raises(IllegalAction):
         engine.apply(cat, career, AdjustBudgetAction(type="adjust_budget", budget=career.teams["T1"].budget - 10))
