@@ -4,6 +4,12 @@ FastAPI backend for League Manager, Football Manager for League of Legends espor
 
 This repo holds the API and the whole game engine. The browser client lives in [league-manager-ui](https://github.com/MartinSG98/league-manager-ui) and only draws what this service returns.
 
+| ![Champion select](https://raw.githubusercontent.com/MartinSG98/league-manager-ui/main/docs/screenshots/champion-select.png) | ![The game](https://raw.githubusercontent.com/MartinSG98/league-manager-ui/main/docs/screenshots/live-game.png) |
+|---|---|
+| Champion select, on a clock and fearless | The game, minute by minute |
+
+More screens are in the [client's README](https://github.com/MartinSG98/league-manager-ui#screenshots).
+
 Architecture decisions are recorded in [docs/adr](docs/adr/README.md), one numbered file per decision.
 
 ## How a season goes
@@ -367,4 +373,4 @@ scripts/              data fetchers and the balance simulation
 tests/                engine and API tests
 ```
 
-League Manager is a fan project. It is not affiliated with or endorsed by Riot Games. League of Legends and all related names are trademarks of Riot Games. Statistics come from gol.gg, Games of Legends.
+League Manager was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project. League of Legends and all related names are trademarks of Riot Games. Statistics come from gol.gg, Games of Legends.
