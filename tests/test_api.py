@@ -173,3 +173,17 @@ def test_only_the_saves_used_last_stay_parsed(client):
     assert list(repository._parsed) == saves[-repository.CACHED_SAVES:]
     client.get(f"/api/careers/{saves[0]}")
     assert list(repository._parsed)[-1] == saves[0] and len(repository._parsed) == repository.CACHED_SAVES
+
+
+def test_the_saved_careers_list_follows_a_job_change(client):
+    from sqlmodel import Session
+
+    from app import db, repository
+
+    save = client.post("/api/careers", json={"team": "T1", "seed": 3}).json()["id"]
+    with Session(db.get_engine()) as session:
+        row, career = repository.load_save(session, save, fresh=True)
+        career.team = "GEN"  # what jobs.take does when the manager accepts an offer
+        repository.store(session, row, career)
+    listed = next(s for s in client.get("/api/careers").json() if s["id"] == save)
+    assert listed["team"]["id"] == "GEN"
