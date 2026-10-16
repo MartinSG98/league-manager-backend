@@ -41,6 +41,7 @@ def setup(cat: Catalog, career: Career) -> None:
                 state.roster = [team.franchise]
                 state.lineup = {player.role: team.franchise}
                 career.players[team.franchise].team = team.id
+                career.players[team.franchise].since = career.day
                 career.players[team.franchise].contract = Contract(
                     salary=player.salary, until=career.season + FRANCHISE_YEARS - 1
                 )
@@ -214,6 +215,7 @@ def make_pick(cat: Catalog, career: Career, draft: DraftState, team_id: str, pla
         starter = player.role not in team.lineup
         state = career.players[player_id]
         state.team = team_id
+        state.since = career.day
         years = STARTER_YEARS if starter else BENCH_YEARS
         state.contract = Contract(salary=player.salary, until=career.season + years - 1)
         team.roster.append(player_id)
@@ -333,6 +335,7 @@ def force_pick(cat: Catalog, career: Career, draft: DraftState, team_id: str, pl
     player = cat.players[player_id]
     state = career.players[player_id]
     state.team = team_id
+    state.since = career.day
     state.contract = Contract(salary=player.salary, until=career.season + STARTER_YEARS - 1)
     team.roster.append(player_id)
     team.lineup.setdefault(player.role, player_id)

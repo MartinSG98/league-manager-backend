@@ -28,4 +28,4 @@ Each record answers three questions. What was the situation, what did we decide,
 | [0020](0020-the-staff-market.md) | The staff market | Accepted, amended |
 | [0021](0021-the-manager-is-a-person.md) | The manager is a person | Accepted |
 | [0022](0022-global-power-rankings-and-the-2026-international-rules.md) | Global power rankings and the 2026 international rules | Accepted |
-| [0023](0023-the-franchise-player-has-a-price.md) | The franchise player has a price | Accepted |
+| [0023](0023-the-franchise-player-has-a-price.md) | The franchise player has a price | Accepted, amended |

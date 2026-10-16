@@ -193,6 +193,7 @@ def _sign(cat: Catalog, career: Career, pid: str, salary: int, years: int) -> No
     state.contract = Contract(salary=salary, until=first + years - 1)
     if state.team != career.team:
         state.team = career.team
+        state.since = career.day
         team.roster.append(pid)
         role = cat.players[pid].role
         team.lineup.setdefault(role, pid)

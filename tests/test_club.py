@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.game import board, engine, finances, match_engine, reputation, rookies, roster, shortlist, training, transfers
+from app.game import board, engine, finances, match_engine, reputation, rookies, roster, shortlist, training, transfers, views
 from app.game import plays as set_plays
 from app.game.catalog import ROLES, get_catalog
 from app.game.errors import IllegalAction
@@ -856,3 +856,71 @@ def test_an_ai_club_with_a_hole_fills_it_first(window):
     transfers.fill_holes(c, career)
     assert roster.overall(c, career, team.lineup[role]) > before + 2, "a better free agent, from anywhere"
     assert not transfers.hole(c, career, team) or roster.overall(c, career, team.lineup[role]) > before
+
+
+def _franchise_candidate(career, settled: bool = True):
+    from datetime import timedelta
+
+    team = career.teams[career.team]
+    pid = max((p for p in team.roster if p != team.franchise and not rookies.is_rookie(p)),
+              key=lambda p: roster.overall(cat, career, p))
+    career.players[pid].since = career.day - timedelta(days=400 if settled else 100)
+    return team, pid
+
+
+def test_a_board_that_trusts_the_manager_makes_a_new_franchise_player_at_once(window):
+    from app.game.state import ChangeFranchiseAction
+
+    career = window
+    team, pid = _franchise_candidate(career)
+    old = team.franchise
+    career.board.confidence = 80
+    detail = views.player_detail(cat, career, pid)["franchise_change"]
+    assert detail["trusted"] and detail["problem"] is None and detail["current"] == cat.players[old].name
+    engine.apply(cat, career, ChangeFranchiseAction(type="change_franchise", player=pid))
+    assert team.franchise == pid and old in team.roster
+    assert career.inbox[-1].subject == f"{cat.players[pid].name} is the new franchise player"
+    assert views.player_detail(cat, career, old)["franchise_change"] is not None, "the old one can be asked for again"
+
+
+def test_a_new_franchise_player_has_been_at_the_club_a_year_and_a_doubtful_board_asks_why(window):
+    from app.game.state import ChangeFranchiseAction
+
+    career = window
+    team, pid = _franchise_candidate(career, settled=False)
+    career.board.confidence = 50
+    assert "a year first" in views.player_detail(cat, career, pid)["franchise_change"]["problem"]
+    with pytest.raises(IllegalAction, match="a year first"):
+        engine.apply(cat, career, ChangeFranchiseAction(type="change_franchise", player=pid, reason="best"))
+    team, pid = _franchise_candidate(career)
+    assert not views.player_detail(cat, career, pid)["franchise_change"]["trusted"]
+    with pytest.raises(IllegalAction, match="wants to know why"):
+        engine.apply(cat, career, ChangeFranchiseAction(type="change_franchise", player=pid))
+
+
+def test_the_board_weighs_the_reason_against_the_facts_and_a_no_stands_for_the_season(window):
+    from app.game.state import ChangeFranchiseAction
+
+    base = window
+    team, pid = _franchise_candidate(base)
+    old = team.franchise
+    base.board.confidence = 40
+    if roster.overall(cat, base, pid) >= roster.overall(cat, base, old):
+        assert transfers.reason_weight(cat, base, old, pid, "best") >= 0.5
+    weak = min(transfers.FRANCHISE_REASONS, key=lambda r: transfers.reason_weight(cat, base, old, pid, r))
+    strong = max(transfers.FRANCHISE_REASONS, key=lambda r: transfers.reason_weight(cat, base, old, pid, r))
+    assert transfers.franchise_chance(cat, base, old, pid, strong) > transfers.franchise_chance(cat, base, old, pid, weak)
+    refused = None
+    for seed in range(40):
+        career = base.model_copy(deep=True)
+        career.rs = seed
+        engine.apply(cat, career, ChangeFranchiseAction(type="change_franchise", player=pid, reason=weak))
+        if career.teams[career.team].franchise == old:
+            refused = career
+            break
+    assert refused is not None, "a weak reason before a doubtful board is turned down now and then"
+    assert refused.board.franchise_refused == refused.season
+    if transfers.reason_weight(cat, base, old, pid, weak) < 0.2:
+        assert refused.board.confidence == 37, "a reason the facts do not bear out costs confidence"
+    with pytest.raises(IllegalAction, match="said no this season"):
+        engine.apply(cat, refused, ChangeFranchiseAction(type="change_franchise", player=pid, reason=strong))
