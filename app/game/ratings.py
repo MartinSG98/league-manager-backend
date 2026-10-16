@@ -5,8 +5,11 @@ placed on one scale by how strong that league is.
 Every stat is turned into a z-score inside its (league, role) group, a handful of z-scores make
 up each attribute, and each attribute is standardised again inside the group so that all of
 them spread the same way. Small samples are pulled towards the league average. On the 1-20
-scale an average player sits at a baseline set by league strength (LCK about 15.5, LEC 13,
-an average ERL about 6); the overall rating uses the same baseline on a 30-99 scale.
+scale an average player sits at a baseline set by league strength (LCK 15.5, LPL 15.2, LEC 13.7,
+LCS and LCP 12.5, CBLOL 11.6, an average ERL about 6); the overall rating uses the same baseline
+on a 30-99 scale. The tier-one leagues sit closer together than strength alone would put them:
+the best of the LEC, the LCS, the LCP and the CBLOL hold their own against the LCK's starters
+more often than a straight line through every league allows.
 
 Form covers three seasons, not one: the 2024 and 2025 stat lines are judged the same way against
 the players who share the 2026 league and role, and weigh less the older they are (SEASON_WEIGHTS).
@@ -97,12 +100,17 @@ INTERNATIONAL_FULL = 25  # international games that count as a full presence
 REGION_ECONOMY = {"KR": 1.0, "CN": 1.15, "EMEA": 0.9, "NA": 1.1, "BR": 0.45, "APAC": 0.55}
 
 
-def attribute_base(strength: int) -> float:
+TIER_ONE_STEP = 0.15  # a tier-one league's baseline: this much below the LCK's for every point of strength
+
+
+def attribute_base(strength: int, tier: int = 2) -> float:
+    if tier == 1:
+        return 15.5 - (100 - strength) * TIER_ONE_STEP
     return 10 + (strength - 75) * 0.22
 
 
-def overall_base(strength: int) -> float:
-    return 30 + 3.3 * attribute_base(strength)
+def overall_base(strength: int, tier: int = 2) -> float:
+    return 30 + 3.3 * attribute_base(strength, tier)
 
 
 def asking_salary(overall: int, reputation: int, region: str) -> int:
@@ -337,8 +345,8 @@ def rate_players(rows: list[dict], leagues: dict[str, League], champion_by_key: 
         international = [max(-Z_CLIP, min(Z_CLIP, internationals[m["id"]])) for m in members]
         blended = _blend(form, career, international, team, sample, this_year)
 
-        base_attr = attribute_base(league.strength)
-        base_ovr = overall_base(league.strength)
+        base_attr = attribute_base(league.strength, league.tier)
+        base_ovr = overall_base(league.strength, league.tier)
         for i, m in enumerate(members):
             games = sample[i]
             shrink = games / (games + SHRINK_GAMES)
