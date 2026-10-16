@@ -4,44 +4,42 @@ At the start of every off-season some players say the coming season will be thei
 it out and retire when it ends: they leave their team, become nobody's free agent and drop out of
 searches, the market and shortlists.
 
-The data has no ages, so a career age stands in: a debut at about 18 and some 90 games a year
-before the game started, counting no more than eight years of games, then a year for every season
-played in it, give or take two years. The cap matters for the stars of the LCK and LPL, who play
-far more than 90 games a year: counted in full, a 24-year-old with 800 games came out at 27. A rookie
-starts at 18. The chance of announcing grows with that age from 25 (CHANCE); younger players only
-give up when they are going nowhere (rated below 60).
-A player still among the best (rated 85 or more) does not stop before 30, and after that is a third
-as likely to. A good player (80 or more) is half as likely, and a legend still that good after a
-thousand career games (a Faker) five times less likely; a veteran going nowhere (rated below 60) is
-twice as likely. The age is never shown: it is a stand-in, not a fact."""
+A player's age is real where Liquipedia has a birth date, which it has for nearly every tier-one
+player; for the rest a career age stands in (roster.age). The chance of announcing grows with age
+from 25 (CHANCE) and is high from 33; younger players only give up when they are going nowhere
+(rated below 60). A player still among the best (rated 85 or more) does not stop before 30, and
+after that is a third as likely to. A good player (80 or more) is half as likely, and so is a legend
+still that good after a thousand career games (a Faker); a veteran going nowhere (rated below 60)
+is twice as likely. Age also takes a veteran's level down every off-season (offseason.develop), so
+a legend is rarely still that good at 33.
+
+A player who has been in the top flight (in 2026, or with a club in this career) and has no club
+when an off-season starts is going nowhere: after two such off-seasons in a row they retire half of
+the time, after three they always do (unsigned). Tier-two players are free agents only because the
+game has no tier-two clubs, so they are left alone."""
 
 from app.game import roster, transfers
 from app.game.catalog import Catalog
-from app.game.rng import Rng, fnv1a
+from app.game.rng import Rng
 from app.game.state import Career, InboxMessage
 
-DATA_SEASON = 2026  # the season the catalog's career games run up to
-GAMES_A_YEAR = 90
-COUNTED_GAMES = 8 * GAMES_A_YEAR  # games past eight years' worth add no age: the busiest teams play far more
-DEBUT_AGE = 18
-# (career age from which, chance a season of announcing retirement)
-CHANCE = ((32, 0.50), (31, 0.35), (30, 0.25), (29, 0.16), (28, 0.10), (27, 0.06), (25, 0.03))
+# (age from which, chance a season of announcing retirement)
+CHANCE = ((34, 0.80), (33, 0.65), (32, 0.50), (31, 0.35), (30, 0.25), (29, 0.16), (28, 0.10), (27, 0.06),
+          (25, 0.03))
 YOUNG_QUIT = 0.01  # under 25 only a player going nowhere gives up
 STAR = 85  # rated this or better: does not stop before STAR_AGE, and a third as likely after it
 STAR_AGE = 30
 GOOD = 80  # rated this or better: half as likely to stop
-LEGEND_GAMES = 1000  # still GOOD after this many career games: five times less likely
+LEGEND_GAMES = 1000  # still GOOD after this many career games: half as likely
 FADING = 60  # rated below this: twice as likely
 NOTABLE = 75  # reputation from which a retirement is news everywhere
+UNSIGNED_MAYBE = 2  # off-seasons in a row without a club after which a top-flight player may give up ...
+UNSIGNED_GIVE_UP = 0.5  # ... with this chance ...
+UNSIGNED_ALWAYS = 3  # ... and after which they always do
 
 
 def career_age(cat: Catalog, career: Career, pid: str) -> float:
-    player = cat.players[pid]
-    rookie = next((r for r in career.rookies if r.id == pid), None) if pid.startswith("r") else None
-    debut = rookie.season if rookie else DATA_SEASON
-    jitter = (fnv1a(f"{pid}|age") / 0xFFFFFFFF - 0.5) * 4
-    games = min(player.experience, COUNTED_GAMES)
-    return max(17.0, DEBUT_AGE + games / GAMES_A_YEAR + (career.season - debut) + jitter)
+    return roster.age(cat, career, pid)
 
 
 def chance(cat: Catalog, career: Career, pid: str) -> float:
@@ -53,7 +51,7 @@ def chance(cat: Catalog, career: Career, pid: str) -> float:
         return 0.0  # still among the best: not yet
     base = next(p for start, p in CHANCE if age >= start)
     if rating >= GOOD and roster.career_games(cat, career, pid) >= LEGEND_GAMES:
-        base /= 5
+        base /= 2
     elif rating >= STAR:
         base /= 3
     elif rating >= GOOD:
@@ -95,6 +93,36 @@ def retire(cat: Catalog, career: Career, season: int) -> list[str]:
         state.retired = True
         state.retiring = None
         gone.append(pid)
+    career.shortlist = [e for e in career.shortlist if e.player not in gone]
+    return gone
+
+
+def _top_flight(cat: Catalog, career: Career, pid: str) -> bool:
+    """Has been in the top flight: a tier-one player in 2026, a rookie, or anyone who has played for a club here."""
+    if pid.startswith("r") or career.players[pid].played:
+        return True
+    team = cat.teams.get(cat.players[pid].team)
+    return team is not None and cat.leagues[team.league].tier == 1
+
+
+def unsigned(cat: Catalog, career: Career, rng: Rng) -> list[str]:
+    """At the start of an off-season: count another one without a club for every top-flight player
+    who has none, and retire those who have waited long enough."""
+    gone = []
+    for pid, state in career.players.items():
+        if state.retired:
+            continue
+        if state.team is not None or not _top_flight(cat, career, pid):
+            state.unsigned = 0
+            continue
+        state.unsigned += 1
+        if state.unsigned >= UNSIGNED_ALWAYS or (state.unsigned >= UNSIGNED_MAYBE and rng.chance(UNSIGNED_GIVE_UP)):
+            name = cat.players[pid].name
+            _tell(cat, career, pid, f"{name} retires",
+                  f"No club has signed {name} for {state.unsigned} seasons, and {name} has decided to retire.")
+            state.retired = True
+            state.retiring = None
+            gone.append(pid)
     career.shortlist = [e for e in career.shortlist if e.player not in gone]
     return gone
 

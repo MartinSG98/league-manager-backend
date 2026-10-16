@@ -91,6 +91,7 @@ class Player:
     signatures: tuple[str, ...] = ()
     photo: str | None = None  # URL on Riot's esports CDN
     real_name: str | None = None
+    born: str | None = None  # "YYYY-MM-DD" or "YYYY", from Liquipedia (scripts/fetch_ages.py)
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,7 @@ def get_catalog() -> Catalog:
     team_meta = _read("teams.json")["teams"] if (DATA / "teams.json").exists() else {}
     dragon = _read("champions.json")
     art = _read("lolesports.json") if (DATA / "lolesports.json").exists() else {"leagues": {}, "teams": {}, "players": {}}
+    born = _read("ages.json")["players"] if (DATA / "ages.json").exists() else {}
 
     regions = {r["id"]: Region(r["id"], r["name"], r["league"]) for r in config["regions"]}
     leagues = {
@@ -243,7 +245,7 @@ def get_catalog() -> Catalog:
     for player in ratings.rate_players(rows, leagues, champion_by_key):
         extra = art["players"].get(player.id) or {}
         names = " ".join(n for n in (extra.get("first_name"), extra.get("last_name")) if n)
-        players[player.id] = replace(player, photo=extra.get("photo"), real_name=names or None)
+        players[player.id] = replace(player, photo=extra.get("photo"), real_name=names or None, born=born.get(player.id))
 
     teams: dict[str, Team] = {}
     for team_id, entry in teams_raw.items():

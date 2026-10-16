@@ -1,7 +1,7 @@
 # 0016. Retirements, announced a season ahead
 
 Date: 2026-10-13
-Status: Accepted, amended 2026-10-13 and 2026-10-14
+Status: Accepted, amended 2026-10-13, 2026-10-14 and 2026-10-16
 
 ## Context
 
@@ -29,6 +29,15 @@ Two seasons into a career, LPL and LCK stars rated 88 to 93 (Knight, Elk, Gumayu
 
 Expected announcements among players rated 85 or more fall from about 1 to 2.7 a season to almost none before 2030, and among those rated 78 to 84 by about a third. Retirements further down the ratings are unchanged.
 
+## Amendment, 2026-10-16
+
+Faker was still playing at 35. The career age had kept him at 26 in 2026, four years younger than he is, because career games past eight years' worth count for nothing. Veterans did not really decline either: the off-season took up to 2.2 points from a player past 1,100 games, and the weeks of training brought them back, so Faker was rated 93 at 35.
+
+- **Real ages.** Birth dates come from Liquipedia (`scripts/fetch_ages.py`, `app/data/ages.json`), for 276 of the 297 tier-one players and every player with 500 or more career games. The career age stays for the rest (`roster.age`).
+- **Announcing.** 65% a season at 33 and 80% from 34. A legend still rated 80 or more after a thousand career games is half as likely to announce, not five times less.
+- **Decline.** From 27, every off-season takes half a point for every year over 27 from a player, give or take half: about one at 29, three at 33. The growth target also falls a point a year past 27, so training slows a decline and never undoes it.
+- **Unsigned.** A player who has been in the top flight (in 2026, as a rookie, or with a club in the game) and has no club when two off-seasons in a row start retires half of the time, and after three always. Tier-two players are free agents only because the game has no tier-two clubs, so they are left alone.
+
 ## Consequences
 
-The pool turns over: rookies come in, veterans and players going nowhere leave. Ages are invented, so a real player may retire earlier or later than they would have. Early seasons see few retirements, since most players start young by this measure.
+The pool turns over: rookies come in, veterans and players going nowhere leave. Ages are real for nearly every tier-one player and invented for the rest, so a real player still retires earlier or later than they would have, but at a believable age. Veterans fade over their last seasons instead of stopping at the top.

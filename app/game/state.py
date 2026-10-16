@@ -51,6 +51,7 @@ class PlayerState(BaseModel):
     sharpness: int = 70  # 0..100, kept up by scrims; low means complacent
     burnout: int = 0  # weeks left of a burnout
     growth: dict[str, float] = {}  # attribute change since the catalog, can go negative
+    unsigned: int = 0  # off-seasons in a row that found this player without a club, see retirement.unsigned
     learned: dict[str, int] = {}  # mastery gained on champions since the catalog
     season: PlayerSeason = PlayerSeason()
     development: list[float] = []  # this season's weekly training quality, feeds the off-season growth
