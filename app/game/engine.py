@@ -26,7 +26,7 @@ from app.game.state import (
     BanAction, BoardMeetingAction, Career, CreateManagerAction, DeclineJobAction, DraftAutoAction, DraftNextAction, DraftPassAction,
     DraftPickAction, DraftSimAction, DraftStaffAction, InboxMessage, NextGameAction, NextSeasonAction, OfferAction,
     OpponentTurnAction, PickAction, PlayerState, PlayGameAction, ReadMessageAction, ReleaseAction, RespondOfferAction,
-    ScoutPlayerAction, SetDutyAction, SetFranchiseAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
+    ScoutPlayerAction, SetDutyAction, SetFranchiseAction, ChangeFranchiseAction, SetLineupAction, SetPlayAction, SetPlayerTrainingAction, SetTacticsAction, SetTrainingAction,
     ShortlistAction, SimSeriesAction, StaffAcceptCounterAction, StaffOfferAction, StaffReleaseAction, StaffState,
     StartDraftAction, TalkAction, TransferBidAction, TransferListAction, WithdrawBidAction,
 )
@@ -463,6 +463,8 @@ def apply(cat: Catalog, career: Career, action: Action) -> Outcome:
         management.set_duty(career, action.attribute, action.who)
     elif isinstance(action, SetFranchiseAction):
         transfers.name_franchise(cat, career, action.player)
+    elif isinstance(action, ChangeFranchiseAction):
+        transfers.change_franchise(cat, career, action.player, action.reason, rng)
     elif isinstance(action, ReadMessageAction):
         for msg in career.inbox:
             if action.id is None or msg.id == action.id:

@@ -130,6 +130,7 @@ Actions are JSON objects tagged by `type`:
 | `create_manager` | `background`, `attributes`, `name` and `country` (optional) | Once, before anything else: in a new career after picking the club, and in a save from before managers |
 | `set_duty` | `attribute`, `who` (`manager`, `staff`, `auto`) | Who does one of the six staff jobs |
 | `set_franchise` | `player` | While your club has no franchise player: name one of your players |
+| `change_franchise` | `player`, `reason` | Ask the board to make another of your players the franchise player; `reason` (`future`, `best`, `fans`, `past_best`) when the board is not Secure |
 | `shortlist` | `player`, `on` (optional, `false` takes the player off) | Star a player: the analyst goes to watch them |
 | `scout_player` | `player` | Ask the analyst for a new report on a shortlisted player |
 
@@ -198,7 +199,7 @@ Chemistry runs from about -5 to +4 on top of the team's average.
 - **The ask.** It is the market rate for the player's current rating. A player asks 0.4 percent more for every point their reputation is above your club's, and up to 10 percent less from a bigger club, and a reluctant one (see the transfer window) 15 percent more on top. Your own players ask more when their morale is low, and a free agent without a team mid-season asks 10 percent less. Prospects want three seasons, players past 900 career games want one, everyone else two.
 - **The floor.** Each player has a hidden floor between 86 and 97 percent of the ask, and every year away from the preferred length counts as 5 percent off the offer.
 - **The answer.** At or above the floor, the player signs. Within reach, the player counters halfway between your offer and the ask. Under 60 percent, or after three failed rounds, the agent walks away for three weeks.
-- **Rosters and releases.** A roster holds 8 players, and every offer has to fit the salary budget. Releasing a player costs half of the remaining contract. The franchise player cannot be released or listed, and neither can your only player in a role.
+- **Rosters and releases.** A roster holds 8 players, and every offer has to fit the salary budget. Releasing a player costs half of the remaining contract. The franchise player cannot be released or listed, and neither can your only player in a role. You can ask the board to make another player the franchise player once he has been at the club a year. A board that is Secure (confidence 70 or more) agrees at once. Otherwise it asks why: he is the future of the club (younger, with the potential to match), he has been our best player (his rating), the fans love him (his reputation) or the franchise player is past his best (age past 28). It agrees with a chance of 15 percent, plus up to 60 for how far the facts bear the answer out, plus a point for every point of confidence above 45, from 5 to 95 percent. A no stands until the next season, and an answer the facts do not bear out costs 3 confidence.
 
 **Staff.** Every team has an assistant coach and an analyst, with attributes from 1 to 20. An empty seat counts as 4, except at your club, where you do that work.
 

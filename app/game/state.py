@@ -52,6 +52,7 @@ class PlayerState(BaseModel):
     burnout: int = 0  # weeks left of a burnout
     growth: dict[str, float] = {}  # attribute change since the catalog, can go negative
     unsigned: int = 0  # off-seasons in a row that found this player without a club, see retirement.unsigned
+    since: date | None = None  # when they joined their club; None: before this was kept, long enough for anything
     learned: dict[str, int] = {}  # mastery gained on champions since the catalog
     season: PlayerSeason = PlayerSeason()
     development: list[float] = []  # this season's weekly training quality, feeds the off-season growth
@@ -378,6 +379,7 @@ class BoardState(BaseModel):
     history: list[str] = []  # the board's reviews, newest last
     in_debt: bool = False  # the bank is below zero and the board has said so
     wage_cut: date | None = None  # when the board last cut wages over the debt
+    franchise_refused: int | None = None  # the season the board turned down a new franchise player
 
 
 class Vacancy(BaseModel):
@@ -702,6 +704,12 @@ class SetFranchiseAction(BaseModel):
     player: str
 
 
+class ChangeFranchiseAction(BaseModel):
+    type: Literal["change_franchise"]  # ask the board to make another player the franchise player
+    player: str
+    reason: Literal["future", "best", "fans", "past_best"] | None = None  # the board asks why unless it trusts you
+
+
 class SetDutyAction(BaseModel):
     type: Literal["set_duty"]
     attribute: str
@@ -793,6 +801,6 @@ Action = Annotated[
     | SetPlayAction | TransferBidAction | WithdrawBidAction | RespondOfferAction | TransferListAction | TalkAction
     | ShortlistAction | ScoutPlayerAction | AdjustBudgetAction | ApplyJobAction | DeclineJobAction
     | StaffOfferAction | StaffAcceptCounterAction | StaffReleaseAction | CreateManagerAction | SetDutyAction
-    | SetFranchiseAction,
+    | SetFranchiseAction | ChangeFranchiseAction,
     Field(discriminator="type"),
 ]

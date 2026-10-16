@@ -305,13 +305,16 @@ def after_competition(cat: Catalog, career: Career, comp: Competition, rng: Rng)
         _message(career, "The board congratulates you", f"Winning the {comp.name} pleases the board.")
 
 
+SECURE = 70  # confidence from which the board trusts the manager's calls, see transfers.change_franchise
+
+
 def job_security(career: Career) -> str:
     b = career.board
     if b.sacked:
         return "Sacked"
     if b.warned:
         return "Final warning"
-    if b.confidence >= 70:
+    if b.confidence >= SECURE:
         return "Secure"
     if b.confidence >= 45:
         return "Stable"

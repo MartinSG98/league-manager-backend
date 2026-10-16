@@ -526,6 +526,7 @@ def _join(cat: Catalog, career: Career, team: TeamState, pid: str, years: int = 
     salary = asking_salary(roster.overall(cat, career, pid), p.reputation, region)
     first = career.season + 1 if career.phase == "offseason" else career.season
     state.team = team.id
+    state.since = career.day
     state.contract = Contract(salary=salary, until=first + years - 1)
     state.morale = max(state.morale, 72)
     team.roster.append(pid)
@@ -716,6 +717,103 @@ def name_franchise(cat: Catalog, career: Career, pid: str) -> None:
     _message(career, "player", f"{name} is the new franchise player",
              f"{name} is the face of the club now: not for sale unless a club bids twice his value, never released, "
              "and kept on when the contract runs out.")
+
+
+FRANCHISE_SETTLED_DAYS = 365  # a new franchise player has been at the club at least this long
+# Why the manager wants the change, when the board asks.
+FRANCHISE_REASONS = {
+    "future": "He is the future of the club",
+    "best": "He has been our best player",
+    "fans": "The fans love him",
+    "past_best": "The franchise player is past his best",
+}
+
+
+def franchise_change_problem(cat: Catalog, career: Career, pid: str) -> str | None:
+    """Why the board will not hear of this player as the new franchise player, or None."""
+    team = career.teams[career.team]
+    state = career.players[pid]
+    name = cat.players[pid].name
+    if state.team != career.team:
+        return f"{name} does not play for you"
+    if team.franchise is None:
+        return "The seat is empty: name the franchise player instead"
+    if team.franchise == pid:
+        return f"{name} is the franchise player already"
+    if state.retiring is not None:
+        return f"{name} retires when the season ends"
+    if career.board.sacked:
+        return "You have no club"
+    if career.board.franchise_refused == career.season:
+        return "The board said no this season: ask again next season"
+    if state.since is not None and (career.day - state.since).days < FRANCHISE_SETTLED_DAYS:
+        ready = state.since + timedelta(days=FRANCHISE_SETTLED_DAYS)
+        return f"{name} has to be at the club a year first, until {ready:%d %B %Y}"
+    return None
+
+
+def _clamp(x: float) -> float:
+    return max(0.0, min(1.0, x))
+
+
+def reason_weight(cat: Catalog, career: Career, old: str, new: str, reason: str) -> float:
+    """How far the facts bear the manager's reason out, 0 to 1."""
+    rating_old, rating_new = roster.overall(cat, career, old), roster.overall(cat, career, new)
+    age_old, age_new = roster.age(cat, career, old), roster.age(cat, career, new)
+    if reason == "future":
+        younger = _clamp((age_old - age_new) / 6)
+        return younger * (1.0 if cat.players[new].potential >= rating_old else 0.5)
+    if reason == "best":
+        return _clamp((rating_new - rating_old + 3) / 6)
+    if reason == "fans":
+        return _clamp((cat.players[new].reputation - cat.players[old].reputation + 10) / 20)
+    # past_best: an old franchise player who is no better than the new one
+    return _clamp((age_old - 28) / 4) * (1.0 if rating_old <= rating_new + 2 else 0.5)
+
+
+def franchise_chance(cat: Catalog, career: Career, old: str, new: str, reason: str) -> float:
+    """The chance the board agrees: the reason as the facts bear it out, and its confidence."""
+    weight = reason_weight(cat, career, old, new, reason)
+    return max(0.05, min(0.95, 0.15 + 0.6 * weight + (career.board.confidence - 45) / 100))
+
+
+def change_franchise(cat: Catalog, career: Career, pid: str, reason: str | None, rng) -> bool:
+    """Ask the board to make `pid` the franchise player. A board that trusts the manager (SECURE)
+    agrees at once; otherwise it asks why and weighs the answer against the facts and its
+    confidence. A no stands for the season, and a reason the facts do not bear out costs confidence."""
+    from app.game import board
+
+    problem = franchise_change_problem(cat, career, pid)
+    if problem:
+        raise IllegalAction(problem)
+    team = career.teams[career.team]
+    old = team.franchise
+    assert old is not None
+    name, before = cat.players[pid].name, cat.players[old].name
+    trusted = career.board.confidence >= board.SECURE
+    if not trusted:
+        if reason not in FRANCHISE_REASONS:
+            raise IllegalAction("The board wants to know why")
+        weight = reason_weight(cat, career, old, pid, reason)
+        if not rng.chance(franchise_chance(cat, career, old, pid, reason)):
+            career.board.franchise_refused = career.season
+            unfounded = weight < 0.2
+            if unfounded:
+                career.board.confidence = max(0, career.board.confidence - 3)
+            _message(career, "board", f"The board keeps {before} as the franchise player",
+                     f"You asked to make {name} the face of the club: \"{FRANCHISE_REASONS[reason]}\". "
+                     + ("The board does not see it, and it does not like being told what is not so: confidence -3. "
+                        if unfounded else "The board is not convinced. ")
+                     + "It will not hear of it again before next season.")
+            return False
+    if pid in team.listed:
+        team.listed.remove(pid)
+    team.franchise = pid
+    _message(career, "board", f"{name} is the new franchise player",
+             ("The board trusts your judgement. " if trusted else "The board is convinced. ")
+             + f"{name} is the face of the club now: not for sale unless a club bids twice his value, never "
+             f"released, and kept on when the contract runs out. {before} is an ordinary member of the squad again.")
+    return True
 
 
 def franchise_daily(cat: Catalog, career: Career) -> None:

@@ -144,6 +144,7 @@ def player_detail(cat: Catalog, career: Career, pid: str) -> dict:
         "development": training.development_trend(state),
         "market": transfers.player_market(cat, career, pid),
         "shortlist": _shortlist_entry(career, pid),
+        "franchise_change": _franchise_change(cat, career, pid),
         "attributes": roster.attributes(cat, career, pid),
         "aggression": p.aggression,
         "leadership": p.leadership,
@@ -158,6 +159,20 @@ def player_detail(cat: Catalog, career: Career, pid: str) -> dict:
             "rating": round(season.rating_sum / games, 2) if season.games else None, "mvps": season.mvps,
             "champions": sorted(season.champions.items(), key=lambda kv: -kv[1])[:8],
         },
+    }
+
+
+def _franchise_change(cat: Catalog, career: Career, pid: str) -> dict | None:
+    """For the manager's own players while the club has a franchise player: can this one take over,
+    and does the board trust the manager or ask why."""
+    team = career.teams.get(career.team)
+    if team is None or career.players[pid].team != career.team or team.franchise in (None, pid):
+        return None
+    return {
+        "problem": transfers.franchise_change_problem(cat, career, pid),
+        "trusted": career.board.confidence >= boardroom.SECURE,
+        "current": cat.players[team.franchise].name,
+        "reasons": [{"id": k, "text": v} for k, v in transfers.FRANCHISE_REASONS.items()],
     }
 
 
