@@ -11,8 +11,8 @@ When Worlds ends the season goes into the career history and the clubs plan the 
   AI clubs keep theirs about two times in three.
 - Players develop. Each player heads for a target: their hidden ceiling, moved up or down by how
   well they trained over the season (see training.growth_target). Players with fewer than 600
-  career games close about a third of the gap to it each off-season; long careers may start to
-  decline.
+  career games close about a fifth of the gap to it each off-season, on top of what the weeks of
+  training add; long careers may start to decline.
 - Reputations drift back towards what each organisation is, the board sets next season's budgets
   and meets the manager about next season's objectives.
 - Players who said the season just ended would be their last retire, and some others say the next
@@ -32,7 +32,7 @@ from app.game.ratings import ATTRIBUTES, asking_salary
 from app.game.rng import Rng
 from app.game.state import Career, Contract, InboxMessage, PlayerSeason, SeasonSummary, StaffState
 
-PROSPECT_GROWTH = 0.35  # share of the gap to the growth target a young player closes in an off-season
+PROSPECT_GROWTH = 0.25  # share of the gap to the growth target a young player closes in an off-season
 VETERAN_GAMES = 1100  # career games after which a player may start to decline
 NEW_FACE_COST = 0.06  # share of a team area above 5 lost for every new starter
 

@@ -7,8 +7,9 @@ academy or ERL team of their region (their team of origin), or straight from sol
 team at all. Either way they are free agents anyone can sign, like every ERL player.
 
 How good a rookie can become is drawn first (CLASSES), then how far from it they start. What the
-game shows as potential is the scouts' first estimate; the real ceiling is hidden as for every
-player (training.ceiling), so a scout report is the way to tell a wonderkid from a hyped bust.
+game shows as potential is the scouts' first estimate, and a hopeful one: the real ceiling is hidden
+as for every player and is more often below it than above (training.ceiling), so some never get
+near it and a scout report is the way to tell a wonderkid from a hyped bust.
 
 Rookies live in the career (Career.rookies), not in the shared catalog. catalog_for gives a
 career its own catalog: the shared players plus that career's rookies."""
@@ -28,10 +29,10 @@ CLASSES = (
     (0.35, 55, 68, "journeyman"),
     (0.22, 65, 76, "decent"),
     (0.10, 75, 86, "prospect"),
-    (0.03, 84, 90, "star"),
+    (0.03, 82, 88, "star"),
 )
 WONDERKID = (90, 98)  # every region rolls once for one of these
-WONDERKID_CHANCE = 0.55  # otherwise the roll gives a star
+WONDERKID_CHANCE = 0.3  # otherwise the roll gives a star
 PER_TEAM = 1.2  # rookies a season per tier-one team in the region
 ACADEMY_SHARE = 0.6  # the rest come straight from solo queue
 STRONG_REGIONS = {"KR": 2, "CN": 2}  # deeper talent pools add to every potential
@@ -147,8 +148,9 @@ def _draw(cat: Catalog, rng: Rng, region: str, academies: list, names: set[str],
                 break
             roll -= share
     potential = min(99, round(low + (high - low) * rng.next()) + STRONG_REGIONS.get(region, 0))
-    # The best start closer to their ceiling: a wonderkid can play now, a bust is years away from nothing.
-    gap = 15 + 10 * rng.next() if potential >= 88 else 14 + 14 * rng.next()
+    # Nobody turns pro at their peak: a prospect starts 18 to 26 below the potential and needs about
+    # three seasons to get near it, a bust is years away from nothing.
+    gap = 18 + 8 * rng.next() if potential >= 85 else 14 + 14 * rng.next()
     overall = max(35, round(potential - gap))
     role = ROLES[rng.int(len(ROLES))]
 

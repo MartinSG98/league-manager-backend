@@ -4,7 +4,7 @@ from collections import Counter
 
 import pytest
 
-from app.game import contracts, engine, rookies, views
+from app.game import contracts, engine, rookies, training, views
 from app.game.catalog import get_catalog
 from app.game.state import BoardMeetingAction, OfferAction
 
@@ -64,3 +64,26 @@ def test_a_careers_catalog_is_built_once_until_a_new_class_arrives(finished):
     career.rookies.append(career.rookies[0].model_copy(update={"id": "r-test", "name": "Testo"}))
     fresh = rookies.catalog_for(cat, career)
     assert fresh is not first and "r-test" in fresh.players and "r-test" not in first.players
+
+
+def test_prospects_start_far_below_a_ceiling_the_scouts_overrate(finished):
+    career = finished
+    mine = rookies.catalog_for(cat, career)
+    prospects = [r for r in career.rookies if r.potential >= 85]
+    assert all(r.potential - r.overall >= 18 for r in prospects), "about three seasons from their potential"
+    offsets = [training.ceiling(mine, career, r.id) - r.potential for r in career.rookies]
+    low, high = training.ROOKIE_CEILING
+    assert all(low <= o <= high for o in offsets)
+    assert sum(offsets) / len(offsets) < -2, "the scouts' first read of a rookie is a hopeful one"
+    assert sum(o <= -5 for o in offsets) >= len(offsets) / 5, "some never get near it"
+
+
+def test_an_established_player_s_ceiling_is_close_to_the_potential_and_training_adds_at_most_two(finished):
+    career = finished.model_copy(deep=True)
+    pids = [p for p in cat.players if p in career.players][:200]
+    assert all(abs(training.ceiling(cat, career, p) - cat.players[p].potential) <= training.CEILING_SPREAD for p in pids)
+    pid = pids[0]
+    career.players[pid].development = [1.6] * 26
+    assert training.growth_target(cat, career, pid) == pytest.approx(training.ceiling(cat, career, pid) + training.TRAINING_BONUS)
+    career.players[pid].development = [0.5] * 26
+    assert training.growth_target(cat, career, pid) == pytest.approx(training.ceiling(cat, career, pid) - 2)

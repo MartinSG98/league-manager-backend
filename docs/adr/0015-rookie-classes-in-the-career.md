@@ -1,7 +1,7 @@
 # 0015. Rookie classes, kept in the career
 
 Date: 2026-10-12
-Status: Accepted, amended 2026-10-14
+Status: Accepted, amended 2026-10-14 and 2026-10-16
 
 ## Context
 
@@ -22,3 +22,11 @@ Every off-season, near the end of `start_offseason` (only the staff market's new
 ## Consequences
 
 The pool renews itself, and scouting has a purpose beyond the known names. About 70 players join each season, and since ADR 0016 retirements take players out of the pool. Generated names are made from syllables and a few words, and rookies have no photo. Any code that looks up players for a career has to use that career's catalog, not the shared one.
+
+## Amendment, 2026-10-16
+
+Rookies grew too fast and too many of them became stars: the best of each class started 73 to 79 and reached their ceiling, often 95 or more, within two seasons, and every class had three to six rookies with a potential of 90 or more.
+
+- **Classes.** Stars are now 82-88, and a region's headline rookie is a wonderkid 30% of the time instead of 55%: one or two rookies with a potential of 90 or more a class.
+- **Start.** A rookie with a potential of 85 or more starts 18 to 26 points below it, so a 93 starts around 71. With the slower growth of the amendment to [ADR 0011](0011-training-areas-and-set-plays.md) a prospect needs about three seasons to get near the ceiling.
+- **Not all make it.** A rookie's hidden ceiling runs from 11 points below the potential shown to 3 above, 4 below on average: the scouts' first read of a teenager is hopeful. More than one rookie in three ends 5 or more points short and one in ten a little past it. A scout report still finds the real ceiling.
