@@ -210,10 +210,27 @@ def advance(cat: Catalog, career: Career, rng: Rng) -> None:
         return
     if mine is not None:
         matchday.start_live(career, mine)
-        scouting.scouting_report(cat, career, mine)
+        if not _scouted(career, mine.id):
+            scouting.scouting_report(cat, career, mine)  # the opponent was not known yesterday
+        _scout_tomorrow(cat, career)
         return
+    _scout_tomorrow(cat, career)
     if calendar.season_over(career):
         _end_season(cat, career, rng)
+
+
+def _scouted(career: Career, match_id: str) -> bool:
+    return any(m.kind == "scouting" and m.report and m.report.get("match") == match_id for m in career.inbox[-80:])
+
+
+def _scout_tomorrow(cat: Catalog, career: Career) -> None:
+    """The analyst's report on the manager's next opponent comes the day before the match, once
+    the opponent is known; a knockout drawn on the day gets it on the day."""
+    tomorrow = career.day + timedelta(days=1)
+    for match in career.matches.values():
+        if (match.day == tomorrow and match.winner is None and career.team in (match.home, match.away)
+                and match.home is not None and match.away is not None and not _scouted(career, match.id)):
+            scouting.scouting_report(cat, career, match)
 
 
 def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True) -> None:
@@ -224,6 +241,7 @@ def _advance_offseason(cat: Catalog, career: Career, rng: Rng, stop: bool = True
         if career.day >= transfers.closing_day(career):
             offseason.start_new_season(cat, career, rng)
             start_season(cat, career)
+            _scout_tomorrow(cat, career)
             return
         if career.board.sacked or career.board.meeting:
             return
