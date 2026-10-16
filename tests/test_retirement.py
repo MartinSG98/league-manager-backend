@@ -44,7 +44,7 @@ def test_a_top_flight_player_nobody_signs_for_two_or_three_seasons_retires(windo
     career = window
     mine = rookies.catalog_for(cat, career)
     free = [pid for pid, s in career.players.items()
-            if s.team is None and not s.retired and s.retiring is None and retirement._top_flight(mine, career, pid)]
+            if s.team is None and not s.retired and retirement._top_flight(mine, career, pid)]
     tier_two = next(pid for pid, s in career.players.items()
                     if s.team is None and not s.retired and not retirement._top_flight(mine, career, pid))
     assert len(free) >= 10
