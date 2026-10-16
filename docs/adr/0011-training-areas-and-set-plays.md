@@ -1,7 +1,7 @@
 # 0011. Training: team areas, set plays and a weekly plan
 
 Date: 2026-10-12
-Status: Accepted, amended 2026-10-14
+Status: Accepted, amended 2026-10-14 and 2026-10-16
 
 ## Context
 
@@ -36,3 +36,9 @@ Every six games the analyst reads the team's last ten from new fields on each ga
 ## Consequences
 
 Every week has a decision with a cost, and the analyst points at the right one most of the time. A manager can leave everything at its default and still play. The AI keeps pace without a plan of its own. Old game records have no lead or fight data, so the analyst skips them. Team areas are a new axis of strength next to ratings, so the harness has to be rerun when their weights change.
+
+## Amendment, 2026-10-16
+
+Players grew past their potential and stayed there: after five seasons of one career 48 players were rated 90 or more, against 13 in 2026, and 39 of them were not rookies. A ceiling up to six points above the potential was reached, one up to six below it stopped nobody who was already past it, and good training added a few more points.
+
+An established player's ceiling now sits up to three points either side of the potential, and training takes a player at most two points past it. A week's chance to grow is 5 percent for every point to the target, at most 45 percent (it was 8 and 60), and the off-season closes about a fifth of the gap instead of about a third. A young player now gets near their target in about three seasons instead of two. Rookies' ceilings are in the amendment to [ADR 0015](0015-rookie-classes-in-the-career.md).

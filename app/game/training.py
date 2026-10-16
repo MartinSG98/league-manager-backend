@@ -17,8 +17,9 @@ Each player can also work on one attribute or learn one champion on top of the t
 
 How well a player develops depends on the week's quality: the load, the coach's development,
 morale and sharpness, and whether they start. Every player has a ceiling the scouts only see
-roughly: the potential shown is an estimate, the real one sits up to six points either side of
-it. Good weeks over a season or two take a player to that ceiling or past it, poor ones leave
+roughly: the potential shown is an estimate. An established player's real one sits up to three
+points either side of it; a rookie's is a hopeful read and more often below it (see ceiling). Good
+weeks over a few seasons take a player to that ceiling or two points past it, poor ones leave
 them short (see growth_target).
 
 Every other week of the season the analyst watches the team's recent games and says which area
@@ -78,6 +79,11 @@ CHAMPION_CAP = 75  # mastery individual practice can take a champion to
 PRACTICE_GAIN = 2  # the coach's own pick of meta champions, see practice
 PRACTICE_CAP = 55
 QUALITY_NORM = 1.13  # a normal week with an average coach for a starter is quality 1.0
+GROWTH_CHANCE = 0.05  # a week's chance to grow, per point between a player and their target ...
+GROWTH_CHANCE_MAX = 0.45  # ... up to this, times the week's quality
+CEILING_SPREAD = 3  # an established player's real ceiling sits up to this far either side of the potential
+ROOKIE_CEILING = (-11, 3)  # a rookie's, from this far below the potential to this far above, a few under most often
+TRAINING_BONUS = 2  # the most that good training takes a player past their ceiling
 REVIEW_GAMES = 6  # new games before the analyst writes another review
 
 
@@ -241,7 +247,7 @@ def _player_week(cat: Catalog, career: Career, pid: str, state: PlayerState, rng
     player = cat.players[pid]
     gap = growth_target(cat, career, pid) - roster.overall(cat, career, pid)
     focus = state.training.attribute
-    if gap > 0 and rng.chance(min(0.6, 0.08 * gap) * q):
+    if gap > 0 and rng.chance(min(GROWTH_CHANCE_MAX, GROWTH_CHANCE * gap) * q):
         attr = focus if focus and rng.chance(0.6) else (rng.pick(list(player.attributes)) or "mechanics")
         state.growth[attr] = round(state.growth.get(attr, 0.0) + 0.35, 2)
     elif focus and rng.chance(0.1 * q):
@@ -285,10 +291,16 @@ def practice(cat: Catalog, career: Career, rng: Rng) -> None:
 
 
 def ceiling(cat: Catalog, career: Career, pid: str) -> float:
-    """The real potential, hidden: up to six points either side of the scouts' estimate."""
+    """The real potential, hidden. An established player's is up to CEILING_SPREAD either side of
+    the scouts' estimate. A rookie's runs from 11 below it to 3 above, 4 below on average: more than
+    one rookie in three ends five or more short, one in ten a little past it."""
     a = fnv1a(f"{career.seed}|{pid}|ceiling-a") / 0xFFFFFFFF
     b = fnv1a(f"{career.seed}|{pid}|ceiling-b") / 0xFFFFFFFF
-    return cat.players[pid].potential + (a + b - 1) * 6
+    middle = (a + b) / 2  # 0 to 1, a half most often
+    if pid.startswith("r"):  # rookies.is_rookie, without the import
+        low, high = ROOKIE_CEILING
+        return cat.players[pid].potential + low + (high - low) * middle
+    return cat.players[pid].potential + (2 * middle - 1) * CEILING_SPREAD
 
 
 def season_quality(state: PlayerState) -> float:
@@ -297,8 +309,9 @@ def season_quality(state: PlayerState) -> float:
 
 
 def growth_target(cat: Catalog, career: Career, pid: str) -> float:
-    """Where a player is heading: the hidden ceiling, moved by how well they have trained."""
-    return ceiling(cat, career, pid) + (season_quality(career.players[pid]) - 1) * 4
+    """Where a player is heading: the hidden ceiling, moved by how well they have trained, at most
+    TRAINING_BONUS past it."""
+    return ceiling(cat, career, pid) + min(TRAINING_BONUS, (season_quality(career.players[pid]) - 1) * 4)
 
 
 def development_trend(state: PlayerState) -> str:
