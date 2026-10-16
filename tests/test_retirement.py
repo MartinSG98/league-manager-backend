@@ -2,8 +2,9 @@
 
 import pytest
 
-from app.game import contracts, engine, retirement, rookies, roster, shortlist, views
+from app.game import contracts, engine, offseason, retirement, rookies, roster, shortlist, training, views
 from app.game.catalog import get_catalog
+from app.game.rng import Rng
 from app.game.state import BoardMeetingAction
 
 cat = get_catalog()
@@ -17,13 +18,47 @@ def window(finished):
     return career
 
 
-def test_career_age_puts_veterans_far_above_rookies(finished):
+def test_ages_are_real_where_liquipedia_has_a_birth_date(finished):
     mine = rookies.catalog_for(cat, finished)
     faker = next(p.id for p in cat.players.values() if p.name == "Faker")
-    rookie = finished.rookies[0].id
-    assert 24 <= retirement.career_age(mine, finished, faker) <= 29, "past eight years, games add no age"
-    assert retirement.career_age(mine, finished, rookie) < 21
-    assert retirement.chance(mine, finished, faker) < 0.1, "a legend still at the top keeps going"
+    assert cat.players[faker].born == "1996-05-07"
+    assert retirement.career_age(mine, finished, faker) == pytest.approx(finished.season - 1996 + 0.65, abs=0.02)
+    assert retirement.career_age(mine, finished, finished.rookies[0].id) < 21
+    unknown = max((p for p in cat.players.values() if not p.born), key=lambda p: p.experience)
+    assert retirement.career_age(mine, finished, unknown.id) <= 28 + finished.season - 2026, "games stand in, eight years at most"
+    assert retirement.chance(mine, finished, faker) > 0.1, "a legend past 30 may well stop"
+
+
+def test_age_takes_a_veteran_down_and_training_does_not_bring_them_back(finished):
+    career = finished.model_copy(deep=True)
+    mine = rookies.catalog_for(cat, career)
+    faker = next(p.id for p in cat.players.values() if p.name == "Faker")
+    career.season = 2030  # 34
+    assert training.growth_target(mine, career, faker) < roster.overall(mine, career, faker) - 3
+    before = roster.overall(mine, career, faker)
+    offseason.develop(mine, career, Rng(career))
+    assert roster.overall(mine, career, faker) < before
+
+
+def test_a_top_flight_player_nobody_signs_for_two_or_three_seasons_retires(window):
+    career = window
+    mine = rookies.catalog_for(cat, career)
+    free = [pid for pid, s in career.players.items()
+            if s.team is None and not s.retired and s.retiring is None and retirement._top_flight(mine, career, pid)]
+    tier_two = next(pid for pid, s in career.players.items()
+                    if s.team is None and not s.retired and not retirement._top_flight(mine, career, pid))
+    assert len(free) >= 10
+    for state in career.players.values():
+        state.unsigned = 0  # the first off-season has counted one already
+    rng = Rng(career)
+    assert not retirement.unsigned(mine, career, rng), "one season without a club is not enough"
+    second = retirement.unsigned(mine, career, rng)
+    assert second and len(second) < len(free), "after two, some give up"
+    third = retirement.unsigned(mine, career, rng)
+    assert set(second) | set(third) == set(free), "after three, everyone has"
+    assert all(career.players[pid].retired for pid in free)
+    assert not career.players[tier_two].retired, "tier-two players are free agents only for want of their clubs"
+    assert career.players[tier_two].unsigned == 0
 
 
 def test_players_still_among_the_best_do_not_stop_before_thirty(finished):

@@ -12,7 +12,8 @@ When Worlds ends the season goes into the career history and the clubs plan the 
 - Players develop. Each player heads for a target: their hidden ceiling, moved up or down by how
   well they trained over the season (see training.growth_target). Players with fewer than 600
   career games close about a fifth of the gap to it each off-season, on top of what the weeks of
-  training add; long careers may start to decline.
+  training add. Past 27 a player declines every off-season, by about half a point for every year
+  over 27: one point at 29, three at 33.
 - Reputations drift back towards what each organisation is, the board sets next season's budgets
   and meets the manager about next season's objectives.
 - Players who said the season just ended would be their last retire, and some others say the next
@@ -33,7 +34,8 @@ from app.game.rng import Rng
 from app.game.state import Career, Contract, InboxMessage, PlayerSeason, SeasonSummary, StaffState
 
 PROSPECT_GROWTH = 0.25  # share of the gap to the growth target a young player closes in an off-season
-VETERAN_GAMES = 1100  # career games after which a player may start to decline
+DECLINE_FROM = 27  # the age after which a player loses some level every off-season ...
+DECLINE = 0.5  # ... about this much for every year over it, between half and one and a half times as much
 NEW_FACE_COST = 0.06  # share of a team area above 5 lost for every new starter
 
 
@@ -70,7 +72,7 @@ def start_offseason(cat: Catalog, career: Career, rng: Rng) -> None:
     manager.record_season(career)
     career.phase = "offseason"
     new_season = career.season + 1
-    retired = retirement.retire(cat, career, career.season)
+    retired = retirement.retire(cat, career, career.season) + retirement.unsigned(cat, career, rng)
 
     for team in career.teams.values():
         for pid in expiring(career, team.id):
@@ -157,10 +159,11 @@ def develop(cat: Catalog, career: Career, rng: Rng) -> tuple[list[str], list[str
         now = roster.overall(cat, career, pid)
         target = training.growth_target(cat, career, pid)
         change = 0.0
-        if target > now and games < 600:
+        over = roster.age(cat, career, pid) - DECLINE_FROM
+        if over > 0:
+            change = -DECLINE * over * (0.5 + rng.next())
+        elif target > now and games < 600:
             change = (target - now) * PROSPECT_GROWTH * (0.5 + rng.next() * 0.7)
-        elif games > VETERAN_GAMES:
-            change = -rng.next() * 2.2
         if abs(change) >= 0.3:
             for attr in ATTRIBUTES:
                 state.growth[attr] = round(state.growth.get(attr, 0.0) + change / 3.3, 2)

@@ -1,11 +1,18 @@
 """Players and lineups as they stand right now in a career: catalog ratings plus growth,
 champion mastery plus what was learned, and how well a starting five works together."""
 
+from datetime import date
 from itertools import combinations
 
 from app.game.catalog import ROLES, Catalog, Player
 from app.game.ratings import ATTRIBUTES, ROLE_WEIGHTS
+from app.game.rng import fnv1a
 from app.game.state import Career, TeamState
+
+DATA_SEASON = 2026  # the season the catalog's career games run up to
+GAMES_A_YEAR = 90
+COUNTED_GAMES = 8 * GAMES_A_YEAR  # games past eight years' worth add no age: the busiest teams play far more
+DEBUT_AGE = 18
 
 # ---------- ratings ----------
 
@@ -20,6 +27,23 @@ def career_games(cat: Catalog, career: Career, pid: str) -> int:
     """Career games: those before the game started, the seasons played in it and this one so far."""
     state = career.players[pid]
     return cat.players[pid].experience + state.played + state.season.games
+
+
+def age(cat: Catalog, career: Career, pid: str) -> float:
+    """How old a player is at the end of the current season. The real age where Liquipedia has a
+    birth date. Otherwise a stand-in: a debut at about 18 and some 90 games a year before the game
+    started, counting no more than eight years of games, then a year for every season played in it,
+    give or take two years. A rookie starts at 18."""
+    player = cat.players[pid]
+    if player.born:
+        year, month, day = (int(x) for x in (player.born.split("-") + ["7", "1"])[:3])
+        return (date(career.season, 12, 31) - date(year, month, day)).days / 365.25
+    debut = DATA_SEASON
+    if pid.startswith("r"):  # a rookie
+        debut = next((r.season for r in career.rookies if r.id == pid), DATA_SEASON)
+    jitter = (fnv1a(f"{pid}|age") / 0xFFFFFFFF - 0.5) * 4
+    games = min(player.experience, COUNTED_GAMES)
+    return max(17.0, DEBUT_AGE + games / GAMES_A_YEAR + (career.season - debut) + jitter)
 
 
 def overall(cat: Catalog, career: Career, pid: str) -> int:

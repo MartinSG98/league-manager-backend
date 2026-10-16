@@ -4,7 +4,7 @@ from collections import Counter
 
 import pytest
 
-from app.game import contracts, engine, rookies, training, views
+from app.game import contracts, engine, rookies, roster, training, views
 from app.game.catalog import get_catalog
 from app.game.state import BoardMeetingAction, OfferAction
 
@@ -82,7 +82,7 @@ def test_an_established_player_s_ceiling_is_close_to_the_potential_and_training_
     career = finished.model_copy(deep=True)
     pids = [p for p in cat.players if p in career.players][:200]
     assert all(abs(training.ceiling(cat, career, p) - cat.players[p].potential) <= training.CEILING_SPREAD for p in pids)
-    pid = pids[0]
+    pid = next(p for p in pids if roster.age(cat, career, p) < training.PEAK_AGE)  # no decline with age yet
     career.players[pid].development = [1.6] * 26
     assert training.growth_target(cat, career, pid) == pytest.approx(training.ceiling(cat, career, pid) + training.TRAINING_BONUS)
     career.players[pid].development = [0.5] * 26

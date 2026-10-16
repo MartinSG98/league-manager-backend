@@ -84,6 +84,8 @@ GROWTH_CHANCE_MAX = 0.45  # ... up to this, times the week's quality
 CEILING_SPREAD = 3  # an established player's real ceiling sits up to this far either side of the potential
 ROOKIE_CEILING = (-11, 3)  # a rookie's, from this far below the potential to this far above, a few under most often
 TRAINING_BONUS = 2  # the most that good training takes a player past their ceiling
+PEAK_AGE = 27  # from here a player's target falls ...
+AGE_FALL = 1.0  # ... this much a year, so training slows a veteran's decline but never undoes it
 REVIEW_GAMES = 6  # new games before the analyst writes another review
 
 
@@ -310,8 +312,9 @@ def season_quality(state: PlayerState) -> float:
 
 def growth_target(cat: Catalog, career: Career, pid: str) -> float:
     """Where a player is heading: the hidden ceiling, moved by how well they have trained, at most
-    TRAINING_BONUS past it."""
-    return ceiling(cat, career, pid) + min(TRAINING_BONUS, (season_quality(career.players[pid]) - 1) * 4)
+    TRAINING_BONUS past it, and lower every year past PEAK_AGE."""
+    trained = min(TRAINING_BONUS, (season_quality(career.players[pid]) - 1) * 4)
+    return ceiling(cat, career, pid) + trained - AGE_FALL * max(0.0, roster.age(cat, career, pid) - PEAK_AGE)
 
 
 def development_trend(state: PlayerState) -> str:
