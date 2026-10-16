@@ -1,5 +1,5 @@
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -179,15 +179,16 @@ def test_a_better_analyst_writes_a_fuller_scouting_report(drafted):
     assert {p["role"] for p in strong["players"]} == set(ROLES)
 
 
-def test_a_match_day_brings_a_scouting_report(drafted):
+def test_the_scouting_report_comes_the_day_before_the_match(drafted):
     career = drafted.model_copy(deep=True)
     for _ in range(60):
         engine.apply(cat, career, AdvanceAction(type="advance"))
         if career.live:
             break
     assert career.live
-    last = career.inbox[-1]
-    assert last.kind == "scouting" and last.report["match"] == career.live.match
+    reports = [m for m in career.inbox if m.kind == "scouting" and m.report and m.report["match"] == career.live.match]
+    assert len(reports) == 1, "one report a match"
+    assert reports[0].day == career.day - timedelta(days=1) and reports[0].body.split("\n")[1].startswith("Tomorrow")
 
 
 def test_the_coach_sets_how_hard_a_defeat_hits_and_how_fast_players_grow():

@@ -74,7 +74,8 @@ def scouting_report(cat: Catalog, career: Career, match: Match) -> InboxMessage:
         "competition": comp.name, "label": match.label, "best_of": match.best_of,
         "form": form, "players": players,
     }
-    lines = [f"{cat.teams[opp_id].name}, {comp.name} {match.label}, best of {match.best_of}."]
+    when = "Tomorrow" if match.day > career.day else "Today"
+    lines = [f"{when}: {cat.teams[opp_id].name}, {comp.name} {match.label}, best of {match.best_of}."]
     if form:
         record = "".join("W" if f["won"] else "L" for f in form)
         lines.append(f"Recent form: {record} (oldest first).")
