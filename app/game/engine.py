@@ -164,6 +164,11 @@ def _update_competitions(cat: Catalog, career: Career, rng: Rng) -> None:
         comp = career.competitions[comp_id]
         reputation.after_competition(cat, career, comp)
         board.after_competition(cat, career, comp, rng)
+        if comp_id == f"{career.season}-WORLDS" and management.golden_road(management.season_so_far(career)):
+            team = cat.teams[comp.placements[0]].name
+            message(career, "news", "The Golden Road",
+                    f"Three splits, First Stand, MSI and Worlds: {team} have won every trophy of the {career.season} "
+                    "season. The Golden Road takes its place in your trophy cabinet.")
     for comp_id in set(career.competitions) - before:
         if career.competitions[comp_id].kind == "international":
             board.event_created(cat, career, career.competitions[comp_id])

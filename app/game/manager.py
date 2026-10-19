@@ -265,6 +265,17 @@ def season_so_far(career: Career) -> list[CompetitionRecord]:
     return [records[k] for k in sorted(records, key=lambda k: career.competitions[k[0]].start)]
 
 
+GOLDEN_EVENTS = ("FST", "MSI", "WORLDS")
+
+
+def golden_road(competitions: list[CompetitionRecord]) -> bool:
+    """Every trophy a season offers: every split of the league, all three of them, and First Stand,
+    MSI and Worlds."""
+    leagues = [c for c in competitions if c.kind == "league"]
+    return (len(leagues) >= 3 and all(c.place == 1 for c in leagues)
+            and all(any(c.kind == k and c.place == 1 for c in competitions) for k in GOLDEN_EVENTS))
+
+
 def record_season(career: Career) -> None:
     """Keep the season when it ends (offseason.start_offseason): its competitions are cleared later."""
     if any(s.season == career.season for s in career.manager_seasons):
@@ -352,10 +363,16 @@ def record_view(cat: Catalog, career: Career) -> dict:
             "teams": [ref(t) for t in dict.fromkeys(c.team for c in s.competitions if c.team)],
             "series": _won_lost(s.competitions, "series"), "games": _won_lost(s.competitions, "games"),
             "titles": [c.name for c in s.competitions if c.place == 1],
+            "golden": golden_road(s.competitions),
             "competitions": [c.model_dump() | {"team": ref(c.team)} for c in s.competitions],
         })
         trophies += [{"name": c.name, "kind": c.kind, "season": s.season, "team": ref(c.team)}
                      for c in s.competitions if c.place == 1]
+        if golden_road(s.competitions):
+            # Not a title of its own: the season's six, all of them. Last here, so first in the cabinet.
+            worlds = next(c for c in s.competitions if c.kind == "WORLDS" and c.place == 1)
+            trophies.append({"name": f"Golden Road {s.season}", "kind": "golden", "season": s.season,
+                             "team": ref(worlds.team)})
     clubs = []
     for sp in career.spells:
         mine = [c for s in seasons for c in s.competitions if _during(sp, s.season, c)]
@@ -366,7 +383,8 @@ def record_view(cat: Catalog, career: Career) -> dict:
     open_spell = career.spells[-1] if career.spells and career.spells[-1].end is None else None
     return {
         "since": open_spell.start.isoformat() if open_spell else None,
-        "totals": {"series": _won_lost(every, "series"), "games": _won_lost(every, "games"), "titles": len(trophies),
+        "totals": {"series": _won_lost(every, "series"), "games": _won_lost(every, "games"),
+                   "titles": sum(1 for t in trophies if t["kind"] != "golden"),
                    "seasons": len(seasons)},
         "seasons": list(reversed(rows)),
         "trophies": list(reversed(trophies)),
