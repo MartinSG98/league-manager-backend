@@ -52,7 +52,7 @@ NEUTRAL = 10  # the manager's own attributes in a career whose manager is not cr
 BASE = 4  # every attribute before points
 LOWEST, HIGHEST = 1, 15  # what points can make of an attribute
 CAP = 20
-NAME_LENGTH = 24
+NAME_LENGTH = 32
 
 
 @dataclass(frozen=True)
