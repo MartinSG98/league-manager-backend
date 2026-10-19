@@ -100,13 +100,18 @@ def build_round_robin(career: Career, comp: Competition, stage: Stage, start: da
 
 
 def standings(career: Career, stage: Stage, group: list[str] | None = None) -> list[dict]:
+    """The table, ties broken the way Riot breaks them: teams level on series wins are ranked by
+    the series between them, then by the games between them, then by their game difference over
+    the whole stage and their game wins. When a tie of three or more breaks only in part, the teams
+    still level start again among themselves."""
     teams = group or stage.teams
     rows = {t: {"team": t, "wins": 0, "losses": 0, "game_wins": 0, "game_losses": 0, "played": 0} for t in teams}
-    head: dict[tuple[str, str], int] = defaultdict(int)
+    played: list[Match] = []
     for mid in stage.matches:
         m = career.matches[mid]
         if m.winner is None or m.home not in rows or m.away not in rows:
             continue
+        played.append(m)
         h, a = m.score
         rows[m.home]["game_wins"] += h
         rows[m.home]["game_losses"] += a
@@ -116,18 +121,48 @@ def standings(career: Career, stage: Stage, group: list[str] | None = None) -> l
         rows[m.loser]["losses"] += 1  # type: ignore[index]
         rows[m.home]["played"] += 1
         rows[m.away]["played"] += 1
-        head[(m.winner, m.loser)] += 1  # type: ignore[arg-type]
 
-    def key(row: dict) -> tuple:
-        return (-row["wins"], -(row["game_wins"] - row["game_losses"]), -row["game_wins"])
+    def between(tied: list[str]) -> dict[str, tuple[int, int]]:
+        """Series won and game difference in the matches among `tied` only."""
+        inside = set(tied)
+        out = {t: [0, 0] for t in tied}
+        for m in played:
+            if m.home in inside and m.away in inside:
+                h, a = m.score
+                out[m.winner][0] += 1  # type: ignore[index]
+                out[m.home][1] += h - a
+                out[m.away][1] += a - h
+        return {t: (v[0], v[1]) for t, v in out.items()}
 
-    ordered = sorted(rows.values(), key=key)
-    # Two teams level on everything: whoever won the meeting goes first.
-    for i in range(len(ordered) - 1):
-        a, b = ordered[i], ordered[i + 1]
-        if key(a) == key(b) and head[(b["team"], a["team"])] > head[(a["team"], b["team"])]:
-            ordered[i], ordered[i + 1] = b, a
-    return ordered
+    def overall(t: str) -> tuple[int, int]:
+        r = rows[t]
+        return (-(r["game_wins"] - r["game_losses"]), -r["game_wins"])
+
+    def rank(tied: list[str]) -> list[str]:
+        if len(tied) < 2:
+            return tied
+        mini = between(tied)
+        ordered = sorted(tied, key=lambda t: (-mini[t][0], -mini[t][1]))
+        result: list[str] = []
+        i = 0
+        while i < len(ordered):
+            j = i
+            while j + 1 < len(ordered) and mini[ordered[j + 1]] == mini[ordered[i]]:
+                j += 1
+            level = ordered[i:j + 1]
+            if len(level) == len(tied):
+                # The matches among them settle nothing: the whole stage's games do.
+                result += sorted(level, key=overall)
+            else:
+                result += rank(level)
+            i = j + 1
+        return result
+
+    by_wins: dict[int, list[str]] = defaultdict(list)
+    for t, r in rows.items():
+        by_wins[r["wins"]].append(t)
+    order = [t for wins in sorted(by_wins, reverse=True) for t in rank(sorted(by_wins[wins], key=overall))]
+    return [rows[t] for t in order]
 
 
 # ---------- single elimination ----------
