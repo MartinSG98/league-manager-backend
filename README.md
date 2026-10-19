@@ -80,7 +80,7 @@ Copy `.env.example` to `.env` if you need to change anything.
 | GET | `/api/careers/{id}/meta` | Champion tiers on the current patch and recent patch notes |
 | GET | `/api/careers/{id}/negotiate/{pid}` | Contract talks with a player: the agent's ask, budget room, any counter-offer |
 | GET | `/api/careers/{id}/training` | Load, focus areas, set plays, each player's condition and own training, the analyst's latest review |
-| GET | `/api/careers/{id}/manager` | You: background, attributes, who does what, your record (seasons, competitions, trophies, clubs, reputation over time), and the rules and backgrounds to create the manager |
+| GET | `/api/careers/{id}/manager` | You: background, attributes, who does what, your record (seasons, competitions, trophies, clubs, reputation over time; a season in which you won all three splits, First Stand, MSI and Worlds adds a Golden Road to the trophies, not counted as a title), and the rules and backgrounds to create the manager |
 | GET | `/api/careers/{id}/board` | Objectives (with the meeting's options), confidence, reputations, finances, job offers, clubs looking for a head coach and your reach |
 | GET | `/api/careers/{id}/transfers` | The window: bids for your players, your bids, listed players, moves, players who want to talk |
 | GET | `/api/careers/{id}/shortlist` | Your shortlist, with the analyst's latest report on each player |

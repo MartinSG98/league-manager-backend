@@ -299,3 +299,22 @@ def test_a_move_to_another_region_starts_its_own_line():
     assert career.reputation_log[-1] == (career.day, career.manager_reputation, career.manager_reputation, "KR")
     shown = manager.record_view(cat, career)["reputation_log"]
     assert [p[3] for p in shown] == [cat.regions["APAC"].league, cat.regions["KR"].league]
+
+
+def test_every_trophy_of_a_season_is_the_golden_road(drafted):
+    from app.game.state import CompetitionRecord, ManagerSeason
+
+    def won(name, kind, place=1):
+        return CompetitionRecord(name=name, kind=kind, team=drafted.team, place=place)
+
+    six = [won("Split 1", "league"), won("First Stand", "FST"), won("Split 2", "league"), won("MSI", "MSI"),
+           won("Split 3", "league"), won("Worlds", "WORLDS")]
+    assert manager.golden_road(six)
+    assert not manager.golden_road(six[:-1]), "Worlds too"
+    assert not manager.golden_road([*six[:4], won("Split 3", "league", 2), six[5]]), "every split too"
+    career = drafted.model_copy(deep=True)
+    career.manager_seasons = [ManagerSeason(season=career.season - 1, competitions=six)]
+    record = manager.record_view(cat, career)
+    assert record["trophies"][0]["name"] == f"Golden Road {career.season - 1}" and record["trophies"][0]["kind"] == "golden"
+    assert record["totals"]["titles"] == 6, "the Golden Road is the six, not a seventh title"
+    assert next(s for s in record["seasons"] if s["season"] == career.season - 1)["golden"]
